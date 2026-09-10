@@ -116,6 +116,51 @@ Contact.
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
 
+## LYZa Cartes — `frontend/public/lyza-cartes.html`
+
+L'explorateur cartographique complet (accessible depuis le lien « LYZa
+Cartes » du menu, ou `/lyza-cartes.html`), distinct de la synthèse par
+adresse ci-dessus : plus détaillé, pensé pour un usage pendant une
+mission plutôt que pour un visiteur du site. C'est une page HTML
+autonome (pas une route React) — Leaflet et Turf.js sont servis en local
+(`frontend/public/vendor/`), sans dépendance à un CDN externe. Elle est
+volontairement isolée du reste du site (CSS/JS propres, aucun risque de
+collision avec les styles des autres pages).
+
+Calques et outils repris :
+
+- **Fond de carte** : Plan IGN, photos aériennes, OSM, photos aériennes
+  historiques (IGN « Remonter le temps », par période) + comparateur
+  avant/après par curseur.
+- **Cadastre** : parcelles cadastrales, sélection de parcelles au clic,
+  fusion en un seul contour (Turf.js `union`), isolement du contour
+  fusionné.
+- **Sites et sols pollués (Géorisques)** : ICPE par régime (autorisation /
+  enregistrement / déclaration), CASIAS (ex-BASIAS/BASOL), SIS.
+- **Sous-sol (BRGM)** : BSS (forages, survol pour fiche + lien log
+  géologique), carte géologique imprimée 1/50 000 avec opacité réglable.
+- **Eaux souterraines (Hub'Eau)** : piézométrie (avec mini-graphique de
+  chronique au survol), qualité des nappes (ADES), ouvrages de
+  prélèvement.
+- **Eau potable (Cart'Eaux/ARS)** : périmètres de protection éloignée —
+  export statique intégré (`frontend/public/data/ppe.geojson`, 14 179
+  périmètres France entière, ~14 Mo) avec repli sur le WFS AtlaSanté si
+  le fichier est absent ; recherche d'adresse affichant le dernier
+  contrôle sanitaire de la commune.
+- **Cours d'eau** : stations de qualité (Naïades), référentiel des
+  masses d'eau (Sandre).
+- **Espaces protégés** : Natura 2000 ZSC/ZPS (API Carto IGN/INPN).
+- **Établissements sensibles** : écoles et santé/social (annuaire
+  éducation, FINESS).
+- **Outils** : mesure de distance, ordre d'affichage des calques
+  (glisser devant/derrière), scan automatique en déplaçant la carte.
+
+Cette page a été portée depuis une version HTML autonome fournie par
+l'utilisateur, en conservant la logique d'origine à l'identique (seule
+l'extraction du bloc PPE dans un fichier séparé, chargé en `fetch`, a été
+modifiée — le reste des appels réseau, règles de couleur, popups et
+fusion de parcelles n'a pas été réécrit).
+
 ## Prochaines pistes (analytique)
 
 L'architecture est pensée pour absorber des demandes plus analytiques :

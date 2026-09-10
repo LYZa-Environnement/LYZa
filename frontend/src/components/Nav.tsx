@@ -5,6 +5,7 @@ const links = [
   { to: '/presentation', label: 'Présentation' },
   { to: '/prestations', label: 'Prestations' },
   { to: '/carte', label: 'Évaluer un site' },
+  { to: '/lyza-cartes.html', label: 'LYZa Cartes', external: true },
   { to: '/secteurs', label: "Secteurs d'intervention" },
   { to: '/demarche', label: 'Démarche' },
   { to: '/contact', label: 'Contact' },
@@ -21,21 +22,31 @@ export default function Nav() {
           </span>
         </NavLink>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              style={({ isActive }) => ({
-                textDecoration: 'none',
-                fontSize: '0.92rem',
-                fontWeight: isActive ? 700 : 500,
-                color: isActive ? 'var(--color-accent)' : 'var(--color-ink)',
-              })}
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          {links.map((link) =>
+            link.external ? (
+              <a
+                key={link.to}
+                href={link.to}
+                style={{ textDecoration: 'none', fontSize: '0.92rem', fontWeight: 500, color: 'var(--color-ink)' }}
+              >
+                {link.label}
+              </a>
+            ) : (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                style={({ isActive }) => ({
+                  textDecoration: 'none',
+                  fontSize: '0.92rem',
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? 'var(--color-accent)' : 'var(--color-ink)',
+                })}
+              >
+                {link.label}
+              </NavLink>
+            ),
+          )}
         </nav>
       </div>
     </header>

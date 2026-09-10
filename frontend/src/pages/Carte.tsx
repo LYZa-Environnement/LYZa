@@ -106,10 +106,13 @@ export default function Carte() {
                 projet le justifie.
               </p>
             )}
-            <p style={{ marginTop: '1.5rem' }}>
+            <p style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <Link to="/contact" className="btn">
                 Échanger sur ce site
               </Link>
+              <a href="/lyza-cartes.html" className="btn btn--ghost">
+                Ouvrir LYZa Cartes (calques détaillés) →
+              </a>
             </p>
           </div>
         )}
