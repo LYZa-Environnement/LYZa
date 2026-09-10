@@ -10,6 +10,6 @@ export async function geocodeAddress(query: string, signal?: AbortSignal): Promi
   return geocodeAddressLocal(query, signal)
 }
 
-export async function fetchSensitivity(address: AddressResult, rayon = 500): Promise<SensitivityReport> {
+export async function fetchSensitivity(address: AddressResult, rayon = 1000): Promise<SensitivityReport> {
   return buildSensitivityReport(address, rayon)
 }

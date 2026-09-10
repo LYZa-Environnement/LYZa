@@ -60,7 +60,7 @@ d'intervention, Démarche, Contact.
 1. L'utilisateur saisit une adresse (autocomplétion via l'API Adresse —
    `frontend/src/lib/geocode.ts`, appel direct au navigateur).
 2. L'adresse est positionnée sur une carte simplifiée (Leaflet / fond
-   OpenStreetMap), avec un rayon d'analyse de 500 m.
+   OpenStreetMap), avec un rayon d'analyse de 1 000 m.
 3. Le navigateur interroge l'API Géorisques autour du point
    (`frontend/src/lib/georisques.ts`) et agrège les résultats en quatre
    thèmes (`frontend/src/lib/synthesis.ts`) : **Sols** (BASIAS, sites et

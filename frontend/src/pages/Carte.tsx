@@ -6,7 +6,7 @@ import SensitivityMap from '../components/SensitivityMap'
 import SensitivityPanel from '../components/SensitivityPanel'
 import type { AddressResult, SensitivityReport } from '../types/sensitivity'
 
-const RADIUS_M = 500
+const RADIUS_M = 1000
 
 const THEME_TO_SERVICES: Record<string, { slug: string; label: string }[]> = {
   sols: [
@@ -49,7 +49,7 @@ export default function Carte() {
     <div className="section">
       <div className="container">
         <p className="eyebrow">Évaluer un site</p>
-        <h1>Sensibilité environnementale d'une adresse</h1>
+        <h1>Sensibilité environnementale</h1>
         <p className="lede">
           Renseignez une adresse pour la situer sur une carte et obtenir une première synthèse par thème (sols,
           eau, risques naturels, activités industrielles), construite à partir des bases de données publiques
