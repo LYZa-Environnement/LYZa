@@ -110,7 +110,7 @@ export default function Carte() {
               <Link to="/contact" className="btn">
                 Échanger sur ce site
               </Link>
-              <a href="/lyza-cartes.html" className="btn btn--ghost">
+              <a href={`${import.meta.env.BASE_URL}lyza-cartes.html`} className="btn btn--ghost">
                 Ouvrir LYZa Cartes (calques détaillés) →
               </a>
             </p>

@@ -17,6 +17,29 @@ frontend/    Site React (Vite + TypeScript) — pages du site + outil carte
              (Leaflet) consommant l'API du backend.
 ```
 
+## Déploiement — GitHub Pages
+
+`.github/workflows/deploy-pages.yml` build et déploie automatiquement
+`frontend/` sur GitHub Pages à chaque push sur `main` (nécessite d'activer
+Pages une fois dans les paramètres du dépôt : Settings → Pages → Source =
+"GitHub Actions"). URL : `https://lyza-environnement.github.io/LYZa/`.
+
+Deux adaptations spécifiques à ce mode d'hébergement statique :
+
+- Le routage utilise `HashRouter` (URLs en `#/prestations`) plutôt que
+  `BrowserRouter`, car GitHub Pages n'a pas de règle de réécriture
+  serveur pour les liens profonds d'une SPA — un rafraîchissement sur
+  `/prestations` renverrait une 404 avec un routeur basé sur l'URL réelle.
+- Le build est préfixé par `/LYZa/` (`base` dans `vite.config.ts`, activé
+  uniquement quand `GITHUB_PAGES=true`, donc sans effet sur `npm run dev`
+  ou un build local classique).
+
+**Limite connue** : GitHub Pages ne sert que des fichiers statiques. La
+page "Évaluer un site" (`/carte`) a besoin du backend Python et affichera
+donc une erreur sur cette version — c'est LYZa Cartes qui fonctionne
+pleinement en ligne, puisqu'elle interroge les API publiques directement
+depuis le navigateur, sans backend.
+
 Le choix d'un backend Python séparé (plutôt que tout faire en JavaScript
 côté client) est déterminé par l'usage prévu : les prochaines demandes
 portent sur des analyses plus poussées (probablement en Python/pandas). En

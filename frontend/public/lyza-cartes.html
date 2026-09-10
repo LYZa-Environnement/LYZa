@@ -349,7 +349,7 @@
 </style>
 </head>
 <body>
-<a href="/" style="position:fixed;top:10px;right:10px;z-index:2000;background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">← Retour au site LYZa</a>
+<a href="./" style="position:fixed;top:10px;right:10px;z-index:2000;background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">← Retour au site LYZa</a>
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-head">
@@ -530,10 +530,10 @@
   </div>
 </div>
 
-<script src="/vendor/leaflet.js"></script>
-<script src="/vendor/turf.min.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/turf.min.js"></script>
 <script>
-  var PPE_STATIC_DATA_PROMISE = fetch('/data/ppe.geojson').then(function(r){ return r.json(); }).catch(function(){ return null; });
+  var PPE_STATIC_DATA_PROMISE = fetch('data/ppe.geojson').then(function(r){ return r.json(); }).catch(function(){ return null; });
 </script>
 <script>
 (function(){
