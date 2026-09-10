@@ -18,8 +18,5 @@ class Settings(BaseSettings):
 
     http_timeout_s: float = 8.0
 
-    # Origins allowed to call this API from a browser (the Vite dev server by default).
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
-
 
 settings = Settings()

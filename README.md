@@ -6,15 +6,20 @@ un outil interactif ("Évaluer un site") : l'utilisateur saisit une adresse,
 la voit positionnée sur une carte, et obtient une synthèse de sensibilité
 environnementale construite à partir de données publiques.
 
+Le site est entièrement statique — **aucun backend à héberger**. La
+synthèse par adresse et LYZa Cartes appellent toutes les deux les API
+publiques (BAN, Géorisques, Hub'Eau, IGN...) directement depuis le
+navigateur, exactement comme un site JavaScript classique.
+
 ## Architecture
 
 ```
-backend/     API Python (FastAPI) — géocodage, appels aux données publiques,
-             agrégation en synthèse de sensibilité. Voir backend/app/analytics
-             pour le traitement par lots (pandas), pensé pour les futures
-             analyses plus poussées.
-frontend/    Site React (Vite + TypeScript) — pages du site + outil carte
-             (Leaflet) consommant l'API du backend.
+frontend/    Site React (Vite + TypeScript) — pages du site, outil carte
+             (Leaflet) et LYZa Cartes. Tout tourne dans le navigateur.
+backend/     Optionnel, non utilisé par le site en ligne : boîte à outils
+             Python qui réplique la même logique de synthèse (voir plus
+             bas) pour un usage local — scripts d'analyse par lots,
+             expérimentation pandas, etc.
 ```
 
 ## Déploiement — GitHub Pages
@@ -34,72 +39,9 @@ Deux adaptations spécifiques à ce mode d'hébergement statique :
   uniquement quand `GITHUB_PAGES=true`, donc sans effet sur `npm run dev`
   ou un build local classique).
 
-**Limite connue** : GitHub Pages ne sert que des fichiers statiques. La
-page "Évaluer un site" (`/carte`) a besoin du backend Python et affichera
-donc une erreur sur cette version — c'est LYZa Cartes qui fonctionne
-pleinement en ligne, puisqu'elle interroge les API publiques directement
-depuis le navigateur, sans backend.
-
-Le choix d'un backend Python séparé (plutôt que tout faire en JavaScript
-côté client) est déterminé par l'usage prévu : les prochaines demandes
-portent sur des analyses plus poussées (probablement en Python/pandas). En
-gardant toute la logique de géocodage et de synthèse côté backend, elle est
-directement réutilisable par des scripts d'analyse par lots — voir
-`backend/app/analytics/batch_scoring.py`, qui note une liste d'adresses en
-CSV en réutilisant exactement le même code que l'API.
-
-### Backend — `backend/`
-
-- `app/geocode.py` : géocodage d'adresse via l'API Adresse (BAN, IGN
-  Géoplateforme), sans clé.
-- `app/providers/georisques.py` : client pour l'API Géorisques (BRGM),
-  sans clé — sites et sols pollués, BASIAS, ICPE, mouvements de terrain,
-  cavités, zones inondables, sismicité, argiles, radon.
-- `app/rules.py` : règles de classification (Faible / Modérée / Élevée),
-  pures et testées isolément — c'est le morceau le plus susceptible d'être
-  réutilisé/étendu par de futures analyses.
-- `app/synthesis.py` : agrège les indicateurs en quatre thèmes (Sols, Eau,
-  Risques naturels, Activités industrielles).
-- `app/api/routes.py` : `GET /api/geocode`, `GET /api/sensitivity`.
-- `app/analytics/batch_scoring.py` : script d'exemple pour scorer une liste
-  d'adresses (CSV) en DataFrame pandas — point de départ pour du criblage de
-  parcelles à plus grande échelle.
-
-**Important — endpoints à vérifier après déploiement** : ce projet a été
-construit dans un environnement sans accès sortant vers `georisques.gouv.fr`
-ni `data.geopf.fr`. Les URLs de base sont vérifiées (récupérées depuis le
-catalogue data.gouv.fr), mais les noms de paramètres exacts de certains
-endpoints Géorisques (`zonage_sismique`, `argiles`, `radon`) n'ont pas pu
-être testés en conditions réelles. Chaque appel échoue silencieusement en
-« donnée indisponible » plutôt que de faire planter la synthèse — mais il
-faut lancer un test réel une fois déployé (voir plus bas) et ajuster
-`app/providers/georisques.py` si un champ de réponse diffère.
-
-#### Lancer le backend
-
-```bash
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --reload
-```
-
-#### Tests
-
-```bash
-cd backend
-source .venv/bin/activate
-pytest
-```
-
-Les tests (`tests/`) ne dépendent d'aucun accès réseau : les appels HTTP
-sont simulés avec `respx`. Une fois déployé avec un accès réseau réel, un
-test de fumée manuel est recommandé :
-
-```bash
-curl "http://localhost:8000/api/geocode?q=1+rue+de+la+paix+paris"
-curl "http://localhost:8000/api/sensitivity?lat=48.8697&lon=2.3305&label=test&citycode=75102"
-```
+Comme le site est 100% statique, il n'y a rien de plus à activer pour que
+"Évaluer un site" et LYZa Cartes fonctionnent en ligne — les deux tournent
+déjà entièrement côté navigateur.
 
 ### Frontend — `frontend/`
 
@@ -109,35 +51,42 @@ npm install
 npm run dev
 ```
 
-Le serveur de dev (`http://localhost:5173`) proxie `/api/*` vers
-`http://127.0.0.1:8000` (voir `vite.config.ts`) — lancer le backend en
-parallèle. En production, servir le build (`npm run build` → `dist/`)
-derrière un reverse proxy qui route `/api` vers le backend, ou définir
-`VITE_API_BASE_URL` au build.
-
 Pages : Accueil, Présentation, Prestations (+ page de détail par
-prestation), Évaluer un site (la carte), Secteurs d'intervention, Démarche,
-Contact.
+prestation), Évaluer un site (la carte), LYZa Cartes, Secteurs
+d'intervention, Démarche, Contact.
 
 ## L'outil "Évaluer un site"
 
-1. L'utilisateur saisit une adresse (autocomplétion via l'API Adresse).
+1. L'utilisateur saisit une adresse (autocomplétion via l'API Adresse —
+   `frontend/src/lib/geocode.ts`, appel direct au navigateur).
 2. L'adresse est positionnée sur une carte simplifiée (Leaflet / fond
    OpenStreetMap), avec un rayon d'analyse de 500 m.
-3. Le backend interroge l'API Géorisques autour du point et agrège les
-   résultats en quatre thèmes : **Sols** (BASIAS, sites et sols pollués),
-   **Eau** (zones inondables, historique catastrophe naturelle),
-   **Risques naturels** (mouvements de terrain, cavités, sismicité,
-   argiles, radon), **Activités industrielles** (ICPE, canalisations de
-   matières dangereuses).
+3. Le navigateur interroge l'API Géorisques autour du point
+   (`frontend/src/lib/georisques.ts`) et agrège les résultats en quatre
+   thèmes (`frontend/src/lib/synthesis.ts`) : **Sols** (BASIAS, sites et
+   sols pollués), **Eau** (zones inondables, historique catastrophe
+   naturelle), **Risques naturels** (mouvements de terrain, cavités,
+   sismicité, argiles, radon), **Activités industrielles** (ICPE,
+   canalisations de matières dangereuses).
 4. Chaque thème reçoit un niveau (Faible / Modérée / Élevée / Non
    déterminée) selon des règles explicites, pas un score opaque — voir
-   `backend/app/rules.py`.
+   `frontend/src/lib/rules.ts`.
 5. Selon les thèmes signalés, la page propose les prestations pertinentes
    (ex. un signal sur l'eau renvoie vers la prestation hydrogéologie).
 
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
+
+**Important — endpoints à vérifier une fois en ligne** : ce projet a été
+construit dans un environnement sans accès sortant vers `georisques.gouv.fr`
+ni `data.geopf.fr`. Les URLs de base sont vérifiées (récupérées depuis le
+catalogue data.gouv.fr) et le scénario a été validé avec des réponses
+simulées, mais les noms de champs exacts de certains endpoints Géorisques
+(`zonage_sismique`, `argiles`, `radon`) n'ont pas pu être confirmés en
+conditions réelles. Chaque appel échoue silencieusement en « donnée
+indisponible » plutôt que de faire planter la synthèse — un test réel une
+fois en ligne reste recommandé, en ajustant `frontend/src/lib/georisques.ts`
+si un champ diffère.
 
 ## LYZa Cartes — `frontend/public/lyza-cartes.html`
 
@@ -184,14 +133,35 @@ l'extraction du bloc PPE dans un fichier séparé, chargé en `fetch`, a été
 modifiée — le reste des appels réseau, règles de couleur, popups et
 fusion de parcelles n'a pas été réécrit).
 
-## Prochaines pistes (analytique)
+## Prochaines pistes (analytique) — `backend/`
 
-L'architecture est pensée pour absorber des demandes plus analytiques :
+Le site n'a pas de backend, mais `backend/` existe toujours en local comme
+boîte à outils Python : c'est un port fidèle de `frontend/src/lib/` (mêmes
+règles de classification, mêmes appels Géorisques/BAN) pensé pour des
+scripts d'analyse plutôt que pour être déployé.
 
-- `app/analytics/` est l'endroit prévu pour des scripts pandas/geopandas
-  (criblage de parcelles, export GeoJSON, comparaison de plusieurs sites).
-- La logique de classification étant isolée (`app/rules.py`), elle peut
-  être recalibrée ou enrichie sans toucher aux appels réseau.
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest   # tests hors-ligne (réseau simulé avec respx)
+python -m app.analytics.batch_scoring addresses.csv   # scoring par lots -> CSV/DataFrame
+```
+
+- `app/analytics/batch_scoring.py` : script d'exemple pour scorer une liste
+  d'adresses (CSV) en DataFrame pandas — point de départ pour du criblage
+  de parcelles à plus grande échelle.
+- `app/rules.py` : règles de classification (Faible / Modérée / Élevée),
+  pures et testées isolément, identiques à `frontend/src/lib/rules.ts` —
+  c'est le morceau le plus susceptible d'être recalibré/étendu.
+- `app/providers/georisques.py`, `app/geocode.py`, `app/synthesis.py` :
+  mêmes appels et même agrégation que côté frontend, réutilisables sans
+  navigateur pour du traitement par lots.
 - Ajouter une source de données revient à écrire un nouveau module dans
-  `app/providers/`, l'inclure dans `asyncio.gather` de `synthesis.py`, et
-  éventuellement créer un nouveau thème.
+  `app/providers/` (et son équivalent dans `frontend/src/lib/` si le site
+  doit aussi en profiter), à l'inclure dans les appels parallèles de
+  `synthesis.py`, et éventuellement à créer un nouveau thème.
+
+Les deux implémentations (Python et TypeScript) ne se rappellent pas l'une
+l'autre — un changement de règle métier est à reporter dans les deux si les
+deux usages doivent rester cohérents.

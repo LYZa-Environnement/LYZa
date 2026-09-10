@@ -6,12 +6,4 @@ export default defineConfig({
   // GitHub Pages serves this project from /LYZa/, not the domain root.
   base: process.env.GITHUB_PAGES ? '/LYZa/' : '/',
   plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-    },
-  },
 })
