@@ -14,6 +14,8 @@ export interface ThemeItem {
   label: string
   detail: string
   source: string
+  /** Link to an official fiche/page (Géorisques...) when one is available. */
+  href?: string
 }
 
 export interface ThemeSynthesis {

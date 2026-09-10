@@ -26,10 +26,20 @@ function ThemeCard({ theme }: { theme: ThemeSynthesis }) {
       {open && (
         <ul style={{ marginTop: '0.8rem' }}>
           {theme.items.map((item) => (
-            <li key={item.label} style={{ marginBottom: '0.4rem' }}>
-              <strong>{item.label}</strong> — {item.detail}
+            <li key={`${item.label}-${item.source}`} style={{ marginBottom: '0.5rem' }}>
+              {item.href ? (
+                <a href={item.href} target="_blank" rel="noopener noreferrer">
+                  <strong>{item.label}</strong>
+                </a>
+              ) : (
+                <strong>{item.label}</strong>
+              )}
+              {item.detail && <> — {item.detail}</>}
               <br />
-              <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>Source : {item.source}</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+                Source : {item.source}
+                {item.href && ' — fiche complète en lien ci-dessus'}
+              </span>
             </li>
           ))}
         </ul>

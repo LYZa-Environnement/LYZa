@@ -74,19 +74,36 @@ d'intervention, Démarche, Contact.
 5. Selon les thèmes signalés, la page propose les prestations pertinentes
    (ex. un signal sur l'eau renvoie vers la prestation hydrogéologie).
 
+Le détail de chaque thème liste les éléments individuels quand la donnée
+s'y prête (jusqu'à 6 par catégorie, avec un « + N autres » au-delà) plutôt
+qu'un simple total : sites CASIAS et secteurs SIS nommés, installations
+ICPE avec régime/NAF/statut Seveso, arrêtés catastrophe naturelle datés.
+Chaque élément qui a une fiche officielle (CASIAS, SIS, ICPE) y renvoie en
+lien direct ; le thème Eau ajoute un lien vers le portail Géorisques de la
+commune pour le reste (PPR, sismicité...).
+
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
 
-**Important — endpoints à vérifier une fois en ligne** : ce projet a été
-construit dans un environnement sans accès sortant vers `georisques.gouv.fr`
-ni `data.geopf.fr`. Les URLs de base sont vérifiées (récupérées depuis le
-catalogue data.gouv.fr) et le scénario a été validé avec des réponses
-simulées, mais les noms de champs exacts de certains endpoints Géorisques
-(`zonage_sismique`, `argiles`, `radon`) n'ont pas pu être confirmés en
-conditions réelles. Chaque appel échoue silencieusement en « donnée
-indisponible » plutôt que de faire planter la synthèse — un test réel une
-fois en ligne reste recommandé, en ajustant `frontend/src/lib/georisques.ts`
-si un champ diffère.
+**Important — à vérifier une fois en ligne** : ce projet a été construit
+dans un environnement sans accès sortant vers `georisques.gouv.fr` ni
+`data.geopf.fr`. Les URLs de base et les champs de réponse pour
+`installations_classees` et `ssp` (CASIAS, SIS) sont vérifiés — ils
+viennent de `frontend/public/lyza-cartes.html`, un outil qui appelle
+exactement ces mêmes endpoints en production. En revanche, trois choses
+n'ont pas pu être confirmées en conditions réelles et méritent un coup
+d'œil une fois en ligne :
+- les noms de champs exacts de `zonage_sismique`, `argiles` et `radon` ;
+- le format des dates renvoyées par `gaspar/catnat`
+  (`frontend/src/lib/synthesis.ts` suppose un format compréhensible par
+  `Date()`, sinon la date brute s'affiche telle quelle) ;
+- le lien générique vers le portail Géorisques d'une commune
+  (`communeRiskPortalUrl` dans `frontend/src/lib/georisques.ts`) est une
+  URL construite par déduction, pas confirmée.
+
+Chaque appel échoue silencieusement en « donnée indisponible » plutôt que
+de faire planter la synthèse, donc rien ne casse si l'un de ces trois
+points diffère — seul l'affichage correspondant sera à ajuster.
 
 ## LYZa Cartes — `frontend/public/lyza-cartes.html`
 
