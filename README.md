@@ -91,29 +91,43 @@ Sous la synthèse par thème, un paragraphe narrant la vulnérabilité et la
 sensibilité hydrologique/hydrogéologique du site, dans le style d'une note
 de consultant plutôt qu'un simple badge — récepteurs nommés quand connus
 (rivière, nappe), classification (faible/moyenne/forte) toujours assortie
-d'une distance réelle au site. Construit à partir de Hub'Eau
-(`frontend/src/lib/hubeau.ts`) :
+d'une distance réelle au site et, pour un point BSS/ADES, de sa référence
+et d'un lien vers sa fiche :
 
-- **Vulnérabilité hydrologique** : distance à la station de suivi de cours
-  d'eau la plus proche (>1 km faible, 300 m–1 km moyenne, <300 m forte).
+- **Vulnérabilité hydrologique** : distance *réelle* au cours d'eau le
+  plus proche (<150 m forte, 150–250 m moyenne, >250 m faible) —
+  `frontend/src/lib/hydrography.ts` interroge le tracé BD TOPO
+  (`BDTOPO_V3:cours_d_eau`, via le module WFS d'API Carto IGN) et calcule
+  la distance au segment le plus proche, plutôt que la distance à la
+  station de suivi qualité la plus proche (l'approche initiale, qui
+  surestimait systématiquement : une station peut être à plusieurs
+  kilomètres d'un cours d'eau qui passe en réalité tout près du site).
+  Endpoint et nom de champ (`toponyme`) vérifiés en direct pendant le
+  développement (recherche sur la Seine à Paris).
 - **Sensibilité hydrologique** : volontairement non classée — les usages
   du cours d'eau (pêche, AEP, loisirs) ne se lisent pas dans ces données ;
   le texte le dit plutôt que d'inventer un niveau.
 - **Vulnérabilité hydrogéologique** : profondeur de nappe mesurée au point
-  ADES le plus proche (<5 m forte, 5–20 m moyenne, >20 m faible). C'est
-  volontairement *un seul* point de référence (`findNearestAdesPoint` dans
-  `hubeau.ts`) : le point `qualite_nappes` le plus proche, qui décrit
-  l'entité hydrogéologique (le nom de la nappe), et la chronique
-  `niveaux_nappes` de ce même `code_bss` pour sa profondeur — pas deux
-  points différents pour la nappe et la profondeur, qui donneraient une
-  lecture incohérente. Au-delà de 5 km, le point n'est plus jugé
-  représentatif de l'hydrogéologie locale et aucun niveau n'est proposé ;
-  entre 2 et 5 km la classification est donnée mais signalée comme à
-  confirmer. La perméabilité des couches traversées entre la surface et la
-  nappe — qui affinerait cette lecture — n'est pas disponible dans les
-  données publiques mobilisées ici (pas d'API donnant une lithologie
-  exploitable point par point) ; le texte le dit explicitement plutôt que
+  ADES le plus proche (<5 m forte, 5–15 m moyenne, >15 m faible), toujours
+  citée avec sa référence BSS et un lien vers sa fiche ADES. Un seul point
+  de référence (`findNearestAdesPoint` dans `hubeau.ts`) : le point
+  `qualite_nappes` le plus proche, qui décrit l'entité hydrogéologique (le
+  nom de la nappe), et la chronique `niveaux_nappes` de ce même `code_bss`
+  pour sa profondeur — jamais deux points différents pour la nappe et la
+  profondeur, qui donneraient une lecture incohérente. Au-delà de 5 km, le
+  point n'est plus jugé représentatif de l'hydrogéologie locale et aucun
+  niveau n'est proposé ; entre 2 et 5 km la classification est donnée mais
+  signalée comme à confirmer. La perméabilité des couches traversées entre
+  la surface et la nappe — qui module directement cette lecture — n'est
+  pas disponible dans les données publiques mobilisées ici (pas d'API
+  donnant une lithologie exploitable point par point, seulement les
+  métadonnées d'un forage BSS) ; le texte le dit explicitement plutôt que
   de l'ignorer ou de l'inventer.
+- **Périmètre de protection éloignée (PPE)** : distance et direction (8
+  points cardinaux) au périmètre le plus proche, réutilisant l'export
+  déjà embarqué pour LYZa Cartes (`frontend/public/data/ppe.geojson`, 14
+  179 périmètres), plus le captage associé (`ins_cap_ref`) avec un lien
+  ADES en meilleur effort — voir `frontend/src/lib/ppe.ts`.
 - **Sensibilité hydrogéologique** : nombre d'ouvrages de prélèvement
   recensés dans un rayon d'1 km (0 → faible, 1-2 → moyenne, 3+ → forte).
 
@@ -128,15 +142,25 @@ l'usage réel appelle d'autres bornes.
 
 Section dédiée sous la note hydro : l'utilisateur choisit un rayon
 (100 m à 5 km) et obtient deux tableaux triés par distance croissante —
-identifiant, société/activité (ou descriptif pour un SIS) avec lien vers
-la fiche Géorisques quand elle existe, et localisation par rapport au
-site (distance + point cardinal sur 8 directions, calculés depuis la
+identifiant (cliquable vers la fiche Géorisques quand elle existe),
+société/activité (ou descriptif pour un SIS), et localisation par rapport
+au site (distance + point cardinal sur 8 directions, calculés depuis la
 géométrie `geom` — point ou polygone — que l'API renvoie par site).
 
+`fetchSsp` (dans `georisques.ts`) pagine désormais les trois sous-listes
+de `/ssp` (`casias`, `conclusions_sis`, `conclusions_sup`) au lieu de ne
+lire que la première page — vérifié en direct : une recherche à 500 m en
+plein Paris remonte 104 sites CASIAS sur plusieurs pages, qu'un appel non
+paginé tronquait silencieusement. L'identifiant CASIAS est le champ
+`identifiant_casias` (confirmé en direct, ex. `IDF7500001`), avec
+`identifiant_ssp` en repli ; celui d'un SIS (`identifiant_sis`) est en
+revanche une supposition par analogie, aucun secteur SIS n'étant apparu
+dans le point testé pour le vérifier.
+
 CASIAS regroupe dans la base Géorisques actuelle les ex-BASIAS et
-ex-BASOL — l'API ne les distingue plus (voir `fetchSsp` dans
-`georisques.ts`), d'où un seul tableau CASIAS plutôt que deux ; un
-éventuel champ permettant de les re-séparer n'a pas été identifié.
+ex-BASOL — l'API ne les distingue plus, d'où un seul tableau CASIAS
+plutôt que deux ; un éventuel champ permettant de les re-séparer n'a pas
+été identifié.
 
 **Important — à vérifier une fois en ligne** : ce projet a été construit
 dans un environnement sans accès sortant vers `georisques.gouv.fr` ni

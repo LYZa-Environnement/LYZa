@@ -13,6 +13,16 @@ function byDistance<T extends { localisation: Localisation | null }>(items: T[])
   return [...items].sort((a, b) => (a.localisation?.distanceM ?? Infinity) - (b.localisation?.distanceM ?? Infinity))
 }
 
+function IdentifiantCell({ identifiant, ficheUrl }: { identifiant: string | null; ficheUrl: string | null }) {
+  if (!identifiant) return <>—</>
+  if (!ficheUrl) return <>{identifiant}</>
+  return (
+    <a href={ficheUrl} target="_blank" rel="noopener noreferrer">
+      {identifiant}
+    </a>
+  )
+}
+
 function CasiasTable({ items }: { items: CasiasItem[] }) {
   if (items.length === 0) return <p style={{ color: 'var(--color-muted)' }}>Aucun site CASIAS recensé dans ce rayon.</p>
   return (
@@ -28,15 +38,13 @@ function CasiasTable({ items }: { items: CasiasItem[] }) {
         <tbody>
           {byDistance(items).map((item, i) => (
             <tr key={`${item.identifiant ?? item.nom}-${i}`} style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <td style={tdStyle}>{item.identifiant ?? '—'}</td>
               <td style={tdStyle}>
-                {item.ficheUrl ? (
-                  <a href={item.ficheUrl} target="_blank" rel="noopener noreferrer">
-                    <strong>{item.nom}</strong>
-                  </a>
-                ) : (
-                  <strong>{item.nom}</strong>
-                )}
+                <strong>
+                  <IdentifiantCell identifiant={item.identifiant} ficheUrl={item.ficheUrl} />
+                </strong>
+              </td>
+              <td style={tdStyle}>
+                {item.nom}
                 <br />
                 <span style={{ color: 'var(--color-muted)' }}>{[item.activite, item.statut, item.commune].filter(Boolean).join(' — ') || 'Descriptif non renseigné'}</span>
               </td>
@@ -64,15 +72,13 @@ function SisTable({ items }: { items: SisItem[] }) {
         <tbody>
           {byDistance(items).map((item, i) => (
             <tr key={`${item.identifiant ?? item.nom}-${i}`} style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <td style={tdStyle}>{item.identifiant ?? '—'}</td>
               <td style={tdStyle}>
-                {item.ficheUrl ? (
-                  <a href={item.ficheUrl} target="_blank" rel="noopener noreferrer">
-                    <strong>{item.nom}</strong>
-                  </a>
-                ) : (
-                  <strong>{item.nom}</strong>
-                )}
+                <strong>
+                  <IdentifiantCell identifiant={item.identifiant} ficheUrl={item.ficheUrl} />
+                </strong>
+              </td>
+              <td style={tdStyle}>
+                {item.nom}
                 <br />
                 <span style={{ color: 'var(--color-muted)' }}>
                   {[item.superficieM2 ? `${Math.round(item.superficieM2)} m²` : null, item.commune].filter(Boolean).join(' — ') || 'Descriptif non renseigné'}

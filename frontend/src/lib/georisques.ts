@@ -205,16 +205,59 @@ function identifiantOf(item: Record<string, unknown>, ...candidateKeys: string[]
   return null
 }
 
-export async function fetchSsp(lat: number, lon: number, rayon: number): Promise<SspResult | null> {
-  const payload = await getRaw('ssp', { latlon: latlon(lat, lon), rayon })
-  if (payload === null) return null
+const SSP_PAGE_SIZE = 100
+const SSP_MAX_PAGES = 5
 
-  const casiasSub = payload.casias as Json | undefined
-  const casiasRaw = Array.isArray(casiasSub?.data) ? (casiasSub!.data as unknown[]) : []
-  const casiasItems: CasiasItem[] = casiasRaw.map((entry) => {
+/** `/ssp` paginates its casias/conclusions_sis/conclusions_sup sub-lists
+ * together under one `page`/`page_size` — verified live: a dense 500m radius
+ * in central Paris returned 104 CASIAS results across several pages with the
+ * default (unspecified) page size, so a single unpaginated call was silently
+ * truncating the list. */
+export async function fetchSsp(lat: number, lon: number, rayon: number): Promise<SspResult | null> {
+  const casiasAcc: unknown[] = []
+  const sisConclusionsAcc: unknown[] = []
+  const sisSupAcc: unknown[] = []
+  let casiasTotal = 0
+  let sisConclusionsTotal = 0
+  let sisSupTotal = 0
+  let sawAnyResponse = false
+
+  for (let page = 1; page <= SSP_MAX_PAGES; page++) {
+    const payload = await getRaw('ssp', { latlon: latlon(lat, lon), rayon, page, page_size: SSP_PAGE_SIZE })
+    if (payload === null) break
+    sawAnyResponse = true
+
+    const casiasSub = payload.casias as Json | undefined
+    const sisConclusions = payload.conclusions_sis as Json | undefined
+    const sisSup = payload.conclusions_sup as Json | undefined
+
+    const casiasData = Array.isArray(casiasSub?.data) ? (casiasSub!.data as unknown[]) : []
+    const sisConclusionsData = Array.isArray(sisConclusions?.data) ? (sisConclusions!.data as unknown[]) : []
+    const sisSupData = Array.isArray(sisSup?.data) ? (sisSup!.data as unknown[]) : []
+
+    casiasAcc.push(...casiasData)
+    sisConclusionsAcc.push(...sisConclusionsData)
+    sisSupAcc.push(...sisSupData)
+
+    casiasTotal = subResultCount(casiasSub, casiasAcc.length)
+    sisConclusionsTotal = subResultCount(sisConclusions, sisConclusionsAcc.length)
+    sisSupTotal = subResultCount(sisSup, sisSupAcc.length)
+
+    const maxTotalPages = Math.max(
+      typeof casiasSub?.total_pages === 'number' ? casiasSub.total_pages : 1,
+      typeof sisConclusions?.total_pages === 'number' ? sisConclusions.total_pages : 1,
+      typeof sisSup?.total_pages === 'number' ? sisSup.total_pages : 1,
+    )
+    const gotNothingThisPage = casiasData.length === 0 && sisConclusionsData.length === 0 && sisSupData.length === 0
+    if (page >= Math.min(maxTotalPages, SSP_MAX_PAGES) || gotNothingThisPage) break
+  }
+
+  if (!sawAnyResponse) return null
+
+  const casiasItems: CasiasItem[] = casiasAcc.map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
     return {
-      identifiant: identifiantOf(item, 'identifiant', 'id_etablissement', 'id', 'code_etablissement'),
+      identifiant: identifiantOf(item, 'identifiant_casias', 'identifiant_ssp'),
       nom: str(item.nom_etablissement) ?? 'Site industriel',
       commune: str(item.nom_commune) ?? '',
       activite: str(item.activite_principale),
@@ -224,14 +267,13 @@ export async function fetchSsp(lat: number, lon: number, rayon: number): Promise
     }
   })
 
-  const sisConclusions = payload.conclusions_sis as Json | undefined
-  const sisSup = payload.conclusions_sup as Json | undefined
-  const sisConclusionsData = Array.isArray(sisConclusions?.data) ? (sisConclusions!.data as unknown[]) : []
-  const sisSupData = Array.isArray(sisSup?.data) ? (sisSup!.data as unknown[]) : []
-  const sisItems: SisItem[] = [...sisConclusionsData, ...sisSupData].map((entry) => {
+  // conclusions_sis/conclusions_sup items weren't observed live (none nearby
+  // at the point tested) — identifiant field name here is inferred by
+  // analogy with identifiant_casias/identifiant_ssp, not confirmed.
+  const sisItems: SisItem[] = [...sisConclusionsAcc, ...sisSupAcc].map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
     return {
-      identifiant: identifiantOf(item, 'identifiant', 'id_zone', 'id', 'code_zone'),
+      identifiant: identifiantOf(item, 'identifiant_sis', 'identifiant_ssp', 'identifiant'),
       nom: str(item.nom) ?? "Secteur d'information sur les sols",
       commune: str(item.nom_commune) ?? '',
       superficieM2: typeof item.superficie === 'number' ? item.superficie : null,
@@ -239,11 +281,10 @@ export async function fetchSsp(lat: number, lon: number, rayon: number): Promise
       localisation: localise(lat, lon, item.geom),
     }
   })
-  const sisTotal = subResultCount(sisConclusions, sisConclusionsData.length) + subResultCount(sisSup, sisSupData.length)
 
   return {
-    casias: { items: casiasItems, total: subResultCount(casiasSub, casiasItems.length) },
-    sis: { items: sisItems, total: sisTotal },
+    casias: { items: casiasItems, total: casiasTotal },
+    sis: { items: sisItems, total: sisConclusionsTotal + sisSupTotal },
   }
 }
 

@@ -94,7 +94,15 @@ export default function Carte() {
             <h3>Note de vulnérabilité et de sensibilité — eaux superficielles et souterraines</h3>
             {hydroNote.paragraphs.map((paragraph, i) => (
               <p key={i} style={{ fontSize: '0.92rem' }}>
-                {paragraph}
+                {paragraph.text}
+                {paragraph.linkHref && (
+                  <>
+                    {' '}
+                    <a href={paragraph.linkHref} target="_blank" rel="noopener noreferrer">
+                      {paragraph.linkLabel ?? 'En savoir plus'} →
+                    </a>
+                  </>
+                )}
               </p>
             ))}
           </div>

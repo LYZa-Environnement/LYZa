@@ -68,7 +68,7 @@ function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
     } else {
       casiasShown.forEach((site) =>
         items.push({
-          label: site.nom,
+          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
           detail: [site.activite, site.commune, site.statut].filter(Boolean).join(' — ') || 'Ancien site industriel ou de service',
           source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
           href: site.ficheUrl ?? undefined,
@@ -89,7 +89,7 @@ function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
     } else {
       sisShown.forEach((site) =>
         items.push({
-          label: site.nom,
+          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
           detail: [site.commune, site.superficieM2 ? `${Math.round(site.superficieM2)} m²` : null].filter(Boolean).join(' — '),
           source: 'SIS — Géorisques',
           href: site.ficheUrl ?? undefined,
