@@ -1,3 +1,4 @@
+import { findNearestBathingSite } from './baignade'
 import { formatDistance } from './geo'
 import { countPrelevements, findNearestAdesPoint } from './hubeau'
 import { findNearestRiverSegment } from './hydrography'
@@ -39,11 +40,12 @@ function adesUrl(codeBss: string): string {
  * guessed classification when the underlying data isn't available or the
  * reference point is too far to be representative. */
 export async function buildHydroNote(lat: number, lon: number): Promise<HydroNote> {
-  const [ades, river, prelevCount, ppe] = await Promise.all([
+  const [ades, river, prelevCount, ppe, bathing] = await Promise.all([
     findNearestAdesPoint(lat, lon),
     findNearestRiverSegment(lat, lon),
     countPrelevements(lat, lon, 1000),
     findNearestPpe(lat, lon),
+    findNearestBathingSite(lat, lon),
   ])
 
   const paragraphs: HydroParagraph[] = [{ text: INTRO }]
@@ -72,10 +74,27 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     })
   }
 
-  // Sensibilité hydrologique — les usages (pêche, AEP, loisirs...) ne se lisent pas dans ces données.
-  paragraphs.push({
-    text: "La sensibilité hydrologique (usages du cours d'eau — pêche, alimentation en eau, loisirs...) ne peut pas être établie de façon fiable à partir des seules données publiques mobilisées ici ; elle nécessite une vérification de terrain ou un avis hydrogéologique.",
-  })
+  // Sensibilité hydrologique — seul signal national fiable trouvé : les sites de baignade
+  // officiels (base Ministère de la Santé). Aucune base nationale ouverte n'existe pour la
+  // pêche de loisir ou les bases nautiques (voir baignade.ts) : Hub'Eau "État piscicole" est
+  // un suivi scientifique par pêche électrique, pas un inventaire des usages récréatifs.
+  if (bathing) {
+    const niveau = bathing.distanceM <= 1000 ? 'forte' : bathing.distanceM <= 3000 ? 'moyenne' : 'faible'
+    paragraphs.push({
+      text:
+        `La sensibilité hydrologique est considérée comme ${niveau} : le site de baignade officiel le plus proche` +
+        `${bathing.nom ? ` (${bathing.nom}${bathing.commune ? `, ${bathing.commune}` : ''})` : ''} se trouve à environ ${formatDistance(bathing.distanceM)}` +
+        `${bathing.typeEau ? ` (${bathing.typeEau})` : ''}. Aucune base de données nationale ouverte n'a en revanche été identifiée pour les activités de pêche de` +
+        ' loisir ou les bases nautiques : ces usages doivent être vérifiés sur le terrain ou auprès de la fédération de pêche locale.',
+    })
+  } else {
+    paragraphs.push({
+      text:
+        "Aucun site de baignade officiel recensé (base du Ministère de la Santé) n'a été trouvé à proximité du site, ce qui ne permet cependant pas d'exclure" +
+        " d'autres usages sensibles du cours d'eau (pêche, activités nautiques) : aucune base de données nationale ouverte n'existe pour ces usages, une" +
+        ' vérification de terrain reste nécessaire pour établir la sensibilité hydrologique.',
+    })
+  }
 
   // Vulnérabilité hydrogéologique — profondeur de nappe au point ADES le plus proche,
   // avec un seuil de distance au-delà duquel la mesure n'est plus jugée représentative.
@@ -89,6 +108,22 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
         `La vulnérabilité hydrogéologique n'a pas pu être évaluée de façon fiable : le point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${formatDistance(ades.distanceM)} du site — une` +
         ` distance trop importante pour que sa profondeur de nappe soit représentative de l'hydrogéologie locale.`,
+      linkLabel: 'Voir ce point sur ADES',
+      linkHref: adesUrl(ades.codeBss),
+    })
+  } else if (ades.profondeurNappeM == null && ades.profondeurOuvrageM != null) {
+    // Pas de mesure de niveau d'eau, mais la profondeur de l'ouvrage lui-même reste
+    // une indication indirecte utile (le forage ne descend généralement pas beaucoup
+    // plus bas que ce qu'il cherche à capter) — signalée comme telle, pas comme une
+    // mesure de profondeur de nappe.
+    const depth = ades.profondeurOuvrageM
+    const caveat = ades.distanceM > ADES_RELIABLE_M ? ' — à confirmer, le point est relativement éloigné du site' : ''
+    paragraphs.push({
+      text:
+        `Aucune mesure récente de profondeur de nappe n'est disponible au point ADES le plus proche` +
+        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site ; à titre indicatif,` +
+        ` l'ouvrage associé a une profondeur de ${depth.toFixed(1)} m${caveat}, ce qui ne renseigne qu'indirectement sur la profondeur de la nappe et ne` +
+        ' permet pas de classification fiable de la vulnérabilité hydrogéologique sur cette seule base.',
       linkLabel: 'Voir ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
     })

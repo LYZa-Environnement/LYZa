@@ -104,9 +104,24 @@ et d'un lien vers sa fiche :
   kilomètres d'un cours d'eau qui passe en réalité tout près du site).
   Endpoint et nom de champ (`toponyme`) vérifiés en direct pendant le
   développement (recherche sur la Seine à Paris).
-- **Sensibilité hydrologique** : volontairement non classée — les usages
-  du cours d'eau (pêche, AEP, loisirs) ne se lisent pas dans ces données ;
-  le texte le dit plutôt que d'inventer un niveau.
+- **Sensibilité hydrologique** : `frontend/src/lib/baignade.ts` interroge
+  le seul signal national réellement disponible pour les usages sensibles
+  d'un cours d'eau — les sites de baignade officiels (directive
+  2006/7/CE), via le jeu de données « Données de rapportage de la saison
+  balnéaire » du Ministère de la Santé, lu par la Tabular API de
+  data.gouv.fr (`tabular-api.data.gouv.fr`, id de ressource à rafraîchir
+  chaque saison — voir le commentaire en tête du fichier). Une recherche a
+  été menée pour trouver un équivalent pêche de loisir / bases nautiques :
+  aucune API ou jeu de données national n'existe pour ces usages (l'API
+  Hub'Eau « État piscicole » couvre des stations de suivi scientifique par
+  pêche électrique, pas les usages récréatifs — l'utiliser comme substitut
+  aurait affirmé plus que ce qu'elle mesure réellement ; seuls des jeux de
+  données départementaux épars ont été trouvés pour les bases nautiques).
+  Le texte classe donc la sensibilité hydrologique sur la distance au site
+  de baignade officiel le plus proche quand il y en a un (≤1 km forte,
+  1–3 km moyenne, >3 km faible) et dit explicitement qu'aucune donnée
+  nationale n'existe pour la pêche/le nautisme plutôt que d'inventer un
+  niveau pour ces usages.
 - **Vulnérabilité hydrogéologique** : profondeur de nappe mesurée au point
   ADES le plus proche (<5 m forte, 5–15 m moyenne, >15 m faible), toujours
   citée avec sa référence BSS et un lien vers sa fiche ADES. Un seul point
@@ -114,15 +129,20 @@ et d'un lien vers sa fiche :
   `qualite_nappes` le plus proche, qui décrit l'entité hydrogéologique (le
   nom de la nappe), et la chronique `niveaux_nappes` de ce même `code_bss`
   pour sa profondeur — jamais deux points différents pour la nappe et la
-  profondeur, qui donneraient une lecture incohérente. Au-delà de 5 km, le
-  point n'est plus jugé représentatif de l'hydrogéologie locale et aucun
-  niveau n'est proposé ; entre 2 et 5 km la classification est donnée mais
-  signalée comme à confirmer. La perméabilité des couches traversées entre
-  la surface et la nappe — qui module directement cette lecture — n'est
-  pas disponible dans les données publiques mobilisées ici (pas d'API
-  donnant une lithologie exploitable point par point, seulement les
-  métadonnées d'un forage BSS) ; le texte le dit explicitement plutôt que
-  de l'ignorer ou de l'inventer.
+  profondeur, qui donneraient une lecture incohérente. Quand aucune
+  mesure de niveau d'eau n'est disponible mais que le point ADES renseigne
+  la profondeur de l'ouvrage lui-même (`profondeur_investigation`), cette
+  profondeur est donnée à titre indicatif (clairement libellée « profondeur
+  de l'ouvrage », pas « profondeur de nappe ») plutôt que de ne rien dire
+  du tout — sans en tirer de classification, car ce n'est qu'un indice
+  indirect. Au-delà de 5 km, le point n'est plus jugé représentatif de
+  l'hydrogéologie locale et aucun niveau n'est proposé ; entre 2 et 5 km la
+  classification est donnée mais signalée comme à confirmer. La
+  perméabilité des couches traversées entre la surface et la nappe — qui
+  module directement cette lecture — n'est pas disponible dans les données
+  publiques mobilisées ici (pas d'API donnant une lithologie exploitable
+  point par point, seulement les métadonnées d'un forage BSS) ; le texte
+  le dit explicitement plutôt que de l'ignorer ou de l'inventer.
 - **Périmètre de protection éloignée (PPE)** : distance et direction (8
   points cardinaux) au périmètre le plus proche, réutilisant l'export
   déjà embarqué pour LYZa Cartes (`frontend/public/data/ppe.geojson`, 14

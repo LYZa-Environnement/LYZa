@@ -71,7 +71,13 @@ export interface AdesReferencePoint {
   distanceM: number
   aquifere: string | null
   nature: string | null
+  /** Actual measured water-table depth (best case) — from the niveaux_nappes chronicle. */
   profondeurNappeM: number | null
+  /** Depth of the borehole/ouvrage itself (qualite_nappes/stations' own
+   * profondeur_investigation) — a weaker fallback signal when no water-level
+   * measurement is available: it's the structure's depth, not the water's,
+   * but still "une information" per feedback, rather than nothing at all. */
+  profondeurOuvrageM: number | null
   dateMesure: string | null
 }
 
@@ -97,6 +103,7 @@ export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 1
     aquifere: str(nearest.item.nom_caracteristique_aquifere),
     nature: str(nearest.item.nom_nature_pe),
     profondeurNappeM,
+    profondeurOuvrageM: num(nearest.item.profondeur_investigation),
     dateMesure,
   }
 }
