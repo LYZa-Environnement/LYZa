@@ -57,17 +57,26 @@ function nearestByCoordinates<T extends Record<string, unknown>>(
   return best
 }
 
-// ---- Piézométrie (niveau de la nappe) --------------------------------------
+// ---- Point ADES de référence (qualité des nappes) --------------------------
+//
+// A single reference point rather than two independently-found ones: the
+// nearest qualite_nappes/stations record is where the aquifer entity
+// ("l'entité hydrogéologique") is actually described, so it's used as the
+// anchor for both the aquifer name AND the depth reading — asking for the
+// depth chronicle of that *same* code_bss, not of a separately-found nearest
+// piezometer that could be a different point entirely.
 
-export interface NearestPiezo {
+export interface AdesReferencePoint {
   codeBss: string
-  libelle: string | null
   distanceM: number
+  aquifere: string | null
+  nature: string | null
   profondeurNappeM: number | null
+  dateMesure: string | null
 }
 
-export async function findNearestPiezo(lat: number, lon: number, radiusM = 15000): Promise<NearestPiezo | null> {
-  const stations = await getData('v1/niveaux_nappes/stations', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 100 })
+export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 15000): Promise<AdesReferencePoint | null> {
+  const stations = await getData('v1/qualite_nappes/stations', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 100 })
   if (!stations) return null
   const nearest = nearestByCoordinates(lat, lon, stations, pointCoordinates)
   if (!nearest) return null
@@ -75,33 +84,20 @@ export async function findNearestPiezo(lat: number, lon: number, radiusM = 15000
   if (!codeBss) return null
 
   let profondeurNappeM: number | null = null
+  let dateMesure: string | null = null
   const chronicle = await getData('v1/niveaux_nappes/chroniques', { code_bss: codeBss, size: 1, sort: 'desc' })
-  if (chronicle && chronicle.length > 0) profondeurNappeM = num(chronicle[0].profondeur_nappe)
+  if (chronicle && chronicle.length > 0) {
+    profondeurNappeM = num(chronicle[0].profondeur_nappe)
+    dateMesure = str(chronicle[0].date_mesure)
+  }
 
-  return { codeBss, libelle: str(nearest.item.libelle_pe), distanceM: nearest.distanceM, profondeurNappeM }
-}
-
-// ---- Qualité des nappes (donne le nom de l'aquifère) -----------------------
-
-export interface NearestQualNappe {
-  codeBss: string
-  distanceM: number
-  aquifere: string | null
-  nature: string | null
-}
-
-export async function findNearestQualNappe(lat: number, lon: number, radiusM = 15000): Promise<NearestQualNappe | null> {
-  const stations = await getData('v1/qualite_nappes/stations', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 100 })
-  if (!stations) return null
-  const nearest = nearestByCoordinates(lat, lon, stations, pointCoordinates)
-  if (!nearest) return null
-  const codeBss = str(nearest.item.code_bss)
-  if (!codeBss) return null
   return {
     codeBss,
     distanceM: nearest.distanceM,
     aquifere: str(nearest.item.nom_caracteristique_aquifere),
     nature: str(nearest.item.nom_nature_pe),
+    profondeurNappeM,
+    dateMesure,
   }
 }
 

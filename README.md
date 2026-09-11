@@ -99,15 +99,30 @@ d'une distance réelle au site. Construit à partir de Hub'Eau
 - **Sensibilité hydrologique** : volontairement non classée — les usages
   du cours d'eau (pêche, AEP, loisirs) ne se lisent pas dans ces données ;
   le texte le dit plutôt que d'inventer un niveau.
-- **Vulnérabilité hydrogéologique** : profondeur de nappe mesurée au
-  piézomètre le plus proche (<5 m forte, 5–20 m moyenne, >20 m faible).
+- **Vulnérabilité hydrogéologique** : profondeur de nappe mesurée au point
+  ADES le plus proche (<5 m forte, 5–20 m moyenne, >20 m faible). C'est
+  volontairement *un seul* point de référence (`findNearestAdesPoint` dans
+  `hubeau.ts`) : le point `qualite_nappes` le plus proche, qui décrit
+  l'entité hydrogéologique (le nom de la nappe), et la chronique
+  `niveaux_nappes` de ce même `code_bss` pour sa profondeur — pas deux
+  points différents pour la nappe et la profondeur, qui donneraient une
+  lecture incohérente. Au-delà de 5 km, le point n'est plus jugé
+  représentatif de l'hydrogéologie locale et aucun niveau n'est proposé ;
+  entre 2 et 5 km la classification est donnée mais signalée comme à
+  confirmer. La perméabilité des couches traversées entre la surface et la
+  nappe — qui affinerait cette lecture — n'est pas disponible dans les
+  données publiques mobilisées ici (pas d'API donnant une lithologie
+  exploitable point par point) ; le texte le dit explicitement plutôt que
+  de l'ignorer ou de l'inventer.
 - **Sensibilité hydrogéologique** : nombre d'ouvrages de prélèvement
   recensés dans un rayon d'1 km (0 → faible, 1-2 → moyenne, 3+ → forte).
 
 Chaque sous-partie retombe sur une phrase honnête (« n'a pas pu être
-évalué·e ») plutôt qu'une classification fabriquée quand la donnée sous-
-jacente manque. Les seuils sont des règles de lecture rapide, pas une
-méthode figée — à ajuster si l'usage réel appelle d'autres bornes.
+évalué·e », « trop éloigné pour être représentatif ») plutôt qu'une
+classification fabriquée quand la donnée sous-jacente manque ou n'est pas
+assez proche pour être fiable. Les seuils (distances, profondeurs) sont
+des règles de lecture rapide, pas une méthode figée — à ajuster si
+l'usage réel appelle d'autres bornes.
 
 ### Recherche CASIAS / SIS par rayon — `CasiasSisExplorer.tsx`
 
