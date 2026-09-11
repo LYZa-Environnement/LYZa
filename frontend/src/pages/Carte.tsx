@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchSensitivity } from '../api/client'
 import AddressSearch from '../components/AddressSearch'
+import CasiasSisExplorer from '../components/CasiasSisExplorer'
 import SensitivityMap from '../components/SensitivityMap'
 import SensitivityPanel from '../components/SensitivityPanel'
+import { buildHydroNote, type HydroNote } from '../lib/hydroNote'
 import type { AddressResult, SensitivityReport } from '../types/sensitivity'
 
 const RADIUS_M = 1000
@@ -21,17 +23,20 @@ const THEME_TO_SERVICES: Record<string, { slug: string; label: string }[]> = {
 export default function Carte() {
   const [address, setAddress] = useState<AddressResult | null>(null)
   const [report, setReport] = useState<SensitivityReport | null>(null)
+  const [hydroNote, setHydroNote] = useState<HydroNote | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSelect(selected: AddressResult) {
     setAddress(selected)
     setReport(null)
+    setHydroNote(null)
     setError(null)
     setLoading(true)
     try {
-      const result = await fetchSensitivity(selected, RADIUS_M)
-      setReport(result)
+      const [sensitivity, hydro] = await Promise.all([fetchSensitivity(selected, RADIUS_M), buildHydroNote(selected.lat, selected.lon)])
+      setReport(sensitivity)
+      setHydroNote(hydro)
     } catch {
       setError("La synthèse n'a pas pu être calculée pour cette adresse. Vous pouvez réessayer, ou me contacter directement.")
     } finally {
@@ -81,6 +86,23 @@ export default function Carte() {
               )}
               {report && <SensitivityPanel report={report} />}
             </div>
+          </div>
+        )}
+
+        {hydroNote && (
+          <div className="card" style={{ marginTop: '2rem' }}>
+            <h3>Note de vulnérabilité et de sensibilité — eaux superficielles et souterraines</h3>
+            {hydroNote.paragraphs.map((paragraph, i) => (
+              <p key={i} style={{ fontSize: '0.92rem' }}>
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {address && (
+          <div style={{ marginTop: '2rem' }}>
+            <CasiasSisExplorer address={address} />
           </div>
         )}
 

@@ -10,6 +10,8 @@
  * the whole synthesis, it should just show up as "donnée indisponible".
  */
 
+import { bearingDegrees, cardinalDirection, haversineMeters } from './geo'
+
 const GEORISQUES_BASE_URL = 'https://georisques.gouv.fr/api/v1/'
 const MAX_PAGES = 4
 const PAGE_SIZE = 100
@@ -79,6 +81,55 @@ function str(value: unknown): string | null {
   return value === null || value === undefined || value === '' ? null : String(value)
 }
 
+/** A representative [lon, lat] for a GeoJSON geometry: the point itself, or a
+ * simple average of the exterior ring for a (multi)polygon — good enough for
+ * a "which direction, roughly how far" reading, not for anything precise. */
+function representativePoint(geom: unknown): [number, number] | null {
+  if (!geom || typeof geom !== 'object') return null
+  const g = geom as { type?: unknown; coordinates?: unknown }
+  if (g.type === 'Point' && Array.isArray(g.coordinates) && g.coordinates.length === 2) {
+    const [lon, lat] = g.coordinates as [number, number]
+    return typeof lon === 'number' && typeof lat === 'number' ? [lon, lat] : null
+  }
+  if (g.type === 'Polygon' && Array.isArray(g.coordinates)) {
+    const ring = (g.coordinates as unknown[])[0]
+    return averageRing(ring)
+  }
+  if (g.type === 'MultiPolygon' && Array.isArray(g.coordinates)) {
+    const firstPolygon = (g.coordinates as unknown[])[0]
+    const ring = Array.isArray(firstPolygon) ? firstPolygon[0] : null
+    return averageRing(ring)
+  }
+  return null
+}
+
+function averageRing(ring: unknown): [number, number] | null {
+  if (!Array.isArray(ring) || ring.length === 0) return null
+  let sumLon = 0
+  let sumLat = 0
+  let count = 0
+  for (const point of ring) {
+    if (Array.isArray(point) && typeof point[0] === 'number' && typeof point[1] === 'number') {
+      sumLon += point[0]
+      sumLat += point[1]
+      count++
+    }
+  }
+  return count > 0 ? [sumLon / count, sumLat / count] : null
+}
+
+export interface Localisation {
+  distanceM: number
+  direction: string
+}
+
+function localise(siteLat: number, siteLon: number, geom: unknown): Localisation | null {
+  const point = representativePoint(geom)
+  if (!point) return null
+  const [lon, lat] = point
+  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)) }
+}
+
 export interface ListResult<T> {
   items: T[]
   total: number
@@ -118,18 +169,22 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
 // ---- one endpoint, each in their own sub-object.                         --
 
 export interface CasiasItem {
+  identifiant: string | null
   nom: string
   commune: string
   activite: string | null
   statut: string | null
   ficheUrl: string | null
+  localisation: Localisation | null
 }
 
 export interface SisItem {
+  identifiant: string | null
   nom: string
   commune: string
   superficieM2: number | null
   ficheUrl: string | null
+  localisation: Localisation | null
 }
 
 export interface SspResult {
@@ -142,6 +197,14 @@ function subResultCount(sub: Json | undefined, dataLength: number): number {
   return typeof results === 'number' ? results : dataLength
 }
 
+function identifiantOf(item: Record<string, unknown>, ...candidateKeys: string[]): string | null {
+  for (const key of candidateKeys) {
+    const value = str(item[key])
+    if (value) return value
+  }
+  return null
+}
+
 export async function fetchSsp(lat: number, lon: number, rayon: number): Promise<SspResult | null> {
   const payload = await getRaw('ssp', { latlon: latlon(lat, lon), rayon })
   if (payload === null) return null
@@ -151,11 +214,13 @@ export async function fetchSsp(lat: number, lon: number, rayon: number): Promise
   const casiasItems: CasiasItem[] = casiasRaw.map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
     return {
+      identifiant: identifiantOf(item, 'identifiant', 'id_etablissement', 'id', 'code_etablissement'),
       nom: str(item.nom_etablissement) ?? 'Site industriel',
       commune: str(item.nom_commune) ?? '',
       activite: str(item.activite_principale),
       statut: str(item.statut),
       ficheUrl: str(item.fiche_risque),
+      localisation: localise(lat, lon, item.geom),
     }
   })
 
@@ -166,10 +231,12 @@ export async function fetchSsp(lat: number, lon: number, rayon: number): Promise
   const sisItems: SisItem[] = [...sisConclusionsData, ...sisSupData].map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
     return {
+      identifiant: identifiantOf(item, 'identifiant', 'id_zone', 'id', 'code_zone'),
       nom: str(item.nom) ?? "Secteur d'information sur les sols",
       commune: str(item.nom_commune) ?? '',
       superficieM2: typeof item.superficie === 'number' ? item.superficie : null,
       ficheUrl: str(item.fiche_risque),
+      localisation: localise(lat, lon, item.geom),
     }
   })
   const sisTotal = subResultCount(sisConclusions, sisConclusionsData.length) + subResultCount(sisSup, sisSupData.length)

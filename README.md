@@ -85,6 +85,44 @@ commune pour le reste (PPR, sismicité...).
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
 
+### Note de vulnérabilité/sensibilité hydro — `frontend/src/lib/hydroNote.ts`
+
+Sous la synthèse par thème, un paragraphe narrant la vulnérabilité et la
+sensibilité hydrologique/hydrogéologique du site, dans le style d'une note
+de consultant plutôt qu'un simple badge — récepteurs nommés quand connus
+(rivière, nappe), classification (faible/moyenne/forte) toujours assortie
+d'une distance réelle au site. Construit à partir de Hub'Eau
+(`frontend/src/lib/hubeau.ts`) :
+
+- **Vulnérabilité hydrologique** : distance à la station de suivi de cours
+  d'eau la plus proche (>1 km faible, 300 m–1 km moyenne, <300 m forte).
+- **Sensibilité hydrologique** : volontairement non classée — les usages
+  du cours d'eau (pêche, AEP, loisirs) ne se lisent pas dans ces données ;
+  le texte le dit plutôt que d'inventer un niveau.
+- **Vulnérabilité hydrogéologique** : profondeur de nappe mesurée au
+  piézomètre le plus proche (<5 m forte, 5–20 m moyenne, >20 m faible).
+- **Sensibilité hydrogéologique** : nombre d'ouvrages de prélèvement
+  recensés dans un rayon d'1 km (0 → faible, 1-2 → moyenne, 3+ → forte).
+
+Chaque sous-partie retombe sur une phrase honnête (« n'a pas pu être
+évalué·e ») plutôt qu'une classification fabriquée quand la donnée sous-
+jacente manque. Les seuils sont des règles de lecture rapide, pas une
+méthode figée — à ajuster si l'usage réel appelle d'autres bornes.
+
+### Recherche CASIAS / SIS par rayon — `CasiasSisExplorer.tsx`
+
+Section dédiée sous la note hydro : l'utilisateur choisit un rayon
+(100 m à 5 km) et obtient deux tableaux triés par distance croissante —
+identifiant, société/activité (ou descriptif pour un SIS) avec lien vers
+la fiche Géorisques quand elle existe, et localisation par rapport au
+site (distance + point cardinal sur 8 directions, calculés depuis la
+géométrie `geom` — point ou polygone — que l'API renvoie par site).
+
+CASIAS regroupe dans la base Géorisques actuelle les ex-BASIAS et
+ex-BASOL — l'API ne les distingue plus (voir `fetchSsp` dans
+`georisques.ts`), d'où un seul tableau CASIAS plutôt que deux ; un
+éventuel champ permettant de les re-séparer n'a pas été identifié.
+
 **Important — à vérifier une fois en ligne** : ce projet a été construit
 dans un environnement sans accès sortant vers `georisques.gouv.fr` ni
 `data.geopf.fr`. Les URLs de base et les champs de réponse pour
@@ -101,9 +139,17 @@ d'œil une fois en ligne :
   (`communeRiskPortalUrl` dans `frontend/src/lib/georisques.ts`) est une
   URL construite par déduction, pas confirmée.
 
+Les appels Hub'Eau (`hubeau.ts`) reprennent les champs déjà utilisés par
+`lyza-cartes.html` en production (`profondeur_nappe`, `nom_caracteristique_aquifere`,
+`nom_cours_eau`...), donc a priori fiables. Le champ « identifiant » des
+tableaux CASIAS/SIS est en revanche une supposition (`identifiant`,
+`id_etablissement`... par ordre de préférence) : si l'API n'en renvoie
+aucun de connu, la colonne affiche « — » plutôt qu'une valeur inventée —
+à vérifier une fois en ligne et à corriger dans `fetchSsp`.
+
 Chaque appel échoue silencieusement en « donnée indisponible » plutôt que
-de faire planter la synthèse, donc rien ne casse si l'un de ces trois
-points diffère — seul l'affichage correspondant sera à ajuster.
+de faire planter la synthèse, donc rien ne casse si l'un de ces points
+diffère — seul l'affichage correspondant sera à ajuster.
 
 ## LYZa Cartes — `frontend/public/lyza-cartes.html`
 
