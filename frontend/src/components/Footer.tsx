@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 export default function Footer() {
   return (
     <footer style={{ borderTop: '1px solid var(--color-border)', marginTop: '3rem' }}>
-      <div className="container" style={{ padding: '2.5rem 1.5rem', display: 'grid', gap: '2rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className="container grid grid--3" style={{ padding: '2.5rem 1.5rem', gap: '2rem' }}>
         <div>
           <strong style={{ fontFamily: 'var(--font-heading)' }}>LYZa</strong>
           <p style={{ color: 'var(--color-muted)', marginTop: '0.5rem' }}>

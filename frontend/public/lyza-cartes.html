@@ -94,9 +94,14 @@
     min-height:560px;
   }
   @media (max-width: 760px){
-    .app{ grid-template-columns: 1fr; grid-template-rows: auto 1fr; height:100vh; }
+    /* Map gets the definite (1fr) row so its height:100% actually resolves —
+       an "auto" row sized by a 100%-height child collapses to 0, which is
+       why the map used to render blank on mobile. #map itself isn't a grid
+       item (its wrapper #map-wrap is), so `order` has to target the wrapper
+       to have any effect — it silently did nothing here before. */
+    .app{ grid-template-columns: 1fr; grid-template-rows: 1fr auto; height:100vh; }
     .sidebar{ max-height:44vh; order:2; border-right:none; border-top:1px solid var(--line); }
-    #map{ order:1; }
+    #map-wrap{ order:1; }
   }
 
   .sidebar{
@@ -519,7 +524,7 @@
     </div>
   </aside>
 
-  <div style="position:relative;min-height:0;min-width:0;">
+  <div id="map-wrap" style="position:relative;min-height:0;min-width:0;">
     <div class="mobile-toggle" id="mobile-toggle">☰ Calques</div>
     <div id="map"></div>
   </div>

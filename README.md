@@ -340,6 +340,36 @@ se retrouver sur la même période (donnée indisponible sur la zone), le
 bouton se désactive et un message explicite s'affiche plutôt que de
 montrer deux vues identiques sans le dire.
 
+## Compatibilité mobile
+
+Vérifiée avec Playwright à une largeur de 390 px (iPhone 12/13) sur les sept
+pages du site React et sur LYZa Cartes, en détectant automatiquement tout
+élément dépassant la largeur de la fenêtre plutôt qu'en se fiant uniquement
+à l'inspection visuelle. Deux vrais bugs trouvés et corrigés :
+
+- **Débordement horizontal sur toutes les pages du site React** :
+  `Footer.tsx` utilisait une grille à 3 colonnes fixes en style inline
+  (`gridTemplateColumns: 'repeat(3, 1fr)'`), qui ne participait pas aux
+  points de rupture responsive déjà définis pour les classes utilitaires
+  `.grid--3` dans `index.css`. Sur petit écran, l'adresse e-mail (chaîne
+  non sécable) forçait la colonne à dépasser la largeur de l'écran.
+  Remplacé par les classes `grid grid--3`, qui repassent à 1 colonne sous
+  640 px comme partout ailleurs sur le site.
+- **Carte invisible sur mobile dans LYZa Cartes** : en dessous de 760 px,
+  la mise en page passe d'une grille en colonnes (barre latérale + carte)
+  à une grille en lignes. La règle voulait mettre la carte en premier
+  (ligne haute) et la barre latérale en second (ligne basse, plafonnée à
+  44 % de la hauteur d'écran) via `order`, mais `order` était posé sur
+  `#map` — qui n'est pas lui-même un élément de la grille (`.app`), c'est
+  son parent — donc sans effet. Combiné à `grid-template-rows: auto 1fr` et
+  à `#map{ height:100% }` (un pourcentage de hauteur ne se résout pas dans
+  une ligne « auto »), la ligne de la carte s'effondrait à une hauteur
+  quasi nulle : la carte ne s'affichait tout simplement pas, seule la barre
+  latérale (plafonnée, avec un grand vide en dessous) était visible.
+  Corrigé en donnant un id au conteneur de la carte (`#map-wrap`, la cible
+  réelle de la grille) et en inversant les lignes (`1fr auto`) pour que la
+  carte reçoive la hauteur définie en pixels dont elle a besoin.
+
 ## Prochaines pistes (analytique) — `backend/`
 
 Le site n'a pas de backend, mais `backend/` existe toujours en local comme
