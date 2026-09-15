@@ -70,29 +70,66 @@ d'intervention, Démarche, Contact.
    canalisations de matières dangereuses).
 4. Chaque thème reçoit un niveau (Faible / Modérée / Élevée / Non
    déterminée) selon des règles explicites, pas un score opaque — voir
-   `frontend/src/lib/rules.ts`.
+   `frontend/src/lib/rules.ts`. Les seuils de `levelFromCount` (ICPE,
+   CASIAS, mouvements de terrain, cavités, canalisations TIM) demandent une
+   certaine concentration d'évènements avant de passer en « modérée » ou
+   « élevée » (3 puis 8 par défaut, ajusté par catégorie) plutôt que de
+   réagir à la première occurrence dans le rayon d'étude — un seul ICPE ou
+   ancien site industriel à 900 m n'est pas en soi alarmant. Même logique
+   pour `levelFromFloodSignals` : un historique d'arrêtés catastrophe
+   naturelle pour inondation est quasi universel pour les communes
+   françaises et ne fait plus, seul, basculer le thème Eau en « modérée »
+   (il faut soit être en zone inondable cartographiée (AZI), soit un
+   historique inhabituellement dense) — les classifications officielles
+   (zonage sismique, argiles, radon) restent en revanche inchangées, elles
+   reprennent directement l'échelle réglementaire du gouvernement.
 5. Selon les thèmes signalés, la page propose les prestations pertinentes
    (ex. un signal sur l'eau renvoie vers la prestation hydrogéologie).
 
 Le détail de chaque thème liste les éléments individuels quand la donnée
 s'y prête (jusqu'à 6 par catégorie, avec un « + N autres » au-delà) plutôt
 qu'un simple total : sites CASIAS et secteurs SIS nommés, installations
-ICPE avec régime/NAF/statut Seveso, arrêtés catastrophe naturelle datés.
-Chaque élément qui a une fiche officielle (CASIAS, SIS, ICPE) y renvoie en
-lien direct ; le thème Eau ajoute un lien vers le portail Géorisques de la
-commune pour le reste (PPR, sismicité...).
+ICPE avec régime/NAF/statut Seveso, arrêtés catastrophe naturelle datés,
+mouvements de terrain et cavités souterraines (type, lieu, date, distance
+et direction au site). Chaque élément qui a une fiche officielle (CASIAS,
+SIS, ICPE) y renvoie en lien direct. Les arrêtés catastrophe naturelle
+(inondation et/ou coulée de boue — le libellé officiel GASPAR exact,
+confirmé en direct) renvoient chacun vers l'édition du Journal officiel de
+leur date de publication (`legifranceJoUrl` dans `georisques.ts`) : ce
+n'est pas un lien profond vers l'arrêté lui-même (aucune URL publique par
+arrêté n'a été trouvée), mais une page réelle et stable où le consulter.
+Le thème Risques naturels ajoute, pour le zonage sismique, l'exposition aux
+argiles et le potentiel radon, une description en clair de ce que la classe
+réglementaire signifie concrètement, ainsi qu'un lien vers le rapport de
+risques complet de la commune sur le portail Géorisques.
 
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
 
 ### Note de vulnérabilité/sensibilité hydro — `frontend/src/lib/hydroNote.ts`
 
-Sous la synthèse par thème, un paragraphe narrant la vulnérabilité et la
+Sous la synthèse par thème, une note narrant la vulnérabilité et la
 sensibilité hydrologique/hydrogéologique du site, dans le style d'une note
 de consultant plutôt qu'un simple badge — récepteurs nommés quand connus
 (rivière, nappe), classification (faible/moyenne/forte) toujours assortie
 d'une distance réelle au site et, pour un point BSS/ADES, de sa référence
-et d'un lien vers sa fiche :
+et d'un lien vers sa fiche.
+
+La note est structurée en deux chapitres distincts — **Eaux superficielles**
+et **Eaux souterraines** — chacun scindé en **Vulnérabilité** puis
+**Sensibilité** (`HydroSection`/`HydroSubsection` dans `hydroNote.ts`,
+rendu par `Carte.tsx`) plutôt qu'une liste de paragraphes à plat : les deux
+compartiments répondent à des questions différentes (eau de surface
+atteinte par ruissellement/rejet vs. nappe atteinte par infiltration) et ne
+doivent pas se lire comme un verdict unique mélangé :
+
+- *Eaux superficielles* → Vulnérabilité (distance au cours d'eau) et
+  Sensibilité (usages — baignade).
+- *Eaux souterraines* → Vulnérabilité (profondeur de nappe/ouvrage ADES +
+  perméabilité) et Sensibilité (périmètre de protection éloignée/captage +
+  ouvrages de prélèvement).
+
+Détail par indicateur :
 
 - **Vulnérabilité hydrologique** : distance *réelle* au cours d'eau le
   plus proche (<150 m forte, 150–250 m moyenne, >250 m faible) —

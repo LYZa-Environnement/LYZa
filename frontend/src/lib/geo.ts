@@ -88,3 +88,19 @@ export function cardinalDirection(bearing: number): string {
   const index = Math.round(bearing / 45) % 8
   return CARDINAL_LABELS[index]
 }
+
+const CARDINAL_LABELS_FR: Record<string, string> = {
+  N: 'nord',
+  NE: 'nord-est',
+  E: 'est',
+  SE: 'sud-est',
+  S: 'sud',
+  SO: 'sud-ouest',
+  O: 'ouest',
+  NO: 'nord-ouest',
+}
+
+/** Full French word for an 8-point cardinal code (e.g. "NO" -> "nord-ouest"). */
+export function cardinalLabelFr(direction: string): string {
+  return CARDINAL_LABELS_FR[direction] ?? direction
+}

@@ -38,7 +38,7 @@ function ThemeCard({ theme }: { theme: ThemeSynthesis }) {
               <br />
               <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>
                 Source : {item.source}
-                {item.href && ' — fiche complète en lien ci-dessus'}
+                {item.href && ' — en savoir plus en lien ci-dessus'}
               </span>
             </li>
           ))}

@@ -1,6 +1,11 @@
+import { cardinalLabelFr, formatDistance } from './geo'
 import * as georisques from './georisques'
 import { levelFromArgiles, levelFromCount, levelFromFloodSignals, levelFromRadon, levelFromSsp, levelFromZonageSismique, worstLevel } from './rules'
 import type { AddressResult, SensitivityLevel, SensitivityReport, ThemeItem, ThemeSynthesis } from '../types/sensitivity'
+
+function describeLocalisation(loc: georisques.Localisation | null): string | null {
+  return loc ? `à ${formatDistance(loc.distanceM)} au ${cardinalLabelFr(loc.direction)} du site` : null
+}
 
 const AVERTISSEMENT =
   "Cette synthèse s'appuie sur des données publiques (BRGM/Géorisques, IGN) " +
@@ -15,13 +20,13 @@ const MAX_LISTED = 6
 export async function buildSensitivityReport(address: AddressResult, rayonMetres: number): Promise<SensitivityReport> {
   const { lat, lon, citycode } = address
 
-  const [icpeResult, sspResult, timCount, mvtCount, cavitesCount, inAziResult, catnatItems, zoneSismique, argilesExpo, radonClasseResult] =
+  const [icpeResult, sspResult, timCount, mvtResult, cavitesResult, inAziResult, catnatItems, zoneSismique, argilesExpo, radonClasseResult] =
     await Promise.all([
       georisques.fetchIcpe(lat, lon, rayonMetres),
       georisques.fetchSsp(lat, lon, rayonMetres),
       georisques.countTim(lat, lon, rayonMetres),
-      georisques.countMvt(lat, lon, rayonMetres),
-      georisques.countCavites(lat, lon, rayonMetres),
+      georisques.fetchMvt(lat, lon, rayonMetres),
+      georisques.fetchCavites(lat, lon, rayonMetres),
       georisques.inAzi(lat, lon, rayonMetres),
       citycode ? georisques.fetchCatnatInondation(citycode) : Promise.resolve(null),
       citycode ? georisques.zonageSismique(citycode) : Promise.resolve(null),
@@ -32,7 +37,7 @@ export async function buildSensitivityReport(address: AddressResult, rayonMetres
   const themes: ThemeSynthesis[] = [
     themeSols(sspResult),
     themeEau(inAziResult, catnatItems, citycode),
-    themeRisquesNaturels(mvtCount, cavitesCount, zoneSismique, argilesExpo, radonClasseResult),
+    themeRisquesNaturels(mvtResult, cavitesResult, zoneSismique, argilesExpo, radonClasseResult, citycode),
     themeActivitesIndustrielles(icpeResult, timCount),
   ]
 
@@ -46,16 +51,16 @@ export async function buildSensitivityReport(address: AddressResult, rayonMetres
   }
 }
 
-function formatDateFr(iso: string | null): string | null {
-  if (!iso) return null
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString('fr-FR')
+function formatDateFr(value: string | null): string | null {
+  if (!value) return null
+  const date = georisques.parseFrenchDate(value)
+  return date ? date.toLocaleDateString('fr-FR') : value
 }
 
 function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
   const casiasTotal = ssp?.casias.total ?? null
   const sisTotal = ssp?.sis.total ?? null
-  const niveau = ssp === null ? 'indeterminee' : worstLevel([levelFromCount(casiasTotal, 1, 4), levelFromSsp(sisTotal)])
+  const niveau = ssp === null ? 'indeterminee' : worstLevel([levelFromCount(casiasTotal, 3, 10), levelFromSsp(sisTotal)])
   const items: ThemeItem[] = []
   const manquantes: string[] = []
 
@@ -140,12 +145,14 @@ function themeEau(inAziValue: boolean | null, catnatItems: georisques.CatnatItem
     shown.forEach((arrete) => {
       const dates = [
         arrete.dateDebut && arrete.dateFin ? `évènement du ${formatDateFr(arrete.dateDebut)} au ${formatDateFr(arrete.dateFin)}` : null,
-        arrete.datePublication ? `arrêté publié le ${formatDateFr(arrete.datePublication)}` : null,
+        arrete.datePublicationArrete ? `arrêté publié le ${formatDateFr(arrete.datePublicationArrete)}` : null,
       ].filter(Boolean)
+      const href = georisques.legifranceJoUrl(arrete.datePublicationJo ?? arrete.datePublicationArrete) ?? undefined
       items.push({
         label: arrete.libelle,
         detail: dates.join(' — ') || 'Arrêté de catastrophe naturelle',
         source: 'GASPAR — Géorisques',
+        href,
       })
     })
     if (catnatItems.length > shown.length) {
@@ -173,16 +180,41 @@ function themeEau(inAziValue: boolean | null, catnatItems: georisques.CatnatItem
   return { key: 'eau', titre: 'Eau', niveau, resume, items, donnees_manquantes: manquantes }
 }
 
+const ZONAGE_SISMIQUE_LABELS: Record<number, string> = {
+  1: 'très faible',
+  2: 'faible',
+  3: 'modérée',
+  4: 'moyenne',
+  5: 'forte',
+}
+
+const ARGILES_DESCRIPTIONS: Record<string, string> = {
+  faible: "un phénomène de retrait-gonflement possible mais peu probable, sans mesure constructive particulière requise pour les bâtiments courants",
+  moyen:
+    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
+  moyenne:
+    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
+  fort: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
+  forte: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
+}
+
+const RADON_DESCRIPTIONS: Record<number, string> = {
+  1: 'un potentiel faible : les teneurs en uranium des sous-sols sont basses',
+  2: 'un potentiel faible à moyen, avec des facteurs géologiques pouvant faciliter le transfert du radon vers le bâti',
+  3: 'un potentiel significatif : des mesures de prévention (ventilation, étanchéité des points d’entrée) sont recommandées pour le bâti',
+}
+
 function themeRisquesNaturels(
-  mvtCount: number | null,
-  cavitesCount: number | null,
+  mvt: georisques.ListResult<georisques.MvtItem> | null,
+  cavites: georisques.ListResult<georisques.CaviteItem> | null,
   zoneSismique: number | null,
   argilesExpo: string | null,
   radonClasseValue: number | null,
+  citycode: string,
 ): ThemeSynthesis {
   const niveaux: SensitivityLevel[] = [
-    levelFromCount(mvtCount, 1, 3),
-    levelFromCount(cavitesCount, 1, 3),
+    levelFromCount(mvt?.total ?? null, 2, 6),
+    levelFromCount(cavites?.total ?? null, 2, 6),
     levelFromZonageSismique(zoneSismique),
     levelFromArgiles(argilesExpo),
     levelFromRadon(radonClasseValue),
@@ -191,46 +223,86 @@ function themeRisquesNaturels(
   const items: ThemeItem[] = []
   const manquantes: string[] = []
 
-  const add = (value: unknown, label: string, detail: string, source: string, missingLabel: string) => {
-    if (value === null || value === undefined) manquantes.push(missingLabel)
-    else items.push({ label, detail, source })
+  if (mvt === null) {
+    manquantes.push('mouvements de terrain')
+  } else if (mvt.items.length === 0) {
+    items.push({ label: 'Mouvements de terrain recensés', detail: 'Aucun évènement recensé à proximité', source: 'BRGM/Géorisques' })
+  } else {
+    const shown = mvt.items.slice(0, MAX_LISTED)
+    shown.forEach((m) =>
+      items.push({
+        label: m.type,
+        detail: [m.lieu, m.dateDebut ? `daté du ${formatDateFr(m.dateDebut)}` : null, describeLocalisation(m.localisation)].filter(Boolean).join(' — '),
+        source: 'BRGM/Géorisques',
+      }),
+    )
+    if (mvt.total > shown.length) {
+      items.push({ label: `+ ${mvt.total - shown.length} autre(s) évènement(s)`, detail: '', source: 'BRGM/Géorisques' })
+    }
   }
 
-  add(
-    mvtCount,
-    'Mouvements de terrain recensés',
-    mvtCount ? `${mvtCount} évènement(s) recensé(s) à proximité` : 'Aucun évènement recensé à proximité',
-    'BRGM/Géorisques',
-    'mouvements de terrain',
-  )
-  add(
-    cavitesCount,
-    'Cavités souterraines recensées',
-    cavitesCount ? `${cavitesCount} cavité(s) recensée(s) à proximité` : 'Aucune cavité recensée à proximité',
-    'BRGM/Géorisques',
-    'cavités souterraines',
-  )
-  add(
-    zoneSismique,
-    'Zonage sismique réglementaire',
-    `Zone ${zoneSismique} sur l'échelle réglementaire (1 très faible à 5 fort)`,
-    'Géorisques',
-    'zonage sismique',
-  )
-  add(argilesExpo, 'Retrait-gonflement des argiles', `Exposition ${argilesExpo?.toLowerCase()}`, 'Géorisques', 'retrait-gonflement des argiles')
-  add(
-    radonClasseValue,
-    'Potentiel radon',
-    `Classe ${radonClasseValue} sur l'échelle réglementaire (1 à 3)`,
-    'Géorisques',
-    'potentiel radon',
-  )
+  if (cavites === null) {
+    manquantes.push('cavités souterraines')
+  } else if (cavites.items.length === 0) {
+    items.push({ label: 'Cavités souterraines recensées', detail: 'Aucune cavité recensée à proximité', source: 'BRGM/Géorisques' })
+  } else {
+    const shown = cavites.items.slice(0, MAX_LISTED)
+    shown.forEach((c) =>
+      items.push({
+        label: c.nom ? `${c.type} — ${c.nom}` : c.type,
+        detail: describeLocalisation(c.localisation) ?? '',
+        source: 'BRGM/Géorisques',
+      }),
+    )
+    if (cavites.total > shown.length) {
+      items.push({ label: `+ ${cavites.total - shown.length} autre(s) cavité(s)`, detail: '', source: 'BRGM/Géorisques' })
+    }
+  }
+
+  if (zoneSismique === null) {
+    manquantes.push('zonage sismique')
+  } else {
+    items.push({
+      label: 'Zonage sismique réglementaire',
+      detail: `Zone ${zoneSismique} sur l'échelle réglementaire (1 très faible à 5 fort) — sismicité ${ZONAGE_SISMIQUE_LABELS[zoneSismique] ?? 'non classée'}`,
+      source: 'Géorisques',
+    })
+  }
+
+  if (!argilesExpo) {
+    manquantes.push('retrait-gonflement des argiles')
+  } else {
+    items.push({
+      label: 'Retrait-gonflement des argiles',
+      detail: `Exposition ${argilesExpo.toLowerCase()} : ${ARGILES_DESCRIPTIONS[argilesExpo.trim().toLowerCase()] ?? 'à préciser selon la carte réglementaire'}`,
+      source: 'Géorisques',
+    })
+  }
+
+  if (radonClasseValue === null) {
+    manquantes.push('potentiel radon')
+  } else {
+    items.push({
+      label: 'Potentiel radon',
+      detail: `Classe ${radonClasseValue} sur l'échelle réglementaire (1 à 3) : ${RADON_DESCRIPTIONS[radonClasseValue] ?? 'à préciser selon la carte réglementaire'}`,
+      source: 'Géorisques',
+    })
+  }
+
+  if (citycode) {
+    items.push({
+      label: 'Consulter le rapport de risques complet de la commune',
+      detail: 'Portail Géorisques (mouvements de terrain, cavités, sismicité, argiles, radon, PPR...)',
+      source: 'Géorisques',
+      href: georisques.communeRiskPortalUrl(citycode),
+    })
+  }
 
   let resume: string
   if (niveau === 'indeterminee') resume = "Les indicateurs de risques naturels n'ont pas pu être interrogés."
   else if (niveau === 'elevee')
     resume =
-      'Un ou plusieurs indicateurs de risques naturels (mouvements de terrain, sismicité, argiles ou radon) atteignent un niveau élevé sur le secteur.'
+      'Un ou plusieurs indicateurs de risques naturels (mouvements de terrain, cavités, sismicité, argiles ou radon) atteignent un niveau élevé sur le secteur.'
   else if (niveau === 'moderee')
     resume = 'Le secteur présente un ou plusieurs indicateurs de risques naturels à surveiller, sans signal alarmant à ce stade.'
   else resume = 'Les indicateurs de risques naturels consultés sont globalement favorables sur le secteur.'
@@ -240,7 +312,7 @@ function themeRisquesNaturels(
 
 function themeActivitesIndustrielles(icpe: georisques.ListResult<georisques.IcpeItem> | null, timCount: number | null): ThemeSynthesis {
   const icpeTotal = icpe?.total ?? null
-  const niveau = worstLevel([levelFromCount(icpeTotal, 1, 3), levelFromCount(timCount, 1, 2)])
+  const niveau = worstLevel([levelFromCount(icpeTotal, 3, 10), levelFromCount(timCount, 2, 5)])
   const items: ThemeItem[] = []
   const manquantes: string[] = []
 

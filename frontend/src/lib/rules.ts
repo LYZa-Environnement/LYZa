@@ -5,7 +5,11 @@
  */
 import type { SensitivityLevel } from '../types/sensitivity'
 
-export function levelFromCount(count: number | null, seuilModeree = 1, seuilElevee = 4): SensitivityLevel {
+// Un seul évènement recensé dans le rayon d'étude (souvent 1 km, en zone
+// urbaine dense) n'est en général pas alarmant en soi — les seuils par
+// défaut demandent une certaine concentration avant de passer en "modérée"
+// ou "élevée", plutôt que de réagir à la première occurrence.
+export function levelFromCount(count: number | null, seuilModeree = 3, seuilElevee = 8): SensitivityLevel {
   if (count === null) return 'indeterminee'
   if (count >= seuilElevee) return 'elevee'
   if (count >= seuilModeree) return 'moderee'
@@ -50,13 +54,18 @@ export function levelFromRadon(classe: number | null): SensitivityLevel {
 }
 
 /** Combine "inside a known flood-prone zone" with the history of
- * flood-related catastrophe-naturelle decrees for the commune. */
+ * flood-related catastrophe-naturelle decrees for the commune. A handful of
+ * catnat decrees in a commune's entire history is close to the norm across
+ * France (most communes have at least one), so that signal alone only
+ * escalates past "faible" once it's unusually frequent; being inside a
+ * mapped flood zone (AZI) is a more specific, site-level signal and is
+ * enough on its own to flag "moderee". */
 export function levelFromFloodSignals(inAzi: boolean | null, catnatInondationCount: number | null): SensitivityLevel {
   if (inAzi === null && catnatInondationCount === null) return 'indeterminee'
   const catnat = catnatInondationCount ?? 0
-  if (inAzi && catnat >= 1) return 'elevee'
-  if (inAzi || catnat >= 3) return 'moderee'
-  if (catnatInondationCount !== null && catnatInondationCount >= 1) return 'moderee'
+  if (inAzi && catnat >= 3) return 'elevee'
+  if (inAzi) return 'moderee'
+  if (catnat >= 5) return 'moderee'
   return 'faible'
 }
 

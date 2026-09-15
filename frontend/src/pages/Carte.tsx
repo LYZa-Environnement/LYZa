@@ -5,10 +5,26 @@ import AddressSearch from '../components/AddressSearch'
 import CasiasSisExplorer from '../components/CasiasSisExplorer'
 import SensitivityMap from '../components/SensitivityMap'
 import SensitivityPanel from '../components/SensitivityPanel'
-import { buildHydroNote, type HydroNote } from '../lib/hydroNote'
+import { buildHydroNote, type HydroNote, type HydroParagraph } from '../lib/hydroNote'
 import type { AddressResult, SensitivityReport } from '../types/sensitivity'
 
 const RADIUS_M = 1000
+
+function HydroParagraphView({ paragraph }: { paragraph: HydroParagraph }) {
+  return (
+    <p style={{ fontSize: '0.92rem' }}>
+      {paragraph.text}
+      {paragraph.linkHref && (
+        <>
+          {' '}
+          <a href={paragraph.linkHref} target="_blank" rel="noopener noreferrer">
+            {paragraph.linkLabel ?? 'En savoir plus'} →
+          </a>
+        </>
+      )}
+    </p>
+  )
+}
 
 const THEME_TO_SERVICES: Record<string, { slug: string; label: string }[]> = {
   sols: [
@@ -92,19 +108,23 @@ export default function Carte() {
         {hydroNote && (
           <div className="card" style={{ marginTop: '2rem' }}>
             <h3>Note de vulnérabilité et de sensibilité — eaux superficielles et souterraines</h3>
-            {hydroNote.paragraphs.map((paragraph, i) => (
-              <p key={i} style={{ fontSize: '0.92rem' }}>
-                {paragraph.text}
-                {paragraph.linkHref && (
-                  <>
-                    {' '}
-                    <a href={paragraph.linkHref} target="_blank" rel="noopener noreferrer">
-                      {paragraph.linkLabel ?? 'En savoir plus'} →
-                    </a>
-                  </>
-                )}
-              </p>
+            {hydroNote.intro.map((paragraph, i) => (
+              <HydroParagraphView key={`intro-${i}`} paragraph={paragraph} />
             ))}
+            {hydroNote.sections.map((section) => (
+              <div key={section.title} style={{ marginTop: '1.2rem' }}>
+                <h4 style={{ marginBottom: '0.4rem' }}>{section.title}</h4>
+                {section.subsections.map((subsection) => (
+                  <div key={subsection.title} style={{ marginBottom: '0.8rem' }}>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.2rem', color: 'var(--color-muted)' }}>{subsection.title}</p>
+                    {subsection.paragraphs.map((paragraph, i) => (
+                      <HydroParagraphView key={`${subsection.title}-${i}`} paragraph={paragraph} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+            <HydroParagraphView paragraph={hydroNote.closing} />
           </div>
         )}
 

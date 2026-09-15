@@ -130,6 +130,41 @@ function localise(siteLat: number, siteLon: number, geom: unknown): Localisation
   return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)) }
 }
 
+/** Same as `localise`, but for endpoints (mvt, cavites) that give flat
+ * longitude/latitude fields directly rather than a GeoJSON geom. */
+function localisePoint(siteLat: number, siteLon: number, itemLon: unknown, itemLat: unknown): Localisation | null {
+  const lon = typeof itemLon === 'number' ? itemLon : Number(itemLon)
+  const lat = typeof itemLat === 'number' ? itemLat : Number(itemLat)
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null
+  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)) }
+}
+
+/** Géorisques' gaspar/catnat dates are DD/MM/YYYY strings (verified live
+ * against the real API), not directly parseable by `new Date()` — which
+ * would misread e.g. "11/02/1987" as 2 November instead of 11 February. */
+export function parseFrenchDate(value: string | null): Date | null {
+  if (!value) return null
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  if (!match) return null
+  const [, dd, mm, yyyy] = match
+  const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+/** Légifrance's daily Journal Officiel issue for an arrêté's publication
+ * date. Not a deep link to the arrêté itself — no public per-arrêté URL
+ * (built from `code_national_catnat` or otherwise) was found to exist — but
+ * a real, stable page where that day's JO, and the arrêté within it, can be
+ * consulted. */
+export function legifranceJoUrl(datePublicationJo: string | null): string | null {
+  const date = parseFrenchDate(datePublicationJo)
+  if (!date) return null
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `https://www.legifrance.gouv.fr/jorf/jo/${yyyy}/${mm}/${dd}`
+}
+
 export interface ListResult<T> {
   items: T[]
   total: number
@@ -294,12 +329,55 @@ export async function countTim(lat: number, lon: number, rayon: number): Promise
   return count(await getRaw('tim', { latlon: latlon(lat, lon), rayon }))
 }
 
-export async function countMvt(lat: number, lon: number, rayon: number): Promise<number | null> {
-  return count(await getRaw('mvt', { latlon: latlon(lat, lon), rayon }))
+// ---- Mouvements de terrain (BRGM) — fields verified live: identifiant,
+// type, lieu, commentaire_lieu, date_debut, longitude, latitude. No public
+// per-item fiche URL was found (unlike ICPE/CASIAS/SIS), so these are listed
+// with their own detail (type, lieu, date, distance) rather than a link.
+
+export interface MvtItem {
+  type: string
+  lieu: string | null
+  dateDebut: string | null
+  localisation: Localisation | null
 }
 
-export async function countCavites(lat: number, lon: number, rayon: number): Promise<number | null> {
-  return count(await getRaw('cavites', { latlon: latlon(lat, lon), rayon }))
+export async function fetchMvt(lat: number, lon: number, rayon: number): Promise<ListResult<MvtItem> | null> {
+  const raw = await fetchPaginated('mvt', { latlon: latlon(lat, lon), rayon })
+  if (raw === null) return null
+  const items: MvtItem[] = raw.map((entry) => {
+    const item = (entry ?? {}) as Record<string, unknown>
+    return {
+      type: str(item.type) ?? 'Mouvement de terrain',
+      lieu: str(item.lieu) ?? str(item.commentaire_lieu),
+      dateDebut: str(item.date_debut),
+      localisation: localisePoint(lat, lon, item.longitude, item.latitude),
+    }
+  })
+  return { items, total: items.length }
+}
+
+// ---- Cavités souterraines (BRGM) — fields verified live: identifiant,
+// type, nom, reperage_geo, longitude, latitude. Same absence of a public
+// per-item fiche URL.
+
+export interface CaviteItem {
+  type: string
+  nom: string | null
+  localisation: Localisation | null
+}
+
+export async function fetchCavites(lat: number, lon: number, rayon: number): Promise<ListResult<CaviteItem> | null> {
+  const raw = await fetchPaginated('cavites', { latlon: latlon(lat, lon), rayon })
+  if (raw === null) return null
+  const items: CaviteItem[] = raw.map((entry) => {
+    const item = (entry ?? {}) as Record<string, unknown>
+    return {
+      type: str(item.type) ?? 'Cavité souterraine',
+      nom: str(item.nom),
+      localisation: localisePoint(lat, lon, item.longitude, item.latitude),
+    }
+  })
+  return { items, total: items.length }
 }
 
 export async function inAzi(lat: number, lon: number, rayon: number): Promise<boolean | null> {
@@ -313,22 +391,35 @@ export interface CatnatItem {
   libelle: string
   dateDebut: string | null
   dateFin: string | null
-  datePublication: string | null
+  datePublicationArrete: string | null
+  datePublicationJo: string | null
+  /** Unique national identifier for the decree (verified live field:
+   * code_national_catnat) — shown for reference, though no public page
+   * keyed on it directly was found (see legifranceJoUrl). */
+  codeNational: string | null
 }
 
-/** Arrêtés liés aux inondations pour la commune. */
+/** Arrêtés liés aux inondations et/ou coulées de boue pour la commune.
+ * Confirmed live (Nîmes, 1987): the official label for this risk category is
+ * exactly "Inondations et/ou Coulées de Boue", already matched by "inond" —
+ * the "coulée de boue" check is kept as a safety net for any other wording. */
 export async function fetchCatnatInondation(codeInsee: string): Promise<CatnatItem[] | null> {
   const payload = await getRaw('gaspar/catnat', { code_insee: codeInsee })
   if (payload === null) return null
   const items = Array.isArray(payload.data) ? payload.data : []
   return items
     .map((entry) => (entry ?? {}) as Record<string, unknown>)
-    .filter((item) => String(item.libelle_risque_jo ?? '').toLowerCase().includes('inond'))
+    .filter((item) => {
+      const libelle = String(item.libelle_risque_jo ?? '').toLowerCase()
+      return libelle.includes('inond') || libelle.includes('coulee de boue') || libelle.includes('coulée de boue')
+    })
     .map((item) => ({
       libelle: str(item.libelle_risque_jo) ?? 'Catastrophe naturelle',
       dateDebut: str(item.date_debut_evt),
       dateFin: str(item.date_fin_evt),
-      datePublication: str(item.date_publication_arrete) ?? str(item.date_publication_jo),
+      datePublicationArrete: str(item.date_publication_arrete),
+      datePublicationJo: str(item.date_publication_jo),
+      codeNational: str(item.code_national_catnat),
     }))
 }
 

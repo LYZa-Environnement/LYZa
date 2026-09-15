@@ -1,5 +1,5 @@
 import { findNearestBathingSite } from './baignade'
-import { formatDistance } from './geo'
+import { cardinalLabelFr, formatDistance } from './geo'
 import { countPrelevements, findNearestAdesPoint } from './hubeau'
 import { findNearestRiverSegment } from './hydrography'
 import { findNearestPpe } from './ppe'
@@ -10,8 +10,20 @@ export interface HydroParagraph {
   linkHref?: string
 }
 
-export interface HydroNote {
+export interface HydroSubsection {
+  title: string
   paragraphs: HydroParagraph[]
+}
+
+export interface HydroSection {
+  title: string
+  subsections: HydroSubsection[]
+}
+
+export interface HydroNote {
+  intro: HydroParagraph[]
+  sections: HydroSection[]
+  closing: HydroParagraph
 }
 
 const INTRO =
@@ -38,7 +50,11 @@ function adesUrl(codeBss: string): string {
  * water theme, in the style of a consultant's note: named receptors when
  * known, always with a distance, and an honest "non déterminé" instead of a
  * guessed classification when the underlying data isn't available or the
- * reference point is too far to be representative. */
+ * reference point is too far to be representative. Eaux superficielles and
+ * eaux souterraines are treated as two separate chapters, each split into
+ * vulnérabilité and sensibilité — they answer different questions (surface
+ * water reached via runoff/discharge vs. groundwater reached via
+ * infiltration) and shouldn't be read as a single blended verdict. */
 export async function buildHydroNote(lat: number, lon: number): Promise<HydroNote> {
   const [ades, river, prelevCount, ppe, bathing] = await Promise.all([
     findNearestAdesPoint(lat, lon),
@@ -48,7 +64,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     findNearestBathingSite(lat, lon),
   ])
 
-  const paragraphs: HydroParagraph[] = [{ text: INTRO }]
+  const intro: HydroParagraph[] = [{ text: INTRO }]
 
   const riverLabel = river ? (river.nom ? `la rivière ${river.nom}` : "le cours d'eau le plus proche") : null
   const aquifereLabel = ades?.aquifere ? `la nappe des ${ades.aquifere}` : ades ? 'la nappe souterraine la plus proche (entité non précisée par le point ADES)' : null
@@ -56,20 +72,21 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   if (receptors.length > 0) {
     const verb = receptors.length > 1 ? 'sont ici considérés comme les principaux récepteurs' : 'est ici considéré comme le principal récepteur'
     const sentence = `${receptors.join(' et ')} ${verb} d'une contamination potentielle pouvant provenir du site.`
-    paragraphs.push({ text: sentence.charAt(0).toUpperCase() + sentence.slice(1) })
+    intro.push({ text: sentence.charAt(0).toUpperCase() + sentence.slice(1) })
   }
 
-  // Vulnérabilité hydrologique — distance réelle au cours d'eau (tracé BD TOPO),
-  // pas à une station de suivi qui peut se trouver à des kilomètres du cours d'eau réel.
+  // ---- Eaux superficielles ---------------------------------------------
+
+  const vulnerabiliteSuperficielle: HydroParagraph[] = []
   if (river) {
     const niveau = river.distanceM > 250 ? 'faible' : river.distanceM > 150 ? 'moyenne' : 'forte'
-    paragraphs.push({
+    vulnerabiliteSuperficielle.push({
       text:
         `La vulnérabilité hydrologique est considérée comme ${niveau} en raison de la distance du site au cours d'eau le plus proche` +
         `${river.nom ? ` (${river.nom})` : ''} : environ ${formatDistance(river.distanceM)}.`,
     })
   } else {
-    paragraphs.push({
+    vulnerabiliteSuperficielle.push({
       text: "La vulnérabilité hydrologique n'a pas pu être évaluée : aucun cours d'eau n'est recensé dans les bases publiques consultées à proximité du site.",
     })
   }
@@ -78,9 +95,10 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   // officiels (base Ministère de la Santé). Aucune base nationale ouverte n'existe pour la
   // pêche de loisir ou les bases nautiques (voir baignade.ts) : Hub'Eau "État piscicole" est
   // un suivi scientifique par pêche électrique, pas un inventaire des usages récréatifs.
+  const sensibiliteSuperficielle: HydroParagraph[] = []
   if (bathing) {
     const niveau = bathing.distanceM <= 1000 ? 'forte' : bathing.distanceM <= 3000 ? 'moyenne' : 'faible'
-    paragraphs.push({
+    sensibiliteSuperficielle.push({
       text:
         `La sensibilité hydrologique est considérée comme ${niveau} : le site de baignade officiel le plus proche` +
         `${bathing.nom ? ` (${bathing.nom}${bathing.commune ? `, ${bathing.commune}` : ''})` : ''} se trouve à environ ${formatDistance(bathing.distanceM)}` +
@@ -88,7 +106,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
         ' loisir ou les bases nautiques : ces usages doivent être vérifiés sur le terrain ou auprès de la fédération de pêche locale.',
     })
   } else {
-    paragraphs.push({
+    sensibiliteSuperficielle.push({
       text:
         "Aucun site de baignade officiel recensé (base du Ministère de la Santé) n'a été trouvé à proximité du site, ce qui ne permet cependant pas d'exclure" +
         " d'autres usages sensibles du cours d'eau (pêche, activités nautiques) : aucune base de données nationale ouverte n'existe pour ces usages, une" +
@@ -96,14 +114,17 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     })
   }
 
+  // ---- Eaux souterraines -------------------------------------------------
+
   // Vulnérabilité hydrogéologique — profondeur de nappe au point ADES le plus proche,
   // avec un seuil de distance au-delà duquel la mesure n'est plus jugée représentative.
+  const vulnerabiliteSouterraine: HydroParagraph[] = []
   if (!ades) {
-    paragraphs.push({
+    vulnerabiliteSouterraine.push({
       text: "La vulnérabilité hydrogéologique n'a pas pu être évaluée : aucun point ADES (qualité des nappes) n'est recensé dans les bases publiques consultées à proximité du site.",
     })
   } else if (ades.distanceM > ADES_USABLE_M) {
-    paragraphs.push({
+    vulnerabiliteSouterraine.push({
       text:
         `La vulnérabilité hydrogéologique n'a pas pu être évaluée de façon fiable : le point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${formatDistance(ades.distanceM)} du site — une` +
@@ -118,7 +139,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     // mesure de profondeur de nappe.
     const depth = ades.profondeurOuvrageM
     const caveat = ades.distanceM > ADES_RELIABLE_M ? ' — à confirmer, le point est relativement éloigné du site' : ''
-    paragraphs.push({
+    vulnerabiliteSouterraine.push({
       text:
         `Aucune mesure récente de profondeur de nappe n'est disponible au point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site ; à titre indicatif,` +
@@ -128,7 +149,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
       linkHref: adesUrl(ades.codeBss),
     })
   } else if (ades.profondeurNappeM == null) {
-    paragraphs.push({
+    vulnerabiliteSouterraine.push({
       text:
         `Un point ADES est recensé à ${formatDistance(ades.distanceM)} du site${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)},` +
         ` mais aucune mesure récente de profondeur de nappe n'y est disponible : la vulnérabilité hydrogéologique n'a pas pu être évaluée sur cette base.`,
@@ -139,7 +160,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     const depth = ades.profondeurNappeM
     const niveau = depth < 5 ? 'forte' : depth < 15 ? 'moyenne' : 'faible'
     const caveat = ades.distanceM > ADES_RELIABLE_M ? ' — à confirmer, le point de mesure est relativement éloigné du site' : ''
-    paragraphs.push({
+    vulnerabiliteSouterraine.push({
       text:
         `La vulnérabilité hydrogéologique est considérée comme ${niveau}, compte tenu de la profondeur de nappe mesurée au point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site : environ` +
@@ -150,7 +171,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   }
 
   // Ce que la profondeur de nappe seule ne dit pas : la nature des terrains traversés.
-  paragraphs.push({
+  vulnerabiliteSouterraine.push({
     text:
       'La perméabilité des couches géologiques traversées entre la surface et la nappe module directement cette lecture de vulnérabilité (des ' +
       'terrains peu perméables au droit du site réduisent la vulnérabilité même avec une nappe peu profonde, et inversement), mais elle ' +
@@ -159,41 +180,60 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
       'InfoTerre, BRGM). Cette dimension reste à traiter par un avis hydrogéologique.',
   })
 
-  // Périmètre de protection éloignée le plus proche et captage associé.
+  // Sensibilité hydrogéologique — usages recensés autour du site : périmètre de
+  // protection éloignée/captage (le récepteur le plus sensible), puis ouvrages de
+  // prélèvement à proximité.
+  const sensibiliteSouterraine: HydroParagraph[] = []
   if (ppe) {
     const distanceLabel = ppe.inside
       ? "le site est situé à l'intérieur de ce périmètre"
-      : `à environ ${formatDistance(ppe.distanceM)}${ppe.direction ? ` au ${ppe.direction === 'N' ? 'nord' : ppe.direction}` : ''} du site`
+      : `à environ ${formatDistance(ppe.distanceM)}${ppe.direction ? ` au ${cardinalLabelFr(ppe.direction)}` : ''} du site`
     const captagePart = ppe.captageRef ? ` Il est associé au captage ${ppe.captageRef}${ppe.etatProcedure ? ` (${ppe.etatProcedure})` : ''}.` : ''
-    paragraphs.push({
+    sensibiliteSouterraine.push({
       text: `Le périmètre de protection éloignée le plus proche${ppe.codePp ? ` (réf. ${ppe.codePp})` : ''} se trouve ${distanceLabel}.${captagePart}`,
       linkLabel: ppe.adesUrl ? 'Voir le captage sur ADES' : undefined,
       linkHref: ppe.adesUrl ?? undefined,
     })
   } else {
-    paragraphs.push({
+    sensibiliteSouterraine.push({
       text: "Aucun périmètre de protection éloignée n'a pu être identifié à proximité du site dans l'export public mobilisé ici.",
     })
   }
 
-  // Sensibilité hydrogéologique — présence d'ouvrages de prélèvement à proximité.
   if (prelevCount !== null) {
     const niveau = prelevCount === 0 ? 'faible' : prelevCount <= 2 ? 'moyenne' : 'forte'
-    paragraphs.push({
+    sensibiliteSouterraine.push({
       text:
         prelevCount === 0
-          ? "La sensibilité hydrogéologique est considérée comme faible, compte tenu de l'absence d'ouvrage de prélèvement recensé dans un rayon d'environ 1 km autour du site."
-          : `La sensibilité hydrogéologique est considérée comme ${niveau}, compte tenu de ${prelevCount} ouvrage(s) de prélèvement recensé(s) dans un rayon d'environ 1 km autour du site.`,
+          ? "La sensibilité hydrogéologique est par ailleurs considérée comme faible, compte tenu de l'absence d'ouvrage de prélèvement recensé dans un rayon d'environ 1 km autour du site."
+          : `La sensibilité hydrogéologique est par ailleurs considérée comme ${niveau}, compte tenu de ${prelevCount} ouvrage(s) de prélèvement recensé(s) dans un rayon d'environ 1 km autour du site.`,
     })
   } else {
-    paragraphs.push({
-      text: "La sensibilité hydrogéologique n'a pas pu être évaluée : les ouvrages de prélèvement à proximité n'ont pas pu être interrogés.",
+    sensibiliteSouterraine.push({
+      text: "La sensibilité hydrogéologique liée aux ouvrages de prélèvement n'a pas pu être évaluée : ces données n'ont pas pu être interrogées.",
     })
   }
 
-  paragraphs.push({
-    text: "Cette lecture reste indicative : elle s'appuie sur des données publiques disponibles à distance et ne remplace pas une évaluation réalisée sur site.",
-  })
+  const sections: HydroSection[] = [
+    {
+      title: 'Eaux superficielles',
+      subsections: [
+        { title: 'Vulnérabilité', paragraphs: vulnerabiliteSuperficielle },
+        { title: 'Sensibilité', paragraphs: sensibiliteSuperficielle },
+      ],
+    },
+    {
+      title: 'Eaux souterraines',
+      subsections: [
+        { title: 'Vulnérabilité', paragraphs: vulnerabiliteSouterraine },
+        { title: 'Sensibilité', paragraphs: sensibiliteSouterraine },
+      ],
+    },
+  ]
 
-  return { paragraphs }
+  const closing: HydroParagraph = {
+    text: "Cette lecture reste indicative : elle s'appuie sur des données publiques disponibles à distance et ne remplace pas une évaluation réalisée sur site.",
+  }
+
+  return { intro, sections, closing }
 }
