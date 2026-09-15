@@ -1,10 +1,10 @@
-import { cardinalLabelFr, formatDistance } from './geo'
+import { cardinalPhraseFr, formatDistance } from './geo'
 import * as georisques from './georisques'
 import { levelFromArgiles, levelFromCount, levelFromFloodSignals, levelFromRadon, levelFromSsp, levelFromZonageSismique, worstLevel } from './rules'
 import type { AddressResult, SensitivityLevel, SensitivityReport, ThemeItem, ThemeSynthesis } from '../types/sensitivity'
 
 function describeLocalisation(loc: georisques.Localisation | null): string | null {
-  return loc ? `à ${formatDistance(loc.distanceM)} au ${cardinalLabelFr(loc.direction)} du site` : null
+  return loc ? `à ${formatDistance(loc.distanceM)} ${cardinalPhraseFr(loc.direction)} du site` : null
 }
 
 const AVERTISSEMENT =
@@ -143,16 +143,16 @@ function themeEau(inAziValue: boolean | null, catnatItems: georisques.CatnatItem
   } else {
     const shown = catnatItems.slice(0, MAX_LISTED)
     shown.forEach((arrete) => {
+      const datePublication = arrete.datePublicationJo ?? arrete.datePublicationArrete
       const dates = [
         arrete.dateDebut && arrete.dateFin ? `évènement du ${formatDateFr(arrete.dateDebut)} au ${formatDateFr(arrete.dateFin)}` : null,
-        arrete.datePublicationArrete ? `arrêté publié le ${formatDateFr(arrete.datePublicationArrete)}` : null,
+        datePublication ? `publié au Journal officiel le ${formatDateFr(datePublication)}` : null,
+        arrete.codeNational ? `réf. ${arrete.codeNational}` : null,
       ].filter(Boolean)
-      const href = georisques.legifranceJoUrl(arrete.datePublicationJo ?? arrete.datePublicationArrete) ?? undefined
       items.push({
         label: arrete.libelle,
         detail: dates.join(' — ') || 'Arrêté de catastrophe naturelle',
         source: 'GASPAR — Géorisques',
-        href,
       })
     })
     if (catnatItems.length > shown.length) {

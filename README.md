@@ -94,14 +94,15 @@ mouvements de terrain et cavités souterraines (type, lieu, date, distance
 et direction au site). Chaque élément qui a une fiche officielle (CASIAS,
 SIS, ICPE) y renvoie en lien direct. Les arrêtés catastrophe naturelle
 (inondation et/ou coulée de boue — le libellé officiel GASPAR exact,
-confirmé en direct) renvoient chacun vers l'édition du Journal officiel de
-leur date de publication (`legifranceJoUrl` dans `georisques.ts`) : ce
-n'est pas un lien profond vers l'arrêté lui-même (aucune URL publique par
-arrêté n'a été trouvée), mais une page réelle et stable où le consulter.
-Le thème Risques naturels ajoute, pour le zonage sismique, l'exposition aux
-argiles et le potentiel radon, une description en clair de ce que la classe
-réglementaire signifie concrètement, ainsi qu'un lien vers le rapport de
-risques complet de la commune sur le portail Géorisques.
+confirmé en direct) affichent leurs dates (évènement, publication au
+Journal officiel) et leur référence nationale (`code_national_catnat`) en
+texte, sans lien cliquable : aucune page publique par arrêté n'a été
+trouvée, et un lien générique vers le Journal officiel du jour n'apportait
+rien d'utile (retiré après retour direct). Le thème Risques naturels
+ajoute, pour le zonage sismique, l'exposition aux argiles et le potentiel
+radon, une description en clair de ce que la classe réglementaire signifie
+concrètement, ainsi qu'un lien vers le rapport de risques complet de la
+commune sur le portail Géorisques.
 
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
@@ -172,10 +173,13 @@ Détail par indicateur :
   profondeur est donnée à titre indicatif (clairement libellée « profondeur
   de l'ouvrage », pas « profondeur de nappe ») plutôt que de ne rien dire
   du tout — sans en tirer de classification, car ce n'est qu'un indice
-  indirect. Au-delà de 5 km, le point n'est plus jugé représentatif de
-  l'hydrogéologie locale et aucun niveau n'est proposé ; entre 2 et 5 km la
-  classification est donnée mais signalée comme à confirmer. La
-  perméabilité des couches traversées entre la surface et la nappe — qui
+  indirect. Au-delà d'1 km (`ADES_USABLE_M` dans `hydroNote.ts`, resserré
+  après retour direct — un point à plusieurs kilomètres n'était plus jugé
+  fiable), aucune lecture de vulnérabilité hydrogéologique n'est affichée
+  du tout, plutôt qu'une classification caveatée : à cette échelle la
+  profondeur au point ADES ne dit plus grand-chose de fiable sur celle au
+  droit du site. La perméabilité des couches traversées entre la surface et
+  la nappe — qui
   module directement cette lecture — n'est pas disponible dans les données
   publiques mobilisées ici (pas d'API donnant une lithologie exploitable
   point par point, seulement les métadonnées d'un forage BSS) ; le texte

@@ -104,3 +104,20 @@ const CARDINAL_LABELS_FR: Record<string, string> = {
 export function cardinalLabelFr(direction: string): string {
   return CARDINAL_LABELS_FR[direction] ?? direction
 }
+
+const CARDINAL_PHRASES_FR: Record<string, string> = {
+  N: 'au nord',
+  NE: 'au nord-est',
+  E: "à l'est",
+  SE: 'au sud-est',
+  S: 'au sud',
+  SO: 'au sud-ouest',
+  O: "à l'ouest",
+  NO: 'au nord-ouest',
+}
+
+/** Full French preposition + direction (e.g. "O" -> "à l'ouest", "N" -> "au
+ * nord") — "au est"/"au ouest" is not valid French, unlike the other six. */
+export function cardinalPhraseFr(direction: string): string {
+  return CARDINAL_PHRASES_FR[direction] ?? `au ${cardinalLabelFr(direction)}`
+}

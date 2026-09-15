@@ -151,20 +151,6 @@ export function parseFrenchDate(value: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** Légifrance's daily Journal Officiel issue for an arrêté's publication
- * date. Not a deep link to the arrêté itself — no public per-arrêté URL
- * (built from `code_national_catnat` or otherwise) was found to exist — but
- * a real, stable page where that day's JO, and the arrêté within it, can be
- * consulted. */
-export function legifranceJoUrl(datePublicationJo: string | null): string | null {
-  const date = parseFrenchDate(datePublicationJo)
-  if (!date) return null
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `https://www.legifrance.gouv.fr/jorf/jo/${yyyy}/${mm}/${dd}`
-}
-
 export interface ListResult<T> {
   items: T[]
   total: number
@@ -394,8 +380,8 @@ export interface CatnatItem {
   datePublicationArrete: string | null
   datePublicationJo: string | null
   /** Unique national identifier for the decree (verified live field:
-   * code_national_catnat) — shown for reference, though no public page
-   * keyed on it directly was found (see legifranceJoUrl). */
+   * code_national_catnat) — shown as a plain reference; no public page
+   * keyed on it directly was found, so it isn't turned into a link. */
   codeNational: string | null
 }
 

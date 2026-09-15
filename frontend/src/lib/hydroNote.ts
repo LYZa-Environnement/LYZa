@@ -1,5 +1,5 @@
 import { findNearestBathingSite } from './baignade'
-import { cardinalLabelFr, formatDistance } from './geo'
+import { cardinalPhraseFr, formatDistance } from './geo'
 import { countPrelevements, findNearestAdesPoint } from './hubeau'
 import { findNearestRiverSegment } from './hydrography'
 import { findNearestPpe } from './ppe'
@@ -29,13 +29,11 @@ export interface HydroNote {
 const INTRO =
   "La vulnérabilité des eaux de surface et souterraines concerne la possibilité qu'une contamination potentielle rejoigne le milieu récepteur, et la sensibilité, le niveau d'importance de tout impact potentiel au droit du site sur le milieu récepteur. La classification (faible, moyenne, forte) ci-dessous provient d'une première appréciation construite à partir des données publiques disponibles pour l'emplacement du site étudié (IGN, Hub'Eau, BRGM) — elle ne remplace pas un avis hydrogéologique."
 
-// A water-table depth read at a point beyond this distance says very little
-// about the depth at the site itself (local topography/geology can vary a
-// lot over a few km) — past it we say so instead of guessing.
-const ADES_USABLE_M = 5000
-// Below this, the reading is used without caveat; between this and
-// ADES_USABLE_M it's used but flagged as a bit distant.
-const ADES_RELIABLE_M = 2000
+// A water-table depth read at a point beyond this distance says nothing
+// useful about the site itself (local topography/geology can vary a lot
+// over even a few hundred metres) — past it, no vulnérabilité hydrogéologique
+// reading is shown at all rather than a caveated guess.
+const ADES_USABLE_M = 1000
 
 function adesReference(codeBss: string): string {
   return `réf. BSS/ADES ${codeBss}`
@@ -124,11 +122,14 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
       text: "La vulnérabilité hydrogéologique n'a pas pu être évaluée : aucun point ADES (qualité des nappes) n'est recensé dans les bases publiques consultées à proximité du site.",
     })
   } else if (ades.distanceM > ADES_USABLE_M) {
+    // Au-delà d'1 km, on ne présente plus aucune lecture de profondeur (nappe ou
+    // ouvrage) : à cette échelle, la profondeur au point ADES ne dit plus grand-chose
+    // de fiable sur celle au droit du site — mieux vaut le dire que deviner.
     vulnerabiliteSouterraine.push({
       text:
-        `La vulnérabilité hydrogéologique n'a pas pu être évaluée de façon fiable : le point ADES le plus proche` +
-        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${formatDistance(ades.distanceM)} du site — une` +
-        ` distance trop importante pour que sa profondeur de nappe soit représentative de l'hydrogéologie locale.`,
+        `La vulnérabilité hydrogéologique n'a pas pu être évaluée : le point ADES le plus proche` +
+        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${formatDistance(ades.distanceM)} du site — au-delà` +
+        " d'1 km, sa profondeur de nappe n'est plus considérée comme représentative de l'hydrogéologie locale.",
       linkLabel: 'Voir ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
     })
@@ -138,12 +139,11 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     // plus bas que ce qu'il cherche à capter) — signalée comme telle, pas comme une
     // mesure de profondeur de nappe.
     const depth = ades.profondeurOuvrageM
-    const caveat = ades.distanceM > ADES_RELIABLE_M ? ' — à confirmer, le point est relativement éloigné du site' : ''
     vulnerabiliteSouterraine.push({
       text:
         `Aucune mesure récente de profondeur de nappe n'est disponible au point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site ; à titre indicatif,` +
-        ` l'ouvrage associé a une profondeur de ${depth.toFixed(1)} m${caveat}, ce qui ne renseigne qu'indirectement sur la profondeur de la nappe et ne` +
+        ` l'ouvrage associé a une profondeur de ${depth.toFixed(1)} m, ce qui ne renseigne qu'indirectement sur la profondeur de la nappe et ne` +
         ' permet pas de classification fiable de la vulnérabilité hydrogéologique sur cette seule base.',
       linkLabel: 'Voir ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
@@ -159,12 +159,11 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   } else {
     const depth = ades.profondeurNappeM
     const niveau = depth < 5 ? 'forte' : depth < 15 ? 'moyenne' : 'faible'
-    const caveat = ades.distanceM > ADES_RELIABLE_M ? ' — à confirmer, le point de mesure est relativement éloigné du site' : ''
     vulnerabiliteSouterraine.push({
       text:
         `La vulnérabilité hydrogéologique est considérée comme ${niveau}, compte tenu de la profondeur de nappe mesurée au point ADES le plus proche` +
         `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site : environ` +
-        ` ${depth.toFixed(1)} m${caveat}.`,
+        ` ${depth.toFixed(1)} m.`,
       linkLabel: 'Voir la chronique de ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
     })
@@ -187,7 +186,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   if (ppe) {
     const distanceLabel = ppe.inside
       ? "le site est situé à l'intérieur de ce périmètre"
-      : `à environ ${formatDistance(ppe.distanceM)}${ppe.direction ? ` au ${cardinalLabelFr(ppe.direction)}` : ''} du site`
+      : `à environ ${formatDistance(ppe.distanceM)}${ppe.direction ? ` ${cardinalPhraseFr(ppe.direction)}` : ''} du site`
     const captagePart = ppe.captageRef ? ` Il est associé au captage ${ppe.captageRef}${ppe.etatProcedure ? ` (${ppe.etatProcedure})` : ''}.` : ''
     sensibiliteSouterraine.push({
       text: `Le périmètre de protection éloignée le plus proche${ppe.codePp ? ` (réf. ${ppe.codePp})` : ''} se trouve ${distanceLabel}.${captagePart}`,
