@@ -24,10 +24,10 @@ backend/     Optionnel, non utilisé par le site en ligne : boîte à outils
 
 ## Identité visuelle
 
-Refonte graphique du site React (`frontend/`, hors `lyza-cartes.html` qui
-garde son propre style), inspirée d'affiches de campagne électorale
-fournies par l'utilisateur (cartes communales illustrées à la main,
-lettrage noir épais, formes organiques, vert/rouge) :
+Refonte graphique de l'ensemble du site — React (`frontend/`) **et**
+LYZa Cartes (`frontend/public/lyza-cartes.html`) — inspirée d'affiches de
+campagne électorale fournies par l'utilisateur (cartes communales
+illustrées à la main, lettrage noir épais, formes organiques, vert/rouge) :
 
 - Polices via Google Fonts (`frontend/index.html`) : **Bricolage
   Grotesque** (titres, graisse 700-800) et **Caveat** (citations, classe
@@ -41,14 +41,43 @@ lettrage noir épais, formes organiques, vert/rouge) :
   bordures 1px d'origine.
 - `frontend/src/components/MapMotif.tsx` : illustration décorative (pas
   une vraie carte) façon carte communale dessinée à la main — parcelles
-  vertes irrégulières, routes blanches à liseré noir, repères rouges —
-  utilisée en hero de la page d'accueil.
+  vertes irrégulières, routes blanches à liseré noir (avec un pointillé
+  orange évoquant un marquage au sol), une rivière bleue, quelques
+  bâtiments et une petite église dessinés à main levée, une rose des
+  vents, et des repères de site colorés (rouge/orange/bleu selon le
+  type) — utilisée en hero de la page d'accueil.
 
 Le thème « Évaluer un site » utilise les mêmes classes CSS partagées
 (`.card`, `.btn`, `.badge`, `.grid`) donc hérite du nouveau style sans
 modification propre — seules les bordures de formulaires (recherche
 d'adresse, formulaire de contact, sélecteur de rayon CASIAS/SIS) ont été
 alignées manuellement sur `--border-w`.
+
+**LYZa Cartes** (`frontend/public/lyza-cartes.html`) garde son propre
+système de thème CSS (variables `:root`, clair/sombre) mais celui-ci a été
+réaligné sur la même identité plutôt que traité comme un style à part :
+
+- Police **Bricolage Grotesque** chargée dans le `<head>` de ce fichier
+  autonome et appliquée aux titres/étiquettes de marque (`h1`,
+  `.brand-mark`, `.popup h3`, `.wc-title`, boutons) — le corps de texte
+  dense (tableaux, popups de données, légendes) reste en Verdana pour
+  rester lisible à petite taille.
+- Jetons de couleur « chrome » (`--bg`, `--paper`, `--ink`, `--accent`,
+  `--danger`, `--warn`, …) remplacés par la même palette que le site React,
+  en clair comme en sombre — mais les ~17 jetons fonctionnels de légende
+  cartographique (`--c-icpe-*`, `--c-casias`, `--c-sis`, `--c-bss`,
+  `--c-river`, `--c-natura-*`, `--c-piezo`, `--c-ppe`, etc.) sont
+  **volontairement laissés inchangés** : ils codent la signification réelle
+  des couches de la carte, pas l'identité de marque — les toucher casserait
+  les conventions de couleur que l'outil utilise déjà en interne.
+- Bordures épaissies (2px, couleur `--ink`) et ombre décalée façon
+  autocollant sur les éléments de chrome (bandeau d'en-tête, champ de
+  recherche, boutons, popups, étiquette Nord, liste de suggestions) —
+  les rangées denses (calques, parcelles sélectionnées, tableaux de
+  popup) gardent leurs bordures fines d'origine pour ne pas surcharger
+  visuellement un outil de travail.
+- Un bandeau tricolore (vert/rouge/orange) en tête de la barre latérale,
+  écho des couleurs de repère de site du `MapMotif`.
 
 ## Déploiement — GitHub Pages
 
