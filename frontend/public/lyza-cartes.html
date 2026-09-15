@@ -334,9 +334,6 @@
     padding:14px 18px; border-bottom:1px solid var(--line);
     background:var(--accent-soft);
   }
-  .refresh-btn{
-    width:100%; font-size:14px; padding:12px 14px; box-shadow:var(--shadow);
-  }
   .mobile-toggle{ display:none; }
   @media (max-width: 760px){
     .mobile-toggle{
@@ -368,7 +365,6 @@
     </div>
 
     <div class="refresh-zone">
-      <button class="btn refresh-btn" id="scan-btn">↻ Actualiser toutes les données sur cette zone</button>
       <div class="radius-note"><span class="dot"></span><span id="radius-label">rayon de recherche : —</span></div>
       <label class="layer-row" style="padding-left:0;margin-top:6px;">
         <input type="checkbox" id="auto-scan" checked><span class="lbl" style="font-size:12px;color:var(--ink-dim);">relancer automatiquement en déplaçant la carte</span>
@@ -1716,7 +1712,6 @@
   // ---- Zone scan against Géorisques API v1 ----
   var statusEl = document.getElementById('status');
   var radiusLabel = document.getElementById('radius-label');
-  var scanBtn = document.getElementById('scan-btn');
   var MAX_RAYON = 20000;
 
   function currentRadius(){
@@ -1754,7 +1749,6 @@
     var c = map.getCenter();
     var rayon = currentRadius();
     var latlon = c.lng.toFixed(5) + ',' + c.lat.toFixed(5);
-    scanBtn.disabled = true;
     statusEl.classList.remove('err');
     statusEl.textContent = 'Recherche en cours…';
 
@@ -1876,15 +1870,11 @@
       var etabSanteNote = fillHubeauLayer(etabSanteResult, 'lyr-etab-sante', 'cnt-etab-sante', etabSanteLayer, etabSanteMarker, 'établissements sensibles');
 
       statusEl.textContent = icpeItems.length + ' ICPE · ' + casiasData.length + ' CASIAS · ' + sisData.length + ' SIS' + ppeNote + piezoNote + qualnappeNote + prelevNote + riverNote + naturaZscNote + naturaZpsNote + etabScolaireNote + etabSanteNote + ' — rayon ' + (rayon/1000).toFixed(1) + ' km';
-      scanBtn.disabled = false;
     }).catch(function(err){
       statusEl.classList.add('err');
       statusEl.textContent = 'Erreur de récupération des données.';
-      scanBtn.disabled = false;
     });
   }
-
-  scanBtn.addEventListener('click', runScan);
 
   var autoTimer = null;
   var autoScanCheckbox = document.getElementById('auto-scan');
@@ -1903,6 +1893,7 @@
     clearTimeout(autoTimer);
     autoTimer = setTimeout(runScan, 1200);
   }
+  runScan(); // no manual "Actualiser" button anymore — scan the default view right away
 
   // ---- Mobile sidebar toggle ----
   var sidebar = document.getElementById('sidebar');

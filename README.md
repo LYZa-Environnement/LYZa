@@ -304,7 +304,11 @@ Calques et outils repris :
 - **Établissements sensibles** : écoles et santé/social (annuaire
   éducation, FINESS).
 - **Outils** : mesure de distance, ordre d'affichage des calques
-  (glisser devant/derrière), scan automatique en déplaçant la carte.
+  (glisser devant/derrière), scan automatique en déplaçant la carte (activé
+  par défaut, désactivable) — la carte se met à jour toute seule, il n'y a
+  plus de bouton « Actualiser » manuel (retiré : redondant une fois
+  l'auto-scan activé par défaut) ; un premier scan tourne automatiquement
+  dès le chargement de la page, sur la vue par défaut.
 
 Cette page a été portée depuis une version HTML autonome fournie par
 l'utilisateur, en conservant la logique d'origine à l'identique (seule
