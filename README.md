@@ -57,17 +57,34 @@ d'intervention, Démarche, Contact.
 
 ## L'outil "Évaluer un site"
 
+La page est structurée en deux parties, qui répondent à deux questions
+différentes plutôt qu'à une seule synthèse mélangée (retour direct) :
+
+- **Partie 1 — Quels risques s'appliquent à ce site ?** (dangers/signaux
+  qui pourraient affecter le site lui-même), chapitrée en deux thèmes :
+  **Risques naturels** (inondation/coulée de boue, mouvements de terrain,
+  cavités, sismicité, argiles, radon, usage de pesticides sur les parcelles
+  agricoles voisines) et **Risques industriels** (anciens sites industriels
+  et sols pollués CASIAS/SIS, ICPE, canalisations de matières dangereuses).
+- **Partie 2 — Quel impact une activité sur ce site pourrait-elle avoir sur
+  l'environnement ?** — la question inverse : c'est la note de
+  vulnérabilité/sensibilité hydro (voir plus bas), inchangée dans son
+  contenu mais désormais présentée comme un second chapitre à part entière
+  plutôt qu'un bloc supplémentaire sous la synthèse.
+
+Les deux parties partagent la même recherche d'adresse et la même carte
+(un seul scan, pas de re-fetch) — une vraie deuxième page aurait dupliqué
+l'état ou nécessité de refaire les appels après navigation, pour un
+bénéfice de partage d'URL qui n'était pas demandé.
+
 1. L'utilisateur saisit une adresse (autocomplétion via l'API Adresse —
    `frontend/src/lib/geocode.ts`, appel direct au navigateur).
 2. L'adresse est positionnée sur une carte simplifiée (Leaflet / fond
    OpenStreetMap), avec un rayon d'analyse de 1 000 m.
 3. Le navigateur interroge l'API Géorisques autour du point
-   (`frontend/src/lib/georisques.ts`) et agrège les résultats en quatre
-   thèmes (`frontend/src/lib/synthesis.ts`) : **Sols** (BASIAS, sites et
-   sols pollués), **Eau** (zones inondables, historique catastrophe
-   naturelle), **Risques naturels** (mouvements de terrain, cavités,
-   sismicité, argiles, radon), **Activités industrielles** (ICPE,
-   canalisations de matières dangereuses).
+   (`frontend/src/lib/georisques.ts`) et agrège les résultats en deux
+   thèmes (`frontend/src/lib/synthesis.ts`) : **Risques naturels** et
+   **Risques industriels** (composition détaillée ci-dessus).
 4. Chaque thème reçoit un niveau (Faible / Modérée / Élevée / Non
    déterminée) selon des règles explicites, pas un score opaque — voir
    `frontend/src/lib/rules.ts`. Les seuils de `levelFromCount` (ICPE,
@@ -113,6 +130,44 @@ commune sur le portail Géorisques.
 
 Un avertissement est affiché systématiquement : la synthèse s'appuie sur
 des données publiques et ne remplace pas une étude réglementaire.
+
+### Usage de pesticides sur les parcelles voisines — `frontend/src/lib/parcelles.ts`
+
+Ajouté au thème Risques naturels sur demande : un signal sur l'usage
+probable de produits phytosanitaires sur les parcelles agricoles voisines,
+d'après le RPG (Registre Parcellaire Graphique). Interroge en direct la
+couche WFS `RPG.LATEST:parcelles_graphiques` (module `wfs-geoportail`
+d'API Carto IGN) — vérifiée en direct sur ~300 parcelles réelles en Beauce
+(région de grandes cultures) : champs `id_parcel`, `surf_parc`,
+`code_cultu` (code culture, ex. `BTH` blé tendre), `code_group` (groupe de
+culture, "1" à "28"), `culture_d1`/`culture_d2`, `cat_cult_p`,
+`code_insee`. Aucun champ « bio » n'existe sur cette couche.
+
+Heuristique appliquée, reprise du retour direct : une parcelle est
+considérée comme probablement traitée sauf si elle correspond à de la
+prairie/estive (proxy pour l'élevage) ou si elle est certifiée bio.
+`code_group` 17/18/19 (estives et landes, prairies permanentes, prairies
+temporaires) sert de proxy pour l'élevage — 18 et 19 confirmés en direct
+(échantillon réel de parcelles `PPH`/`PTR`), 17 non vérifié localement
+(pas d'estive dans la zone testée) mais nomenclature RPG stable et bien
+documentée. Le statut bio, lui, ne peut **pas** être vérifié
+automatiquement : le seul jeu de données trouvé (« Parcelles en
+Agriculture Biologique déclarées à la PAC », Agence Bio) est publié sous
+forme d'environ 190 exports statiques par département/année, pas une API
+interrogeable par point — intégrer ça en direct dans un outil léger
+côté navigateur n'était pas réaliste. Plutôt que de supposer « non bio »,
+le texte le dit explicitement (« statut biologique non vérifiable
+automatiquement ») à chaque fois que l'indicateur est affiché.
+
+La parcelle non-prairie la plus proche est affichée avec sa distance et
+sa direction (toujours les deux, comme le reste de l'outil), sa culture,
+et son code RPG brut si elle n'est pas dans le petit dictionnaire de
+labels de `CROP_LABELS` (non exhaustif — un code inconnu s'affiche tel
+quel plutôt qu'une traduction devinée). `isPointInGeometry`,
+`minDistanceToGeometryBoundaryM` et `centroidOfGeometry` (extraits de
+`ppe.ts` vers `geo.ts` à cette occasion, pour éviter une troisième
+copie du même calcul de géométrie polygonale) sont partagés entre
+`ppe.ts` et `parcelles.ts`.
 
 ### Note de vulnérabilité/sensibilité hydro — `frontend/src/lib/hydroNote.ts`
 

@@ -6,13 +6,21 @@
  * frontend/public/lyza-cartes.html) instead of duplicating the dataset.
  */
 
-import { bearingDegrees, cardinalDirection, haversineMeters, pointToSegmentDistanceM } from './geo'
+import {
+  bearingDegrees,
+  cardinalDirection,
+  centroidOfGeometry,
+  haversineMeters,
+  isPointInGeometry,
+  minDistanceToGeometryBoundaryM,
+  type PolygonGeometry,
+} from './geo'
 
 type Position = [number, number]
 
 interface PpeFeature {
   type: 'Feature'
-  geometry: { type: 'Polygon' | 'MultiPolygon'; coordinates: unknown }
+  geometry: PolygonGeometry
   properties: Record<string, unknown>
   _bbox?: [number, number, number, number]
 }
@@ -61,54 +69,6 @@ function bboxDistanceM(lat: number, lon: number, bbox: [number, number, number, 
   return haversineMeters(lat, lon, clampedLat, clampedLon)
 }
 
-function ringsOf(geometry: PpeFeature['geometry']): Position[][] {
-  return geometry.type === 'Polygon' ? (geometry.coordinates as Position[][]) : (geometry.coordinates as Position[][][]).flat()
-}
-
-function pointInRing(lat: number, lon: number, ring: Position[]): boolean {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    const intersects = yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function isInside(lat: number, lon: number, geometry: PpeFeature['geometry']): boolean {
-  const rings = ringsOf(geometry)
-  // First ring of each polygon is the exterior; holes aren't distinguished
-  // here (PPE perimeters are essentially never donut-shaped) — good enough
-  // for "is the site broadly within this perimeter".
-  return rings.length > 0 && pointInRing(lat, lon, rings[0])
-}
-
-function minDistanceToBoundaryM(lat: number, lon: number, geometry: PpeFeature['geometry']): number {
-  let min = Infinity
-  for (const ring of ringsOf(geometry)) {
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [lon1, lat1] = ring[i]
-      const [lon2, lat2] = ring[i + 1]
-      const d = pointToSegmentDistanceM(lat, lon, lat1, lon1, lat2, lon2)
-      if (d < min) min = d
-    }
-  }
-  return min
-}
-
-function centroidOf(geometry: PpeFeature['geometry']): Position | null {
-  const ring = ringsOf(geometry)[0]
-  if (!ring || ring.length === 0) return null
-  let sumLon = 0
-  let sumLat = 0
-  for (const [lon, lat] of ring) {
-    sumLon += lon
-    sumLat += lat
-  }
-  return [sumLon / ring.length, sumLat / ring.length]
-}
-
 // Only precise-check the N candidates whose bounding box is nearest —
 // checking full polygon boundaries for all ~14k features on every search
 // would be needlessly slow.
@@ -135,15 +95,15 @@ export async function findNearestPpe(lat: number, lon: number): Promise<NearestP
 
   let best: { feature: PpeFeature; distanceM: number; inside: boolean } | null = null
   for (const { feature } of candidates) {
-    const inside = isInside(lat, lon, feature.geometry)
-    const distanceM = inside ? 0 : minDistanceToBoundaryM(lat, lon, feature.geometry)
+    const inside = isPointInGeometry(lat, lon, feature.geometry)
+    const distanceM = inside ? 0 : minDistanceToGeometryBoundaryM(lat, lon, feature.geometry)
     if (!best || distanceM < best.distanceM) best = { feature, distanceM, inside }
   }
   if (!best) return null
 
   const props = best.feature.properties
   const captageRef = typeof props.ins_cap_ref === 'string' && props.ins_cap_ref ? props.ins_cap_ref : null
-  const centroid = centroidOf(best.feature.geometry)
+  const centroid = centroidOfGeometry(best.feature.geometry)
   const direction = best.inside || !centroid ? null : cardinalDirection(bearingDegrees(lat, lon, centroid[1], centroid[0]))
 
   return {

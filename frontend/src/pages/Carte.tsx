@@ -27,13 +27,15 @@ function HydroParagraphView({ paragraph }: { paragraph: HydroParagraph }) {
 }
 
 const THEME_TO_SERVICES: Record<string, { slug: string; label: string }[]> = {
-  sols: [
+  risques_naturels: [
+    { slug: 'changement-climatique', label: 'Adaptation au changement climatique' },
+    { slug: 'hydrogeologie', label: 'Hydrogéologie et protection de la ressource en eau' },
+  ],
+  risques_industriels: [
     { slug: 'due-diligence', label: 'Due diligence environnementale' },
     { slug: 'investigations-ponctuelles', label: 'Investigations et prélèvements ponctuels' },
+    { slug: 'conseil-strategique', label: 'Conseil stratégique en environnement' },
   ],
-  eau: [{ slug: 'hydrogeologie', label: 'Hydrogéologie et protection de la ressource en eau' }],
-  risques_naturels: [{ slug: 'changement-climatique', label: 'Adaptation au changement climatique' }],
-  activites_industrielles: [{ slug: 'conseil-strategique', label: 'Conseil stratégique en environnement' }],
 }
 
 export default function Carte() {
@@ -72,9 +74,10 @@ export default function Carte() {
         <p className="eyebrow">Évaluer un site</p>
         <h1>Sensibilité environnementale</h1>
         <p className="lede">
-          Renseignez une adresse pour la situer sur une carte et obtenir une première synthèse par thème (sols,
-          eau, risques naturels, activités industrielles), construite à partir des bases de données publiques
-          disponibles à proximité.
+          Renseignez une adresse pour la situer sur une carte et obtenir une première lecture en deux temps,
+          construite à partir des bases de données publiques disponibles à proximité : quels risques s'appliquent
+          à ce site (risques naturels et industriels), puis quel impact une activité menée sur ce site pourrait
+          avoir sur son environnement (vulnérabilité et sensibilité des eaux).
         </p>
 
         <div style={{ maxWidth: '34rem', margin: '1.5rem 0 2rem' }}>
@@ -88,49 +91,63 @@ export default function Carte() {
         )}
 
         {address && (
-          <div className="grid grid--2" style={{ alignItems: 'start' }}>
-            <div style={{ height: '24rem' }}>
-              <SensitivityMap address={address} radiusMeters={RADIUS_M} />
+          <div style={{ marginTop: '1rem' }}>
+            <p className="eyebrow">Partie 1</p>
+            <h2 style={{ marginBottom: '0.4rem' }}>Quels risques s'appliquent à ce site ?</h2>
+            <p style={{ color: 'var(--color-muted)', maxWidth: '46rem', marginBottom: '1.5rem' }}>
+              Signaux, naturels ou industriels, qui pourraient affecter le site lui-même — inondation, mouvements
+              de terrain, sismicité, anciennes activités industrielles, installations voisines...
+            </p>
+
+            <div className="grid grid--2" style={{ alignItems: 'start' }}>
+              <div style={{ height: '24rem' }}>
+                <SensitivityMap address={address} radiusMeters={RADIUS_M} />
+              </div>
+              <div>
+                {loading && <p>Analyse en cours…</p>}
+                {error && (
+                  <div className="card" style={{ borderColor: 'var(--level-elevee)' }}>
+                    <p style={{ marginBottom: '0.5rem' }}>{error}</p>
+                    <Link to="/contact">Me contacter →</Link>
+                  </div>
+                )}
+                {report && <SensitivityPanel report={report} />}
+              </div>
             </div>
-            <div>
-              {loading && <p>Analyse en cours…</p>}
-              {error && (
-                <div className="card" style={{ borderColor: 'var(--level-elevee)' }}>
-                  <p style={{ marginBottom: '0.5rem' }}>{error}</p>
-                  <Link to="/contact">Me contacter →</Link>
-                </div>
-              )}
-              {report && <SensitivityPanel report={report} />}
+
+            <div style={{ marginTop: '2rem' }}>
+              <CasiasSisExplorer address={address} />
             </div>
           </div>
         )}
 
         {hydroNote && (
-          <div className="card" style={{ marginTop: '2rem' }}>
-            <h3>Note de vulnérabilité et de sensibilité — eaux superficielles et souterraines</h3>
-            {hydroNote.intro.map((paragraph, i) => (
-              <HydroParagraphView key={`intro-${i}`} paragraph={paragraph} />
-            ))}
-            {hydroNote.sections.map((section) => (
-              <div key={section.title} style={{ marginTop: '1.2rem' }}>
-                <h4 style={{ marginBottom: '0.4rem' }}>{section.title}</h4>
-                {section.subsections.map((subsection) => (
-                  <div key={subsection.title} style={{ marginBottom: '0.8rem' }}>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.2rem', color: 'var(--color-muted)' }}>{subsection.title}</p>
-                    {subsection.paragraphs.map((paragraph, i) => (
-                      <HydroParagraphView key={`${subsection.title}-${i}`} paragraph={paragraph} />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ))}
-            <HydroParagraphView paragraph={hydroNote.closing} />
-          </div>
-        )}
-
-        {address && (
-          <div style={{ marginTop: '2rem' }}>
-            <CasiasSisExplorer address={address} />
+          <div style={{ marginTop: '3rem' }}>
+            <p className="eyebrow">Partie 2</p>
+            <h2 style={{ marginBottom: '0.4rem' }}>Quel impact une activité sur ce site pourrait-elle avoir sur l'environnement ?</h2>
+            <p style={{ color: 'var(--color-muted)', maxWidth: '46rem', marginBottom: '1.5rem' }}>
+              Vulnérabilité et sensibilité des eaux superficielles et souterraines face à une contamination
+              potentielle provenant du site — la question inverse de la partie précédente.
+            </p>
+            <div className="card">
+              {hydroNote.intro.map((paragraph, i) => (
+                <HydroParagraphView key={`intro-${i}`} paragraph={paragraph} />
+              ))}
+              {hydroNote.sections.map((section) => (
+                <div key={section.title} style={{ marginTop: '1.2rem' }}>
+                  <h4 style={{ marginBottom: '0.4rem' }}>{section.title}</h4>
+                  {section.subsections.map((subsection) => (
+                    <div key={subsection.title} style={{ marginBottom: '0.8rem' }}>
+                      <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.2rem', color: 'var(--color-muted)' }}>{subsection.title}</p>
+                      {subsection.paragraphs.map((paragraph, i) => (
+                        <HydroParagraphView key={`${subsection.title}-${i}`} paragraph={paragraph} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <HydroParagraphView paragraph={hydroNote.closing} />
+            </div>
           </div>
         )}
 

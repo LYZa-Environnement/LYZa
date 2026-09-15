@@ -141,3 +141,67 @@ const CARDINAL_PHRASES_FR: Record<string, string> = {
 export function cardinalPhraseFr(direction: string): string {
   return CARDINAL_PHRASES_FR[direction] ?? `au ${cardinalLabelFr(direction)}`
 }
+
+// ---- Polygon geometry helpers (GeoJSON Polygon/MultiPolygon) --------------
+// Shared by ppe.ts (static PPE export) and parcelles.ts (live RPG queries) —
+// both need "is this point inside this polygon" and "how far to its
+// boundary", just against different data sources.
+
+type Position = [number, number]
+
+export interface PolygonGeometry {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: unknown
+}
+
+export function ringsOfGeometry(geometry: PolygonGeometry): Position[][] {
+  return geometry.type === 'Polygon' ? (geometry.coordinates as Position[][]) : (geometry.coordinates as Position[][][]).flat()
+}
+
+function pointInRing(lat: number, lon: number, ring: Position[]): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    const intersects = yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+/** Whether (lat, lon) falls inside the geometry's exterior ring. Holes
+ * aren't distinguished (first ring of each polygon part only) — good enough
+ * for "is the site broadly within this shape", not for donut-shaped precision. */
+export function isPointInGeometry(lat: number, lon: number, geometry: PolygonGeometry): boolean {
+  const rings = ringsOfGeometry(geometry)
+  return rings.length > 0 && pointInRing(lat, lon, rings[0])
+}
+
+/** Shortest distance (metres) from (lat, lon) to the geometry's boundary —
+ * meaningless if the point is inside (call `isPointInGeometry` first). */
+export function minDistanceToGeometryBoundaryM(lat: number, lon: number, geometry: PolygonGeometry): number {
+  let min = Infinity
+  for (const ring of ringsOfGeometry(geometry)) {
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [lon1, lat1] = ring[i]
+      const [lon2, lat2] = ring[i + 1]
+      const d = pointToSegmentDistanceM(lat, lon, lat1, lon1, lat2, lon2)
+      if (d < min) min = d
+    }
+  }
+  return min
+}
+
+/** Simple average of the exterior ring's vertices — good enough for "roughly
+ * where is this shape" when giving a cardinal direction, not a true centroid. */
+export function centroidOfGeometry(geometry: PolygonGeometry): Position | null {
+  const ring = ringsOfGeometry(geometry)[0]
+  if (!ring || ring.length === 0) return null
+  let sumLon = 0
+  let sumLat = 0
+  for (const [lon, lat] of ring) {
+    sumLon += lon
+    sumLat += lat
+  }
+  return [sumLon / ring.length, sumLat / ring.length]
+}

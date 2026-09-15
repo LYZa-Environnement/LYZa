@@ -1,5 +1,6 @@
 import { cardinalPhraseFr, formatDistance } from './geo'
 import * as georisques from './georisques'
+import { surveyNearbyParcels, type ParcelSurvey } from './parcelles'
 import { levelFromArgiles, levelFromCount, levelFromFloodSignals, levelFromRadon, levelFromSsp, levelFromZonageSismique, worstLevel } from './rules'
 import type { AddressResult, SensitivityLevel, SensitivityReport, ThemeItem, ThemeSynthesis } from '../types/sensitivity'
 
@@ -20,7 +21,7 @@ const MAX_LISTED = 6
 export async function buildSensitivityReport(address: AddressResult, rayonMetres: number): Promise<SensitivityReport> {
   const { lat, lon, citycode } = address
 
-  const [icpeResult, sspResult, timCount, mvtResult, cavitesResult, inAziResult, catnatItems, zoneSismique, argilesExpo, radonClasseResult] =
+  const [icpeResult, sspResult, timCount, mvtResult, cavitesResult, inAziResult, catnatItems, zoneSismique, argilesExpo, radonClasseResult, parcelSurvey] =
     await Promise.all([
       georisques.fetchIcpe(lat, lon, rayonMetres),
       georisques.fetchSsp(lat, lon, rayonMetres),
@@ -32,13 +33,12 @@ export async function buildSensitivityReport(address: AddressResult, rayonMetres
       citycode ? georisques.zonageSismique(citycode) : Promise.resolve(null),
       citycode ? georisques.argilesExposition(citycode) : Promise.resolve(null),
       citycode ? georisques.radonClasse(citycode) : Promise.resolve(null),
+      surveyNearbyParcels(lat, lon),
     ])
 
   const themes: ThemeSynthesis[] = [
-    themeSols(sspResult),
-    themeEau(inAziResult, catnatItems, citycode),
-    themeRisquesNaturels(mvtResult, cavitesResult, zoneSismique, argilesExpo, radonClasseResult, citycode),
-    themeActivitesIndustrielles(icpeResult, timCount),
+    themeRisquesNaturels(inAziResult, catnatItems, mvtResult, cavitesResult, zoneSismique, argilesExpo, radonClasseResult, parcelSurvey, citycode),
+    themeRisquesIndustriels(sspResult, icpeResult, timCount, citycode),
   ]
 
   return {
@@ -57,76 +57,55 @@ function formatDateFr(value: string | null): string | null {
   return date ? date.toLocaleDateString('fr-FR') : value
 }
 
-function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
-  const casiasTotal = ssp?.casias.total ?? null
-  const sisTotal = ssp?.sis.total ?? null
-  const niveau = ssp === null ? 'indeterminee' : worstLevel([levelFromCount(casiasTotal, 3, 10), levelFromSsp(sisTotal)])
-  const items: ThemeItem[] = []
-  const manquantes: string[] = []
-
-  if (ssp === null) {
-    manquantes.push('anciens sites industriels et sols pollués (BASIAS/SIS)')
-  } else {
-    const casiasShown = ssp.casias.items.slice(0, MAX_LISTED)
-    if (casiasShown.length === 0) {
-      items.push({ label: 'Anciens sites industriels', detail: 'Aucun site recensé à proximité', source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques' })
-    } else {
-      casiasShown.forEach((site) =>
-        items.push({
-          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
-          detail:
-            [site.activite, site.commune, site.statut, describeLocalisation(site.localisation)].filter(Boolean).join(' — ') ||
-            'Ancien site industriel ou de service',
-          source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
-          href: site.ficheUrl ?? undefined,
-        }),
-      )
-      if (ssp.casias.total > casiasShown.length) {
-        items.push({
-          label: `+ ${ssp.casias.total - casiasShown.length} autre(s) site(s) recensé(s)`,
-          detail: 'Liste complète sur Géorisques',
-          source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
-        })
-      }
-    }
-
-    const sisShown = ssp.sis.items.slice(0, MAX_LISTED)
-    if (sisShown.length === 0) {
-      items.push({ label: "Secteurs d'information sur les sols (SIS)", detail: 'Aucun secteur recensé à proximité', source: 'SIS — Géorisques' })
-    } else {
-      sisShown.forEach((site) =>
-        items.push({
-          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
-          detail: [site.commune, site.superficieM2 ? `${Math.round(site.superficieM2)} m²` : null, describeLocalisation(site.localisation)]
-            .filter(Boolean)
-            .join(' — '),
-          source: 'SIS — Géorisques',
-          href: site.ficheUrl ?? undefined,
-        }),
-      )
-      if (ssp.sis.total > sisShown.length) {
-        items.push({
-          label: `+ ${ssp.sis.total - sisShown.length} autre(s) secteur(s) recensé(s)`,
-          detail: 'Liste complète sur Géorisques',
-          source: 'SIS — Géorisques',
-        })
-      }
-    }
-  }
-
-  let resume: string
-  if (niveau === 'indeterminee') resume = "Les bases de données sur les sols n'ont pas pu être interrogées."
-  else if (sisTotal) resume = "Un ou plusieurs secteurs d'information sur les sols (SIS) sont recensés à proximité immédiate."
-  else if (casiasTotal)
-    resume = "Le secteur a accueilli une ou plusieurs activités industrielles ou de service par le passé, sans restriction d'usage confirmée à ce stade."
-  else resume = "Aucun site industriel ancien ni secteur d'information sur les sols n'est recensé à proximité dans les bases publiques."
-
-  return { key: 'sols', titre: 'Sols', niveau, resume, items, donnees_manquantes: manquantes }
+const ZONAGE_SISMIQUE_LABELS: Record<number, string> = {
+  1: 'très faible',
+  2: 'faible',
+  3: 'modérée',
+  4: 'moyenne',
+  5: 'forte',
 }
 
-function themeEau(inAziValue: boolean | null, catnatItems: georisques.CatnatItem[] | null, citycode: string): ThemeSynthesis {
+const ARGILES_DESCRIPTIONS: Record<string, string> = {
+  faible: "un phénomène de retrait-gonflement possible mais peu probable, sans mesure constructive particulière requise pour les bâtiments courants",
+  moyen:
+    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
+  moyenne:
+    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
+  fort: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
+  forte: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
+}
+
+const RADON_DESCRIPTIONS: Record<number, string> = {
+  1: 'un potentiel faible : les teneurs en uranium des sous-sols sont basses',
+  2: 'un potentiel faible à moyen, avec des facteurs géologiques pouvant faciliter le transfert du radon vers le bâti',
+  3: 'un potentiel significatif : des mesures de prévention (ventilation, étanchéité des points d’entrée) sont recommandées pour le bâti',
+}
+
+/** "Risques naturels" — tout ce qui menace le site du fait du milieu
+ * environnant : inondation/coulée de boue, mouvements de terrain, cavités,
+ * sismicité, argiles, radon, et l'usage de produits phytosanitaires sur les
+ * parcelles agricoles voisines. */
+function themeRisquesNaturels(
+  inAziValue: boolean | null,
+  catnatItems: georisques.CatnatItem[] | null,
+  mvt: georisques.ListResult<georisques.MvtItem> | null,
+  cavites: georisques.ListResult<georisques.CaviteItem> | null,
+  zoneSismique: number | null,
+  argilesExpo: string | null,
+  radonClasseValue: number | null,
+  parcelSurvey: ParcelSurvey | null,
+  citycode: string,
+): ThemeSynthesis {
   const catnatCount = catnatItems?.length ?? null
-  const niveau = levelFromFloodSignals(inAziValue, catnatCount)
+  const niveaux: SensitivityLevel[] = [
+    levelFromFloodSignals(inAziValue, catnatCount),
+    levelFromCount(mvt?.total ?? null, 2, 6),
+    levelFromCount(cavites?.total ?? null, 2, 6),
+    levelFromZonageSismique(zoneSismique),
+    levelFromArgiles(argilesExpo),
+    levelFromRadon(radonClasseValue),
+  ]
+  const niveau = worstLevel(niveaux)
   const items: ThemeItem[] = []
   const manquantes: string[] = []
 
@@ -163,69 +142,6 @@ function themeEau(inAziValue: boolean | null, catnatItems: georisques.CatnatItem
       items.push({ label: `+ ${catnatItems.length - shown.length} autre(s) arrêté(s)`, detail: '', source: 'GASPAR — Géorisques' })
     }
   }
-
-  if (citycode) {
-    items.push({
-      label: 'Consulter tous les risques de la commune',
-      detail: 'Portail Géorisques (arrêtés, PPR, sismicité, radon...)',
-      source: 'Géorisques',
-      href: georisques.communeRiskPortalUrl(citycode),
-    })
-  }
-
-  let resume: string
-  if (niveau === 'indeterminee') resume = "Les indicateurs liés à l'eau n'ont pas pu être interrogés."
-  else if (niveau === 'elevee')
-    resume = "Le secteur est en zone inondable connue et la commune a déjà fait l'objet d'arrêtés catastrophe naturelle pour inondation."
-  else if (niveau === 'moderee')
-    resume = "Un signal lié au risque inondation existe (zone recensée ou antécédents communaux) : un avis hydrogéologique permettrait de préciser l'enjeu."
-  else resume = "Aucun signal notable lié au risque inondation n'est recensé à proximité dans les bases publiques consultées."
-
-  return { key: 'eau', titre: 'Eau', niveau, resume, items, donnees_manquantes: manquantes }
-}
-
-const ZONAGE_SISMIQUE_LABELS: Record<number, string> = {
-  1: 'très faible',
-  2: 'faible',
-  3: 'modérée',
-  4: 'moyenne',
-  5: 'forte',
-}
-
-const ARGILES_DESCRIPTIONS: Record<string, string> = {
-  faible: "un phénomène de retrait-gonflement possible mais peu probable, sans mesure constructive particulière requise pour les bâtiments courants",
-  moyen:
-    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
-  moyenne:
-    'une probabilité de survenance du phénomène significative — des dispositions constructives (fondations, joints de rupture...) sont en général recommandées pour un projet neuf',
-  fort: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
-  forte: 'une probabilité de survenance du phénomène élevée — une étude géotechnique préalable est fortement recommandée pour tout projet de construction',
-}
-
-const RADON_DESCRIPTIONS: Record<number, string> = {
-  1: 'un potentiel faible : les teneurs en uranium des sous-sols sont basses',
-  2: 'un potentiel faible à moyen, avec des facteurs géologiques pouvant faciliter le transfert du radon vers le bâti',
-  3: 'un potentiel significatif : des mesures de prévention (ventilation, étanchéité des points d’entrée) sont recommandées pour le bâti',
-}
-
-function themeRisquesNaturels(
-  mvt: georisques.ListResult<georisques.MvtItem> | null,
-  cavites: georisques.ListResult<georisques.CaviteItem> | null,
-  zoneSismique: number | null,
-  argilesExpo: string | null,
-  radonClasseValue: number | null,
-  citycode: string,
-): ThemeSynthesis {
-  const niveaux: SensitivityLevel[] = [
-    levelFromCount(mvt?.total ?? null, 2, 6),
-    levelFromCount(cavites?.total ?? null, 2, 6),
-    levelFromZonageSismique(zoneSismique),
-    levelFromArgiles(argilesExpo),
-    levelFromRadon(radonClasseValue),
-  ]
-  const niveau = worstLevel(niveaux)
-  const items: ThemeItem[] = []
-  const manquantes: string[] = []
 
   if (mvt === null) {
     manquantes.push('mouvements de terrain')
@@ -293,10 +209,36 @@ function themeRisquesNaturels(
     })
   }
 
+  // Usage de produits phytosanitaires sur les parcelles agricoles voisines —
+  // heuristique par défaut (pas de vérification "bio" automatisée possible,
+  // voir parcelles.ts) : une parcelle qui n'est pas de la prairie/estive
+  // (proxy pour l'élevage) est considérée comme probablement traitée.
+  if (parcelSurvey === null) {
+    manquantes.push('usage de produits phytosanitaires (RPG)')
+  } else if (parcelSurvey.nearestTreated) {
+    const p = parcelSurvey.nearestTreated
+    const localisation = p.inside
+      ? 'le site est situé au sein-même de cette parcelle'
+      : `à ${formatDistance(p.distanceM)} ${p.direction ? cardinalPhraseFr(p.direction) : ''} du site`
+    items.push({
+      label: 'Parcelle agricole probablement traitée la plus proche',
+      detail: `Culture : ${p.cropLabel} (code ${p.codeCultu}) — ${localisation}. Ni prairie/estive (élevage) ni certifiée bio à notre connaissance — statut biologique non vérifiable automatiquement.`,
+      source: 'RPG — IGN/ASP',
+    })
+  } else if (parcelSurvey.anyParcelFound) {
+    items.push({
+      label: "Parcelles agricoles voisines",
+      detail: "Seules des prairies/estives (probable élevage) sont recensées à proximité — pas de parcelle cultivée identifiée dans le rayon consulté.",
+      source: 'RPG — IGN/ASP',
+    })
+  } else {
+    items.push({ label: 'Parcelles agricoles voisines', detail: 'Aucune parcelle agricole (RPG) recensée à proximité', source: 'RPG — IGN/ASP' })
+  }
+
   if (citycode) {
     items.push({
-      label: 'Consulter le rapport de risques complet de la commune',
-      detail: 'Portail Géorisques (mouvements de terrain, cavités, sismicité, argiles, radon, PPR...)',
+      label: 'Consulter tous les risques de la commune',
+      detail: 'Portail Géorisques (arrêtés, PPR, sismicité, radon...)',
       source: 'Géorisques',
       href: georisques.communeRiskPortalUrl(citycode),
     })
@@ -306,7 +248,7 @@ function themeRisquesNaturels(
   if (niveau === 'indeterminee') resume = "Les indicateurs de risques naturels n'ont pas pu être interrogés."
   else if (niveau === 'elevee')
     resume =
-      'Un ou plusieurs indicateurs de risques naturels (mouvements de terrain, cavités, sismicité, argiles ou radon) atteignent un niveau élevé sur le secteur.'
+      'Un ou plusieurs indicateurs de risques naturels (inondation, mouvements de terrain, cavités, sismicité, argiles ou radon) atteignent un niveau élevé sur le secteur.'
   else if (niveau === 'moderee')
     resume = 'Le secteur présente un ou plusieurs indicateurs de risques naturels à surveiller, sans signal alarmant à ce stade.'
   else resume = 'Les indicateurs de risques naturels consultés sont globalement favorables sur le secteur.'
@@ -314,11 +256,77 @@ function themeRisquesNaturels(
   return { key: 'risques_naturels', titre: 'Risques naturels', niveau, resume, items, donnees_manquantes: manquantes }
 }
 
-function themeActivitesIndustrielles(icpe: georisques.ListResult<georisques.IcpeItem> | null, timCount: number | null): ThemeSynthesis {
+/** "Risques industriels" — anciennes et actuelles activités industrielles
+ * ou de service susceptibles d'affecter le site : sites et sols pollués
+ * (CASIAS/SIS), installations classées (ICPE), canalisations de matières
+ * dangereuses. */
+function themeRisquesIndustriels(
+  ssp: georisques.SspResult | null,
+  icpe: georisques.ListResult<georisques.IcpeItem> | null,
+  timCount: number | null,
+  citycode: string,
+): ThemeSynthesis {
+  const casiasTotal = ssp?.casias.total ?? null
+  const sisTotal = ssp?.sis.total ?? null
   const icpeTotal = icpe?.total ?? null
-  const niveau = worstLevel([levelFromCount(icpeTotal, 3, 10), levelFromCount(timCount, 2, 5)])
+  const niveau = worstLevel([
+    ssp === null ? 'indeterminee' : levelFromCount(casiasTotal, 3, 10),
+    ssp === null ? 'indeterminee' : levelFromSsp(sisTotal),
+    levelFromCount(icpeTotal, 3, 10),
+    levelFromCount(timCount, 2, 5),
+  ])
   const items: ThemeItem[] = []
   const manquantes: string[] = []
+
+  if (ssp === null) {
+    manquantes.push('anciens sites industriels et sols pollués (BASIAS/SIS)')
+  } else {
+    const casiasShown = ssp.casias.items.slice(0, MAX_LISTED)
+    if (casiasShown.length === 0) {
+      items.push({ label: 'Anciens sites industriels', detail: 'Aucun site recensé à proximité', source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques' })
+    } else {
+      casiasShown.forEach((site) =>
+        items.push({
+          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
+          detail:
+            [site.activite, site.commune, site.statut, describeLocalisation(site.localisation)].filter(Boolean).join(' — ') ||
+            'Ancien site industriel ou de service',
+          source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
+          href: site.ficheUrl ?? undefined,
+        }),
+      )
+      if (ssp.casias.total > casiasShown.length) {
+        items.push({
+          label: `+ ${ssp.casias.total - casiasShown.length} autre(s) site(s) recensé(s)`,
+          detail: 'Liste complète sur Géorisques',
+          source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
+        })
+      }
+    }
+
+    const sisShown = ssp.sis.items.slice(0, MAX_LISTED)
+    if (sisShown.length === 0) {
+      items.push({ label: "Secteurs d'information sur les sols (SIS)", detail: 'Aucun secteur recensé à proximité', source: 'SIS — Géorisques' })
+    } else {
+      sisShown.forEach((site) =>
+        items.push({
+          label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
+          detail: [site.commune, site.superficieM2 ? `${Math.round(site.superficieM2)} m²` : null, describeLocalisation(site.localisation)]
+            .filter(Boolean)
+            .join(' — '),
+          source: 'SIS — Géorisques',
+          href: site.ficheUrl ?? undefined,
+        }),
+      )
+      if (ssp.sis.total > sisShown.length) {
+        items.push({
+          label: `+ ${ssp.sis.total - sisShown.length} autre(s) secteur(s) recensé(s)`,
+          detail: 'Liste complète sur Géorisques',
+          source: 'SIS — Géorisques',
+        })
+      }
+    }
+  }
 
   if (icpe === null) {
     manquantes.push('installations classées (ICPE)')
@@ -363,12 +371,23 @@ function themeActivitesIndustrielles(icpe: georisques.ListResult<georisques.Icpe
     })
   }
 
+  if (citycode) {
+    items.push({
+      label: 'Consulter le rapport de risques complet de la commune',
+      detail: 'Portail Géorisques (installations classées, sites pollués, canalisations...)',
+      source: 'Géorisques',
+      href: georisques.communeRiskPortalUrl(citycode),
+    })
+  }
+
   let resume: string
   if (niveau === 'indeterminee') resume = "Les indicateurs d'activités industrielles n'ont pas pu être interrogés."
   else if (niveau === 'elevee')
-    resume = 'Plusieurs installations classées ou canalisations de matières dangereuses sont recensées à proximité immédiate.'
-  else if (niveau === 'moderee') resume = 'Une ou plusieurs installations classées sont recensées à proximité, sans concentration particulière.'
-  else resume = "Aucune installation classée ni canalisation à risque n'est recensée à proximité dans les bases publiques."
+    resume =
+      "Un ou plusieurs signaux forts d'activité industrielle sont recensés à proximité immédiate (secteur d'information sur les sols, installations classées ou canalisations en nombre)."
+  else if (niveau === 'moderee')
+    resume = "Un ou plusieurs signaux d'activité industrielle passée ou présente sont recensés à proximité, sans concentration particulière."
+  else resume = "Aucun signal notable d'activité industrielle passée ou présente n'est recensé à proximité dans les bases publiques."
 
-  return { key: 'activites_industrielles', titre: 'Activités industrielles', niveau, resume, items, donnees_manquantes: manquantes }
+  return { key: 'risques_industriels', titre: 'Risques industriels', niveau, resume, items, donnees_manquantes: manquantes }
 }
