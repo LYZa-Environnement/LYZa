@@ -8,7 +8,7 @@
  * features with a `toponyme` property (e.g. checked over the Seine in Paris).
  */
 
-import { bboxAround, bboxToPolygon, pointToSegmentDistanceM } from './geo'
+import { bboxAround, bboxToPolygon, bearingDegrees, cardinalDirection, nearestPointOnSegment } from './geo'
 
 const WFS_SEARCH_URL = 'https://apicarto.ign.fr/api/wfs-geoportail/search'
 const COURS_D_EAU_SOURCE = 'BDTOPO_V3:cours_d_eau'
@@ -41,7 +41,7 @@ async function queryIntersecting(source: string, geometry: unknown, limit = 50):
   }
 }
 
-function minDistanceToLineFeature(lat: number, lon: number, geometry: GeoJsonFeature['geometry']): number | null {
+function nearestPointOnLineFeature(lat: number, lon: number, geometry: GeoJsonFeature['geometry']): { lat: number; lon: number; distanceM: number } | null {
   if (!geometry?.type || !geometry.coordinates) return null
   const lines: [number, number][][] =
     geometry.type === 'LineString'
@@ -49,21 +49,22 @@ function minDistanceToLineFeature(lat: number, lon: number, geometry: GeoJsonFea
       : geometry.type === 'MultiLineString'
         ? (geometry.coordinates as [number, number][][])
         : []
-  let min = Infinity
+  let best: { lat: number; lon: number; distanceM: number } | null = null
   for (const line of lines) {
     for (let i = 0; i < line.length - 1; i++) {
       const [lon1, lat1] = line[i]
       const [lon2, lat2] = line[i + 1]
-      const d = pointToSegmentDistanceM(lat, lon, lat1, lon1, lat2, lon2)
-      if (d < min) min = d
+      const candidate = nearestPointOnSegment(lat, lon, lat1, lon1, lat2, lon2)
+      if (!best || candidate.distanceM < best.distanceM) best = candidate
     }
   }
-  return Number.isFinite(min) ? min : null
+  return best
 }
 
 export interface NearestRiverSegment {
   nom: string | null
   distanceM: number
+  direction: string
 }
 
 /** Nearest point on any `cours_d_eau` line to (lat, lon), searching an
@@ -79,11 +80,15 @@ export async function findNearestRiverSegment(lat: number, lon: number): Promise
 
     let best: NearestRiverSegment | null = null
     for (const feature of features) {
-      const distanceM = minDistanceToLineFeature(lat, lon, feature.geometry)
-      if (distanceM === null) continue
-      if (!best || distanceM < best.distanceM) {
+      const nearest = nearestPointOnLineFeature(lat, lon, feature.geometry)
+      if (nearest === null) continue
+      if (!best || nearest.distanceM < best.distanceM) {
         const toponyme = feature.properties?.toponyme
-        best = { distanceM, nom: typeof toponyme === 'string' && toponyme.trim() ? toponyme.trim() : null }
+        best = {
+          distanceM: nearest.distanceM,
+          nom: typeof toponyme === 'string' && toponyme.trim() ? toponyme.trim() : null,
+          direction: cardinalDirection(bearingDegrees(lat, lon, nearest.lat, nearest.lon)),
+        }
       }
     }
     if (best) return best

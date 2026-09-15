@@ -91,7 +91,14 @@ s'y prête (jusqu'à 6 par catégorie, avec un « + N autres » au-delà) plutô
 qu'un simple total : sites CASIAS et secteurs SIS nommés, installations
 ICPE avec régime/NAF/statut Seveso, arrêtés catastrophe naturelle datés,
 mouvements de terrain et cavités souterraines (type, lieu, date, distance
-et direction au site). Chaque élément qui a une fiche officielle (CASIAS,
+et direction au site). Chaque site/point/ouvrage mentionné dans l'outil —
+CASIAS, SIS, ICPE, mouvements de terrain, cavités, point ADES, cours d'eau,
+site de baignade, périmètre de protection éloignée — indique systématiquement
+sa distance ET sa direction cardinale au site étudié (jamais l'une sans
+l'autre) ; `describeLocalisation` dans `synthesis.ts` et `distanceEtDirection`
+dans `hydroNote.ts` centralisent ce formatage, et `cardinalPhraseFr` dans
+`geo.ts` gère l'élision française correcte (« à l'est »/« à l'ouest », pas
+« au est »/« au ouest »). Chaque élément qui a une fiche officielle (CASIAS,
 SIS, ICPE) y renvoie en lien direct. Les arrêtés catastrophe naturelle
 (inondation et/ou coulée de boue — le libellé officiel GASPAR exact,
 confirmé en direct) affichent leurs dates (évènement, publication au
@@ -167,7 +174,13 @@ Détail par indicateur :
   `qualite_nappes` le plus proche, qui décrit l'entité hydrogéologique (le
   nom de la nappe), et la chronique `niveaux_nappes` de ce même `code_bss`
   pour sa profondeur — jamais deux points différents pour la nappe et la
-  profondeur, qui donneraient une lecture incohérente. Quand aucune
+  profondeur, qui donneraient une lecture incohérente. Hub'Eau/BDLISA
+  utilisent parfois la valeur littérale « Inconnu » pour une nappe ou une
+  nature non classée — un bug remonté après avoir vu s'afficher « la nappe
+  des Inconnu » comme si c'était un vrai nom d'entité ; `meaningfulStr` dans
+  `hubeau.ts` filtre maintenant cette valeur (et ses variantes : non
+  renseigné, non communiqué, NC, indéterminé) pour retomber sur « entité non
+  précisée » plutôt que de l'afficher telle quelle. Quand aucune
   mesure de niveau d'eau n'est disponible mais que le point ADES renseigne
   la profondeur de l'ouvrage lui-même (`profondeur_investigation`), cette
   profondeur est donnée à titre indicatif (clairement libellée « profondeur
@@ -266,7 +279,8 @@ Calques et outils repris :
 
 - **Fond de carte** : Plan IGN, photos aériennes, OSM, photos aériennes
   historiques (IGN « Remonter le temps », par période) + comparateur
-  avant/après par curseur.
+  avant/après par curseur. « Relancer automatiquement en déplaçant la
+  carte » est activé par défaut.
 - **Cadastre** : parcelles cadastrales, sélection de parcelles au clic,
   fusion en un seul contour (Turf.js `union`), isolement du contour
   fusionné.
@@ -282,8 +296,10 @@ Calques et outils repris :
   périmètres France entière, ~14 Mo) avec repli sur le WFS AtlaSanté si
   le fichier est absent ; recherche d'adresse affichant le dernier
   contrôle sanitaire de la commune.
-- **Cours d'eau** : stations de qualité (Naïades), référentiel des
-  masses d'eau (Sandre).
+- **Cours d'eau** : stations de qualité (Naïades) — cliquer sur une
+  station charge les résultats réels de sa dernière campagne d'analyse
+  (paramètre, valeur, unité, date), plutôt qu'un simple lien vers une
+  fiche station (retour direct : « je préfère avoir des données qualité »).
 - **Espaces protégés** : Natura 2000 ZSC/ZPS (API Carto IGN/INPN).
 - **Établissements sensibles** : écoles et santé/social (annuaire
   éducation, FINESS).
@@ -295,6 +311,30 @@ l'utilisateur, en conservant la logique d'origine à l'identique (seule
 l'extraction du bloc PPE dans un fichier séparé, chargé en `fetch`, a été
 modifiée — le reste des appels réseau, règles de couleur, popups et
 fusion de parcelles n'a pas été réécrit).
+
+Le calque « Référentiel des masses d'eau (Sandre) » a été retiré (retour
+direct) : la case, le calque WMS et l'entrée dans l'outil d'ordre
+d'affichage des calques ont été supprimés.
+
+**Comparateur de photos aériennes — bug corrigé.** Le comparateur affichait
+systématiquement la même image des deux côtés. Cause racine trouvée en
+interrogeant en direct le vrai WMTS `data.geopf.fr` : les 25 périodes
+« année individuelle » générées par le code (2000 à 2024, une par année,
+layer `ORTHOIMAGERY.ORTHOPHOTOS<année>`) existent bien dans le catalogue
+IGN, mais ne renvoient des tuiles qu'à faible zoom (probablement une
+mosaïque de survol) — au-delà du zoom 13, elles renvoient systématiquement
+une erreur « No data found », y compris en plein Paris. Résultat : à chaque
+vérification de disponibilité (`refreshHistoAvailability`), les 25 périodes
+échouaient toutes, et le code — qui repliait alors les deux menus du
+comparateur sur « Aujourd'hui (actuelle) » par défaut — finissait par
+comparer l'image actuelle à elle-même. Remplacé par les 5 vraies mosaïques
+pluriannuelles que l'IGN publie et qui, elles, fonctionnent à tous les
+niveaux de zoom testés (`ORTHOIMAGERY.ORTHOPHOTOS2000-2005` jusqu'à
+`ORTHOIMAGERY.ORTHOPHOTOS2021-2023`, vérifiées en direct). Une garde-fou a
+aussi été ajoutée : si les deux côtés du comparateur devaient malgré tout
+se retrouver sur la même période (donnée indisponible sur la zone), le
+bouton se désactive et un message explicite s'affiche plutôt que de
+montrer deux vues identiques sans le dire.
 
 ## Prochaines pistes (analytique) — `backend/`
 

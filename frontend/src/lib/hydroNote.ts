@@ -44,6 +44,12 @@ function adesUrl(codeBss: string): string {
   return `https://ades.eaufrance.fr/Fiche/PtEau?Code=${encodeURIComponent(codeBss.split('/')[0])}#mesures_graphiques`
 }
 
+/** Every point/well/site mentioned in this note gets both its distance and
+ * its cardinal direction from the study site — never distance alone. */
+function distanceEtDirection(distanceM: number, direction: string): string {
+  return `${formatDistance(distanceM)} ${cardinalPhraseFr(direction)}`
+}
+
 /** Builds a distance-grounded vulnérabilité/sensibilité narrative for the
  * water theme, in the style of a consultant's note: named receptors when
  * known, always with a distance, and an honest "non déterminé" instead of a
@@ -68,7 +74,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   const aquifereLabel = ades?.aquifere ? `la nappe des ${ades.aquifere}` : ades ? 'la nappe souterraine la plus proche (entité non précisée par le point ADES)' : null
   const receptors = [riverLabel, aquifereLabel].filter((r): r is string => r !== null)
   if (receptors.length > 0) {
-    const verb = receptors.length > 1 ? 'sont ici considérés comme les principaux récepteurs' : 'est ici considéré comme le principal récepteur'
+    const verb = receptors.length > 1 ? 'sont ici considérées comme les principaux récepteurs' : 'est ici considérée comme le principal récepteur'
     const sentence = `${receptors.join(' et ')} ${verb} d'une contamination potentielle pouvant provenir du site.`
     intro.push({ text: sentence.charAt(0).toUpperCase() + sentence.slice(1) })
   }
@@ -81,7 +87,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     vulnerabiliteSuperficielle.push({
       text:
         `La vulnérabilité hydrologique est considérée comme ${niveau} en raison de la distance du site au cours d'eau le plus proche` +
-        `${river.nom ? ` (${river.nom})` : ''} : environ ${formatDistance(river.distanceM)}.`,
+        `${river.nom ? ` (${river.nom})` : ''} : environ ${distanceEtDirection(river.distanceM, river.direction)}.`,
     })
   } else {
     vulnerabiliteSuperficielle.push({
@@ -99,8 +105,9 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     sensibiliteSuperficielle.push({
       text:
         `La sensibilité hydrologique est considérée comme ${niveau} : le site de baignade officiel le plus proche` +
-        `${bathing.nom ? ` (${bathing.nom}${bathing.commune ? `, ${bathing.commune}` : ''})` : ''} se trouve à environ ${formatDistance(bathing.distanceM)}` +
-        `${bathing.typeEau ? ` (${bathing.typeEau})` : ''}. Aucune base de données nationale ouverte n'a en revanche été identifiée pour les activités de pêche de` +
+        `${bathing.nom ? ` (${bathing.nom}${bathing.commune ? `, ${bathing.commune}` : ''})` : ''} se trouve à environ` +
+        ` ${distanceEtDirection(bathing.distanceM, bathing.direction)}${bathing.typeEau ? ` (${bathing.typeEau})` : ''}.` +
+        " Aucune base de données nationale ouverte n'a en revanche été identifiée pour les activités de pêche de" +
         ' loisir ou les bases nautiques : ces usages doivent être vérifiés sur le terrain ou auprès de la fédération de pêche locale.',
     })
   } else {
@@ -128,7 +135,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     vulnerabiliteSouterraine.push({
       text:
         `La vulnérabilité hydrogéologique n'a pas pu être évaluée : le point ADES le plus proche` +
-        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${formatDistance(ades.distanceM)} du site — au-delà` +
+        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, est situé à ${distanceEtDirection(ades.distanceM, ades.direction)} du site — au-delà` +
         " d'1 km, sa profondeur de nappe n'est plus considérée comme représentative de l'hydrogéologie locale.",
       linkLabel: 'Voir ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
@@ -142,7 +149,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     vulnerabiliteSouterraine.push({
       text:
         `Aucune mesure récente de profondeur de nappe n'est disponible au point ADES le plus proche` +
-        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site ; à titre indicatif,` +
+        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${distanceEtDirection(ades.distanceM, ades.direction)} du site ; à titre indicatif,` +
         ` l'ouvrage associé a une profondeur de ${depth.toFixed(1)} m, ce qui ne renseigne qu'indirectement sur la profondeur de la nappe et ne` +
         ' permet pas de classification fiable de la vulnérabilité hydrogéologique sur cette seule base.',
       linkLabel: 'Voir ce point sur ADES',
@@ -151,7 +158,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
   } else if (ades.profondeurNappeM == null) {
     vulnerabiliteSouterraine.push({
       text:
-        `Un point ADES est recensé à ${formatDistance(ades.distanceM)} du site${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)},` +
+        `Un point ADES est recensé à ${distanceEtDirection(ades.distanceM, ades.direction)} du site${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)},` +
         ` mais aucune mesure récente de profondeur de nappe n'y est disponible : la vulnérabilité hydrogéologique n'a pas pu être évaluée sur cette base.`,
       linkLabel: 'Voir ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),
@@ -162,7 +169,7 @@ export async function buildHydroNote(lat: number, lon: number): Promise<HydroNot
     vulnerabiliteSouterraine.push({
       text:
         `La vulnérabilité hydrogéologique est considérée comme ${niveau}, compte tenu de la profondeur de nappe mesurée au point ADES le plus proche` +
-        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${formatDistance(ades.distanceM)} du site : environ` +
+        `${ades.aquifere ? ` (${ades.aquifere})` : ''}, ${adesReference(ades.codeBss)}, à ${distanceEtDirection(ades.distanceM, ades.direction)} du site : environ` +
         ` ${depth.toFixed(1)} m.`,
       linkLabel: 'Voir la chronique de ce point sur ADES',
       linkHref: adesUrl(ades.codeBss),

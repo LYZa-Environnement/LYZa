@@ -17,7 +17,7 @@
  * (ETRS89 — close enough to WGS84 for this purpose, within a few cm).
  */
 
-import { haversineMeters } from './geo'
+import { bearingDegrees, cardinalDirection, haversineMeters } from './geo'
 
 const TABULAR_API_BASE = 'https://tabular-api.data.gouv.fr/api/resources/'
 // 2026 bathing-season site list — this dataset republishes under a *new*
@@ -68,6 +68,7 @@ export interface NearestBathingSite {
   commune: string | null
   typeEau: string | null
   distanceM: number
+  direction: string
 }
 
 export async function findNearestBathingSite(lat: number, lon: number): Promise<NearestBathingSite | null> {
@@ -86,6 +87,7 @@ export async function findNearestBathingSite(lat: number, lon: number): Promise<
         commune: site['Nom de la commune']?.trim() || null,
         typeEau: site["Type d'eau"]?.trim() || null,
         distanceM,
+        direction: cardinalDirection(bearingDegrees(lat, lon, siteLat, siteLon)),
       }
     }
   }

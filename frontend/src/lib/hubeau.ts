@@ -6,7 +6,7 @@
  * map viewport, and to read its actual measurements.
  */
 
-import { bboxAround, bboxParam, haversineMeters } from './geo'
+import { bboxAround, bboxParam, bearingDegrees, cardinalDirection, haversineMeters } from './geo'
 
 const HUBEAU_BASE = 'https://hubeau.eaufrance.fr/api/'
 
@@ -31,6 +31,17 @@ function str(value: unknown): string | null {
   return value === null || value === undefined || value === '' ? null : String(value)
 }
 
+// Hub'Eau/BDLISA use literal placeholder values (not empty/null) for an
+// unclassified aquifer or nature — surfacing them as-is would read like a
+// real aquifer named "Inconnu", so they're treated as "no data" instead.
+const UNKNOWN_VALUES = new Set(['inconnu', 'inconnue', 'non renseigné', 'non renseignée', 'non communiqué', 'non communiquée', 'nc', 'indéterminé', 'indéterminée'])
+
+function meaningfulStr(value: unknown): string | null {
+  const s = str(value)
+  if (s === null) return null
+  return UNKNOWN_VALUES.has(s.trim().toLowerCase()) ? null : s
+}
+
 function pointCoordinates(item: Record<string, unknown>): [number, number] | null {
   const geometry = item.geometry as { coordinates?: unknown } | undefined
   const coords = geometry?.coordinates
@@ -45,14 +56,16 @@ function nearestByCoordinates<T extends Record<string, unknown>>(
   lon: number,
   items: T[],
   getCoords: (item: T) => [number, number] | null,
-): { item: T; distanceM: number } | null {
-  let best: { item: T; distanceM: number } | null = null
+): { item: T; distanceM: number; direction: string } | null {
+  let best: { item: T; distanceM: number; direction: string } | null = null
   for (const item of items) {
     const coords = getCoords(item)
     if (!coords) continue
     const [itemLon, itemLat] = coords
     const distanceM = haversineMeters(lat, lon, itemLat, itemLon)
-    if (!best || distanceM < best.distanceM) best = { item, distanceM }
+    if (!best || distanceM < best.distanceM) {
+      best = { item, distanceM, direction: cardinalDirection(bearingDegrees(lat, lon, itemLat, itemLon)) }
+    }
   }
   return best
 }
@@ -69,6 +82,7 @@ function nearestByCoordinates<T extends Record<string, unknown>>(
 export interface AdesReferencePoint {
   codeBss: string
   distanceM: number
+  direction: string
   aquifere: string | null
   nature: string | null
   /** Actual measured water-table depth (best case) — from the niveaux_nappes chronicle. */
@@ -100,8 +114,9 @@ export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 1
   return {
     codeBss,
     distanceM: nearest.distanceM,
-    aquifere: str(nearest.item.nom_caracteristique_aquifere),
-    nature: str(nearest.item.nom_nature_pe),
+    direction: nearest.direction,
+    aquifere: meaningfulStr(nearest.item.nom_caracteristique_aquifere),
+    nature: meaningfulStr(nearest.item.nom_nature_pe),
     profondeurNappeM,
     profondeurOuvrageM: num(nearest.item.profondeur_investigation),
     dateMesure,

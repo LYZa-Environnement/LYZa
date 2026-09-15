@@ -371,7 +371,7 @@
       <button class="btn refresh-btn" id="scan-btn">↻ Actualiser toutes les données sur cette zone</button>
       <div class="radius-note"><span class="dot"></span><span id="radius-label">rayon de recherche : —</span></div>
       <label class="layer-row" style="padding-left:0;margin-top:6px;">
-        <input type="checkbox" id="auto-scan"><span class="lbl" style="font-size:12px;color:var(--ink-dim);">relancer automatiquement en déplaçant la carte</span>
+        <input type="checkbox" id="auto-scan" checked><span class="lbl" style="font-size:12px;color:var(--ink-dim);">relancer automatiquement en déplaçant la carte</span>
       </label>
       <div class="status" id="status">Prêt.</div>
     </div>
@@ -490,9 +490,8 @@
       <div class="section-title">Cours d'eau <span class="mono" style="font-weight:400;color:var(--ink-dim);">Hub'Eau</span></div>
       <div class="layer-group">
         <label class="layer-row"><input type="checkbox" id="lyr-riverquality"><span class="swatch" style="background:var(--c-river)"></span><span class="lbl">Qualité des cours d'eau (stations)</span><span class="count" id="cnt-river">–</span></label>
-        <label class="layer-row"><input type="checkbox" id="lyr-massedeau"><span class="swatch line" style="background:#3f6fa8"></span><span class="lbl">Référentiel des masses d'eau (noms)</span></label>
       </div>
-      <div class="legend-note">Stations de suivi physico-chimique des rivières (données Naïades). Le référentiel des masses d'eau affiche les contours et noms officiels (Sandre) — l'état écologique/chimique (DCE) n'est pas disponible via un service ouvert exploitable ici, seulement sur le portail dédié des agences de l'eau.</div>
+      <div class="legend-note">Stations de suivi physico-chimique des rivières (données Naïades) — cliquer sur une station charge les résultats de sa dernière campagne d'analyse (paramètre, valeur, unité). L'état écologique/chimique global (DCE) n'est pas disponible via un service ouvert exploitable ici, seulement sur le portail dédié des agences de l'eau.</div>
     </div>
 
     <div class="section">
@@ -569,8 +568,7 @@
     { id:'prelev',      label:'Ouvrages de prélèvement' },
     { id:'riverquality',label:"Qualité des cours d'eau" },
     { id:'etab-scolaire',label:'Écoles / collèges / lycées' },
-    { id:'etab-sante',  label:'Santé & social sensible' },
-    { id:'massedeau',   label:"Référentiel masses d'eau" }
+    { id:'etab-sante',  label:'Santé & social sensible' }
   ];
   var PANE_BASE_Z = 410;
   REORDERABLE.forEach(function(entry, i){
@@ -639,12 +637,27 @@
   });
 
   // ---- Historical aerial imagery (IGN "Remonter le temps") ----
+  // Real, verified WMTS layers (checked live against data.geopf.fr's
+  // GetCapabilities + GetTile): the three old ranges use a dotted layer name
+  // with the BDORTHOHISTORIQUE style (ORTHOIMAGERY.ORTHOPHOTOS.1950-1965...),
+  // and recent coverage is published as 5 multi-year campaign mosaics, not
+  // per-year layers. A per-individual-year layer name does exist in the
+  // capabilities doc (e.g. ORTHOIMAGERY.ORTHOPHOTOS2019) but only serves a
+  // low-zoom overview — it 404s ("No data found") at any zoom useful for
+  // this tool (checked at z14+ even over central Paris), which is why the
+  // comparator previously showed the same "current" image on both sides:
+  // every single-year probe failed, so both dropdowns silently collapsed to
+  // the only period left standing.
   var HISTO_PERIODS = [
     { value:'1950-1965', label:'1950 – 1965' },
     { value:'1965-1980', label:'1965 – 1980' },
-    { value:'1980-1995', label:'1980 – 1995' }
+    { value:'1980-1995', label:'1980 – 1995' },
+    { value:'2000-2005', label:'2000 – 2005' },
+    { value:'2006-2010', label:'2006 – 2010' },
+    { value:'2011-2015', label:'2011 – 2015' },
+    { value:'2016-2020', label:'2016 – 2020' },
+    { value:'2021-2023', label:'2021 – 2023' }
   ];
-  for (var hy = 2000; hy <= 2024; hy++) HISTO_PERIODS.push({ value:String(hy), label:String(hy) });
   var histoSelect = document.getElementById('histo-year');
   HISTO_PERIODS.forEach(function(p){
     var opt = document.createElement('option');
@@ -734,10 +747,20 @@
         var stillThere = Array.prototype.some.call(sel.options, function(o){ return o.value === prev; });
         sel.value = stillThere ? prev : (sel === compareLeftSelect ? (sel.options[1] ? sel.options[1].value : 'current') : 'current');
       });
-      compareNote.textContent = anyAvailable
+      // Never let both sides silently end up on the same period — that would
+      // render two identical panes with the divider still shown, looking
+      // like a broken comparator rather than an honest "nothing to compare".
+      if (compareLeftSelect.value === compareRightSelect.value && compareRightSelect.options.length > 1){
+        var altIndex = Array.prototype.findIndex.call(compareRightSelect.options, function(o){ return o.value !== compareLeftSelect.value; });
+        if (altIndex !== -1) compareRightSelect.value = compareRightSelect.options[altIndex].value;
+      }
+      var comparable = compareLeftSelect.value !== compareRightSelect.value;
+      compareToggleBtn.disabled = !comparable;
+      compareNote.textContent = comparable
         ? "Faites glisser le curseur sur la carte pour comparer deux périodes. Seules les périodes couvrant la zone visible sont proposées."
-        : "Aucune période historique disponible sur cette zone à ce niveau de zoom — seule la photo actuelle peut être comparée à elle-même.";
-      if (compareActive) rebuildCompareLayers();
+        : "Une seule période (la photo actuelle) est disponible sur cette zone à ce niveau de zoom : rien à comparer pour l'instant.";
+      if (compareActive && !comparable) stopCompare();
+      else if (compareActive) rebuildCompareLayers();
     });
   }
   var currentBase = baseIGN;
@@ -1006,16 +1029,6 @@
     geol50Layer.setOpacity(Number(geol50OpacitySlider.value) / 100);
   });
 
-  // ---- Référentiel des masses d'eau (Sandre) ----
-  var massedeauLayer = L.tileLayer.wms('https://services.sandre.eaufrance.fr/geo/mdo?', {
-    layers:'MasseDeau', format:'image/png', transparent:true, version:'1.1.1',
-    attribution:'Sandre — référentiel des masses d\'eau', pane:'pane-massedeau'
-  });
-  document.getElementById('lyr-massedeau').addEventListener('change', function(e){
-    if (e.target.checked) massedeauLayer.addTo(map); else map.removeLayer(massedeauLayer);
-    renderLayerOrderPanel();
-  });
-
   // ---- Address search (Base Adresse Nationale) ----
   var addrInput = document.getElementById('addr-input');
   var suggBox = document.getElementById('suggestions');
@@ -1269,6 +1282,40 @@
     return 'https://ades.eaufrance.fr/Fiche/PtEau?Code=' + encodeURIComponent(codeBss.split('/')[0]) + '#mesures_graphiques';
   }
 
+  var riverAnalysisCache = {};
+  function fetchRiverAnalyses(codeStation){
+    if (riverAnalysisCache[codeStation]) return riverAnalysisCache[codeStation];
+    // v2/qualite_rivieres/analyse_pc — the actual physico-chemical results
+    // (parameter, value, unit, sampling date), as opposed to station_pc
+    // which only describes the station itself. Fields verified live.
+    var url = 'https://hubeau.eaufrance.fr/api/v2/qualite_rivieres/analyse_pc?code_station=' +
+      encodeURIComponent(codeStation) + '&size=30&sort=desc';
+    var p = fetchWithTimeout(url, {}, 10000)
+      .then(function(r){ return r.json(); })
+      .then(function(j){ return j.data || []; })
+      .catch(function(){ return null; });
+    riverAnalysisCache[codeStation] = p;
+    return p;
+  }
+  function buildRiverAnalysesHtml(rows){
+    var dateFmt = function(d){ return d ? new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit'}) : ''; };
+    if (!rows || !rows.length) return '<div style="font-size:11.5px;color:var(--ink-dim);margin-top:4px;">Aucune analyse récente disponible pour cette station.</div>';
+    // Une campagne de prélèvement couvre en général plusieurs dizaines de
+    // paramètres le même jour — ne montrer que la date la plus récente donne
+    // un instantané cohérent plutôt qu'un mélange de dates différentes.
+    var latestDate = rows[0].date_prelevement;
+    var latestRows = rows.filter(function(r){ return r.date_prelevement === latestDate; });
+    var MAX_SHOWN = 10;
+    var shown = latestRows.slice(0, MAX_SHOWN);
+    var lines = shown.map(function(r){
+      var val = (r.resultat != null ? r.resultat : '—') + (r.symbole_unite ? ' ' + r.symbole_unite : '');
+      return '<dt>' + escapeHtml(r.libelle_parametre || 'Paramètre') + '</dt><dd>' + escapeHtml(val) + '</dd>';
+    }).join('');
+    var more = latestRows.length > MAX_SHOWN ? '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:2px;">+ ' + (latestRows.length - MAX_SHOWN) + ' autre(s) paramètre(s) ce jour-là</div>' : '';
+    return '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Analyses du ' + dateFmt(latestDate) + '</div>' +
+      '<dl style="margin-top:2px;">' + lines + '</dl>' + more;
+  }
+
   var piezoChronicleCache = {};
   function fetchPiezoChronicle(codeBss){
     if (piezoChronicleCache[codeBss]) return piezoChronicleCache[codeBss];
@@ -1402,16 +1449,29 @@
     var m = L.marker([item.latitude, item.longitude], {
       icon: shapeIcon('cross', color), pane:'pane-riverquality'
     });
-    var html = '<div class="popup"><span class="tag" style="background:'+color+'">Qualité des cours d\'eau</span>' +
+    var baseHtml = '<span class="tag" style="background:'+color+'">Qualité des cours d\'eau</span>' +
       '<h3>'+escapeHtml(item.libelle_station || 'Station')+'</h3>' +
       '<dl>' +
         (item.libelle_commune ? '<dt>Commune</dt><dd>'+escapeHtml(item.libelle_commune)+'</dd>' : '') +
         (item.nom_cours_eau ? '<dt>Cours d\'eau</dt><dd>'+escapeHtml(item.nom_cours_eau)+'</dd>' : '') +
         (item.code_station ? '<dt>Code station</dt><dd class="mono">'+escapeHtml(item.code_station)+'</dd>' : '') +
       '</dl>' +
-      (item.uri_station ? '<a class="fiche" target="_blank" rel="noopener" href="'+item.uri_station+'">Fiche station →</a>' : '') +
-      '</div>';
-    m.bindPopup(html);
+      (item.uri_station ? '<a class="fiche" target="_blank" rel="noopener" href="'+item.uri_station+'">Fiche station →</a>' : '');
+    var boxId = 'river-analyses-' + (item.code_station || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var analysesPlaceholder = item.code_station ? '<div id="' + boxId + '"></div>' : '';
+    m.bindPopup('<div class="popup">' + baseHtml + analysesPlaceholder + '</div>');
+    if (item.code_station){
+      m.on('popupopen', function(){
+        var box = document.getElementById(boxId);
+        if (!box) return;
+        box.innerHTML = '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Chargement des dernières analyses…</div>';
+        fetchRiverAnalyses(item.code_station).then(function(rows){
+          var el = document.getElementById(boxId);
+          if (!el) return; // popup closed/replaced in the meantime
+          el.innerHTML = buildRiverAnalysesHtml(rows);
+        });
+      });
+    }
     return m;
   }
 
@@ -1827,13 +1887,18 @@
   scanBtn.addEventListener('click', runScan);
 
   var autoTimer = null;
-  document.getElementById('auto-scan').addEventListener('change', function(e){
-    if (e.target.checked){
+  var autoScanCheckbox = document.getElementById('auto-scan');
+  function applyAutoScanState(enabled){
+    if (enabled){
       map.on('moveend', scheduleAutoScan);
     } else {
       map.off('moveend', scheduleAutoScan);
     }
+  }
+  autoScanCheckbox.addEventListener('change', function(e){
+    applyAutoScanState(e.target.checked);
   });
+  applyAutoScanState(autoScanCheckbox.checked); // checked by default — bind the listener to match
   function scheduleAutoScan(){
     clearTimeout(autoTimer);
     autoTimer = setTimeout(runScan, 1200);

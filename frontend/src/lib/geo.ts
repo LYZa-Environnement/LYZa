@@ -48,6 +48,20 @@ export function bboxToPolygon(bbox: Bbox): { type: 'Polygon'; coordinates: numbe
  * equirectangular projection centred on the point — accurate enough at the
  * few-kilometre scale this tool works at, no need for true geodesics. */
 export function pointToSegmentDistanceM(lat: number, lon: number, lat1: number, lon1: number, lat2: number, lon2: number): number {
+  return nearestPointOnSegment(lat, lon, lat1, lon1, lat2, lon2).distanceM
+}
+
+/** Same computation as `pointToSegmentDistanceM`, but also returns the
+ * lat/lon of the closest point on the segment — needed to give a cardinal
+ * direction to a line feature (e.g. a river), not just its distance. */
+export function nearestPointOnSegment(
+  lat: number,
+  lon: number,
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): { lat: number; lon: number; distanceM: number } {
   const mPerDegLat = 111320
   const mPerDegLon = 111320 * Math.cos((lat * Math.PI) / 180)
   const x1 = (lon1 - lon) * mPerDegLon
@@ -57,12 +71,18 @@ export function pointToSegmentDistanceM(lat: number, lon: number, lat1: number, 
   const dx = x2 - x1
   const dy = y2 - y1
   const lengthSq = dx * dx + dy * dy
-  if (lengthSq === 0) return Math.hypot(x1, y1)
-  let t = (-x1 * dx - y1 * dy) / lengthSq
-  t = Math.max(0, Math.min(1, t))
+  let t = 0
+  if (lengthSq !== 0) {
+    t = (-x1 * dx - y1 * dy) / lengthSq
+    t = Math.max(0, Math.min(1, t))
+  }
   const projX = x1 + t * dx
   const projY = y1 + t * dy
-  return Math.hypot(projX, projY)
+  return {
+    lat: lat + projY / mPerDegLat,
+    lon: lon + projX / mPerDegLon,
+    distanceM: Math.hypot(projX, projY),
+  }
 }
 
 export function formatDistance(meters: number): string {

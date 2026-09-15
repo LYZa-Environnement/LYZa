@@ -74,7 +74,9 @@ function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
       casiasShown.forEach((site) =>
         items.push({
           label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
-          detail: [site.activite, site.commune, site.statut].filter(Boolean).join(' — ') || 'Ancien site industriel ou de service',
+          detail:
+            [site.activite, site.commune, site.statut, describeLocalisation(site.localisation)].filter(Boolean).join(' — ') ||
+            'Ancien site industriel ou de service',
           source: 'BASIAS/BASOL (CASIAS) — BRGM/Géorisques',
           href: site.ficheUrl ?? undefined,
         }),
@@ -95,7 +97,9 @@ function themeSols(ssp: georisques.SspResult | null): ThemeSynthesis {
       sisShown.forEach((site) =>
         items.push({
           label: site.identifiant ? `${site.nom} (${site.identifiant})` : site.nom,
-          detail: [site.commune, site.superficieM2 ? `${Math.round(site.superficieM2)} m²` : null].filter(Boolean).join(' — '),
+          detail: [site.commune, site.superficieM2 ? `${Math.round(site.superficieM2)} m²` : null, describeLocalisation(site.localisation)]
+            .filter(Boolean)
+            .join(' — '),
           source: 'SIS — Géorisques',
           href: site.ficheUrl ?? undefined,
         }),
@@ -330,7 +334,13 @@ function themeActivitesIndustrielles(icpe: georisques.ListResult<georisques.Icpe
       shown.forEach((installation) =>
         items.push({
           label: installation.nom,
-          detail: [installation.regime, installation.commune, installation.seveso, installation.codeNaf ? `NAF ${installation.codeNaf}` : null]
+          detail: [
+            installation.regime,
+            installation.commune,
+            installation.seveso,
+            installation.codeNaf ? `NAF ${installation.codeNaf}` : null,
+            describeLocalisation(installation.localisation),
+          ]
             .filter(Boolean)
             .join(' — '),
           source: 'ICPE — Géorisques',

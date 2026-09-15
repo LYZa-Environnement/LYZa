@@ -165,6 +165,7 @@ export interface IcpeItem {
   codeNaf: string | null
   seveso: string | null
   ficheUrl: string | null
+  localisation: Localisation | null
 }
 
 export async function fetchIcpe(lat: number, lon: number, rayon: number): Promise<ListResult<IcpeItem> | null> {
@@ -180,6 +181,9 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
       codeNaf: str(item.codeNaf),
       seveso: str(item.statutSeveso),
       ficheUrl: codeAIOT ? `https://www.georisques.gouv.fr/risques/installations/donnees/details/${encodeURIComponent(codeAIOT)}` : null,
+      // Flat latitude/longitude fields, not a geom object — verified against
+      // the proven reference (lyza-cartes.html's icpeMarker).
+      localisation: localisePoint(lat, lon, item.longitude, item.latitude),
     }
   })
   return { items, total: items.length }
