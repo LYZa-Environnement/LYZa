@@ -93,7 +93,7 @@ const inputStyle: CSSProperties = {
   width: '100%',
   marginTop: '0.35rem',
   padding: '0.55rem 0.7rem',
-  border: '1px solid var(--color-border)',
+  border: 'var(--border-w) solid var(--color-border)',
   borderRadius: 'var(--radius)',
   fontSize: '0.95rem',
 }

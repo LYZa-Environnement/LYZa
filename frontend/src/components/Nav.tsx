@@ -13,10 +13,10 @@ const links = [
 
 export default function Nav() {
   return (
-    <header style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+    <header style={{ borderBottom: 'var(--border-w) solid var(--color-border)', background: 'var(--color-surface)' }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '4.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <NavLink to="/" style={{ textDecoration: 'none', color: 'var(--color-ink)' }}>
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: 700 }}>LYZa</span>
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800 }}>LYZa</span>
           <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.04em' }}>
             Environnement &amp; hydrogéologie
           </span>

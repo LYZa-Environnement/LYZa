@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import MapMotif from '../components/MapMotif'
 import { services } from '../content/services'
 
 export default function Home() {
@@ -8,22 +9,25 @@ export default function Home() {
     <>
       <section className="section">
         <div className="container">
-          <p className="eyebrow">LYZa — Léo Yecora-Zorzano</p>
-          <h1 style={{ maxWidth: '38rem' }}>
-            Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.
-          </h1>
-          <p className="lede">
-            J'accompagne les entreprises, collectivités et administrations dans leurs réflexions et leurs
-            décisions relatives aux enjeux environnementaux, à la protection des ressources en eau et à la
-            gestion des risques.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
-            <Link to="/carte" className="btn">
-              Évaluer la sensibilité d'un site
-            </Link>
-            <Link to="/prestations" className="btn btn--ghost">
-              Voir les prestations
-            </Link>
+          <div className="grid grid--2" style={{ alignItems: 'center' }}>
+            <div>
+              <p className="eyebrow">LYZa — Léo Yecora-Zorzano</p>
+              <h1>Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.</h1>
+              <p className="lede">
+                J'accompagne les entreprises, collectivités et administrations dans leurs réflexions et leurs
+                décisions relatives aux enjeux environnementaux, à la protection des ressources en eau et à la
+                gestion des risques.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+                <Link to="/carte" className="btn">
+                  Évaluer la sensibilité d'un site
+                </Link>
+                <Link to="/prestations" className="btn btn--ghost">
+                  Voir les prestations
+                </Link>
+              </div>
+            </div>
+            <MapMotif style={{ width: '100%', maxWidth: '22rem', margin: '0 auto', display: 'block' }} />
           </div>
         </div>
       </section>
@@ -38,9 +42,7 @@ export default function Home() {
                 sur le terrain. Ces prestations sont souvent indispensables, mais elles ne répondent pas toujours
                 à la question principale que se pose un dirigeant, un élu ou un responsable de projet :
               </p>
-              <p style={{ fontStyle: 'italic', fontFamily: 'var(--font-heading)', fontSize: '1.1rem' }}>
-                « Que signifie réellement cette situation et quelle décision devons-nous prendre ? »
-              </p>
+              <p className="quote">« Que signifie réellement cette situation et quelle décision devons-nous prendre ? »</p>
             </div>
             <div>
               <p>
@@ -62,9 +64,10 @@ export default function Home() {
             <div>
               <h2>Une première lecture de la sensibilité environnementale d'un site</h2>
               <p>
-                Entrez une adresse : elle est positionnée sur une carte simplifiée, et une synthèse par thème
-                (sols, eau, risques naturels, activités industrielles) est construite à partir des bases de
-                données publiques disponibles à proximité.
+                Entrez une adresse : elle est positionnée sur une carte simplifiée, et une lecture en deux temps
+                est construite à partir des bases de données publiques disponibles à proximité — les risques qui
+                s'appliquent au site (naturels, industriels), puis l'impact qu'une activité sur ce site pourrait
+                avoir sur son environnement.
               </p>
               <p style={{ color: 'var(--color-muted)' }}>
                 Cette synthèse est un point de départ, pas un diagnostic : elle permet d'identifier s'il est
@@ -76,10 +79,8 @@ export default function Home() {
             </div>
             <div className="card" aria-hidden="true">
               <div style={{ display: 'grid', gap: '0.6rem' }}>
-                <span className="badge badge--faible">Sols — Faible</span>
-                <span className="badge badge--moderee">Eau — Modérée</span>
                 <span className="badge badge--faible">Risques naturels — Faible</span>
-                <span className="badge badge--indeterminee">Activités industrielles — Non déterminée</span>
+                <span className="badge badge--moderee">Risques industriels — Modérée</span>
               </div>
             </div>
           </div>

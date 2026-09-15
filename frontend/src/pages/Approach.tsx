@@ -17,9 +17,7 @@ export default function Approach() {
           doit avant tout permettre de comprendre une situation dans son ensemble afin de prendre une décision
           adaptée.
         </p>
-        <p style={{ fontStyle: 'italic', fontFamily: 'var(--font-heading)', fontSize: '1.1rem' }}>
-          Une bonne décision environnementale est avant tout une décision éclairée.
-        </p>
+        <p className="quote">Une bonne décision environnementale est avant tout une décision éclairée.</p>
 
         <div style={{ marginTop: '2.5rem', display: 'grid', gap: '2rem' }}>
           {approachSteps.map((step) => (

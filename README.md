@@ -22,6 +22,34 @@ backend/     Optionnel, non utilisé par le site en ligne : boîte à outils
              expérimentation pandas, etc.
 ```
 
+## Identité visuelle
+
+Refonte graphique du site React (`frontend/`, hors `lyza-cartes.html` qui
+garde son propre style), inspirée d'affiches de campagne électorale
+fournies par l'utilisateur (cartes communales illustrées à la main,
+lettrage noir épais, formes organiques, vert/rouge) :
+
+- Polices via Google Fonts (`frontend/index.html`) : **Bricolage
+  Grotesque** (titres, graisse 700-800) et **Caveat** (citations, classe
+  `.quote`), avec repli sur la pile système si les polices ne chargent pas.
+- Nouvelle palette (`frontend/src/index.css`) : fond crème, vert forêt en
+  accent principal, vert sapin profond pour les sections « inversées »
+  (pied de page), rouge terracotta en accent ponctuel (puce de
+  `.eyebrow`).
+- Bordures épaisses (`--border-w: 2px`) et ombre portée façon autocollant
+  sur les boutons/cartes (`box-shadow` décalée), plutôt que les fines
+  bordures 1px d'origine.
+- `frontend/src/components/MapMotif.tsx` : illustration décorative (pas
+  une vraie carte) façon carte communale dessinée à la main — parcelles
+  vertes irrégulières, routes blanches à liseré noir, repères rouges —
+  utilisée en hero de la page d'accueil.
+
+Le thème « Évaluer un site » utilise les mêmes classes CSS partagées
+(`.card`, `.btn`, `.badge`, `.grid`) donc hérite du nouveau style sans
+modification propre — seules les bordures de formulaires (recherche
+d'adresse, formulaire de contact, sélecteur de rayon CASIAS/SIS) ont été
+alignées manuellement sur `--border-w`.
+
 ## Déploiement — GitHub Pages
 
 `.github/workflows/deploy-pages.yml` build et déploie automatiquement

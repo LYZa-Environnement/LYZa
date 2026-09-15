@@ -63,7 +63,7 @@ export default function AddressSearch({ onSelect }: Props) {
           width: '100%',
           padding: '0.75rem 0.9rem',
           fontSize: '1rem',
-          border: '1px solid var(--color-border)',
+          border: 'var(--border-w) solid var(--color-border)',
           borderRadius: 'var(--radius)',
         }}
       />
@@ -76,7 +76,7 @@ export default function AddressSearch({ onSelect }: Props) {
             listStyle: 'none',
             margin: '0.4rem 0 0',
             padding: 0,
-            border: '1px solid var(--color-border)',
+            border: 'var(--border-w) solid var(--color-border)',
             borderRadius: 'var(--radius)',
             background: 'var(--color-surface)',
             position: 'absolute',

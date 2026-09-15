@@ -135,7 +135,7 @@ export default function CasiasSisExplorer({ address }: { address: AddressResult 
           id="casias-rayon"
           value={rayon}
           onChange={(e) => setRayon(Number(e.target.value))}
-          style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}
+          style={{ padding: '0.4rem 0.6rem', border: 'var(--border-w) solid var(--color-border)', borderRadius: 'var(--radius)' }}
         >
           {RADIUS_OPTIONS.map((r) => (
             <option key={r} value={r}>

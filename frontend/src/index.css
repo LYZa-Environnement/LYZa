@@ -1,29 +1,34 @@
 :root {
   color-scheme: light;
 
-  --font-heading: Georgia, 'Times New Roman', 'Liberation Serif', serif;
+  --font-heading: 'Bricolage Grotesque', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-accent: 'Caveat', cursive;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-  --color-bg: #faf9f6;
-  --color-surface: #ffffff;
-  --color-ink: #1c2422;
-  --color-muted: #5b6660;
-  --color-border: #e0e2dd;
-  --color-accent: #2f5d50;
-  --color-accent-ink: #ffffff;
-  --color-accent-soft: #e9efea;
+  --color-bg: #f7f2e7;
+  --color-surface: #fffdf7;
+  --color-ink: #1b2a1f;
+  --color-muted: #5c6b5e;
+  --color-border: #1b2a1f;
+  --color-accent: #1f6b45;
+  --color-accent-ink: #fffdf7;
+  --color-accent-soft: #e3ecdf;
+  --color-accent-deep: #234b45;
+  --color-accent-red: #c34a35;
+  --color-accent-red-soft: #f7e3dd;
 
-  --level-faible: #2f7a4f;
-  --level-faible-bg: #eaf4ee;
-  --level-moderee: #9a6a12;
-  --level-moderee-bg: #f6efe0;
-  --level-elevee: #a13a2f;
-  --level-elevee-bg: #f7e9e6;
-  --level-indeterminee: #6b6b6b;
-  --level-indeterminee-bg: #eeeeec;
+  --level-faible: #1f6b45;
+  --level-faible-bg: #e3ecdf;
+  --level-moderee: #a3671a;
+  --level-moderee-bg: #f6ecd9;
+  --level-elevee: #c34a35;
+  --level-elevee-bg: #f7e3dd;
+  --level-indeterminee: #5c6b5e;
+  --level-indeterminee-bg: #eceae0;
 
   --content-width: 72rem;
-  --radius: 4px;
+  --radius: 10px;
+  --border-w: 2px;
 
   font-family: var(--font-body);
   color: var(--color-ink);
@@ -49,21 +54,22 @@ h2,
 h3,
 h4 {
   font-family: var(--font-heading);
-  font-weight: 600;
-  line-height: 1.2;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
   margin: 0 0 0.6em;
 }
 
 h1 {
-  font-size: clamp(1.9rem, 1.4rem + 2vw, 2.75rem);
+  font-size: clamp(2.1rem, 1.5rem + 2.4vw, 3.1rem);
 }
 
 h2 {
-  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem);
 }
 
 h3 {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
 }
 
 p {
@@ -91,21 +97,52 @@ input {
 
 .section {
   padding: 3.5rem 0;
+  position: relative;
 }
 
 .section--muted {
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-accent-soft);
+  border-top: var(--border-w) solid var(--color-border);
+  border-bottom: var(--border-w) solid var(--color-border);
+}
+
+.section--deep {
+  background: var(--color-accent-deep);
+  color: var(--color-accent-ink);
+}
+
+.section--deep h1,
+.section--deep h2,
+.section--deep h3,
+.section--deep p,
+.section--deep .eyebrow {
+  color: var(--color-accent-ink);
+}
+
+.section--deep .lede,
+.section--deep p {
+  color: #dce8e3;
 }
 
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.75rem;
-  color: var(--color-muted);
-  font-weight: 600;
+  color: var(--color-accent);
+  font-weight: 700;
   margin: 0 0 0.75rem;
+}
+
+.eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.5em;
+  background: var(--color-accent-red);
+  border-radius: 999px;
 }
 
 .lede {
@@ -114,41 +151,58 @@ input {
   max-width: 46rem;
 }
 
+.quote {
+  font-family: var(--font-accent);
+  font-weight: 600;
+  font-size: 1.7rem;
+  line-height: 1.3;
+  color: var(--color-accent-deep);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
-  padding: 0.7em 1.3em;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-accent);
+  padding: 0.75em 1.4em;
+  border-radius: 999px;
+  border: var(--border-w) solid var(--color-ink);
   background: var(--color-accent);
   color: var(--color-accent-ink);
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
   cursor: pointer;
   font-size: 0.95rem;
+  box-shadow: 3px 3px 0 var(--color-ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .btn:hover {
-  background: #244a40;
-  border-color: #244a40;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--color-ink);
+  background: #185a39;
+}
+
+.btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--color-ink);
 }
 
 .btn--ghost {
-  background: transparent;
-  color: var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-ink);
 }
 
 .btn--ghost:hover {
   background: var(--color-accent-soft);
-  color: var(--color-accent);
+  color: var(--color-ink);
 }
 
 .card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-w) solid var(--color-border);
   border-radius: var(--radius);
   padding: 1.5rem;
+  box-shadow: 4px 4px 0 rgba(27, 42, 31, 0.12);
 }
 
 .grid {
@@ -191,10 +245,11 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.25em 0.7em;
+  padding: 0.3em 0.8em;
   border-radius: 999px;
+  border: 1.5px solid currentColor;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .badge--faible {
@@ -215,4 +270,14 @@ input {
 .badge--indeterminee {
   color: var(--level-indeterminee);
   background: var(--level-indeterminee-bg);
+}
+
+/* Hand-illustrated-map motif — a decorative divider evoking the winding
+   white "roads" cutting through coloured land parcels on a hand-drawn
+   commune map, used between sections instead of a plain straight border. */
+.map-divider {
+  display: block;
+  width: 100%;
+  height: 28px;
+  color: var(--color-border);
 }
