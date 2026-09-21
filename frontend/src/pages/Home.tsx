@@ -118,12 +118,12 @@ export default function Home() {
       <section className="section section--muted">
         <div className="container">
           <p className="eyebrow">Outils gratuits</p>
-          <h2>Deux outils en libre accès pour une première lecture</h2>
+          <h2>Quatre outils en libre accès pour une première lecture</h2>
           <p className="lede">
-            Sans compte, sans engagement : trois façons d'explorer gratuitement les bases de données publiques
+            Sans compte, sans engagement : quatre façons d'explorer gratuitement les bases de données publiques
             disponibles sur un site ou un secteur.
           </p>
-          <div className="grid grid--3" style={{ marginTop: '2rem' }}>
+          <div className="grid grid--2" style={{ marginTop: '2rem' }}>
             <div className="card">
               <h3>Évaluer un site</h3>
               <p style={{ color: 'var(--color-muted)' }}>
@@ -156,6 +156,16 @@ export default function Home() {
               </p>
               <Link to="/restrictions-eau" className="btn" style={{ marginTop: '0.5rem' }}>
                 Vérifier une adresse
+              </Link>
+            </div>
+            <div className="card">
+              <h3>ICPE & émissions</h3>
+              <p style={{ color: 'var(--color-muted)' }}>
+                Les installations classées à proximité, leurs rejets déclarés au registre des émissions polluantes
+                (IREP) et la rose des vents du secteur.
+              </p>
+              <Link to="/icpe-emissions" className="btn" style={{ marginTop: '0.5rem' }}>
+                Explorer une adresse
               </Link>
             </div>
           </div>

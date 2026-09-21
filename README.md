@@ -655,6 +655,64 @@ en cas d'échec réseau, message honnête plutôt qu'une absence de
 restriction fabriquée ; un tableau vide est un résultat réel et distinct
 (« aucune restriction actuellement »), pas une erreur.
 
+## ICPE & émissions — `/icpe-emissions` (`frontend/src/pages/IcpeEmissions.tsx`, `frontend/src/lib/irep.ts`, `frontend/src/lib/wind.ts`)
+
+Quatrième outil gratuit, demandé explicitement (« avoir les ICPE + les
+roses des vents + les résultats émissions/rejet », comme outil
+indépendant). Combine trois sources pour une adresse : les installations
+classées à proximité (Géorisques, déjà utilisées par l'outil « Évaluer un
+site », via `frontend/src/lib/georisques.ts`), leurs rejets et
+prélèvements déclarés au registre des émissions polluantes IREP, et la
+rose des vents du secteur.
+
+**IREP** (`lib/irep.ts`) : le seul accès *documenté* est un export ZIP
+annuel — inutilisable pour une consultation live par adresse. Géorisques a
+cependant sa propre page « registre des émissions polluantes » par
+établissement, adossée à une API JSON non documentée mais réelle, trouvée
+en chargeant cette page et en inspectant ses propres appels réseau, puis
+vérifiée en direct (recherche, détail, émissions, prélèvements). Deux
+pièges découverts et corrigés en cours de route :
+- Le frontend de Géorisques appelle lui-même `.../etablissement/{id}data/emission`
+  (slash manquant), ce qui renvoie une 400 — y compris sur leur propre
+  site en production. Le chemin qui fonctionne réellement est
+  `.../etablissement/{id}/emission` (sans segment `data`).
+- Le paramètre `siret` de la recherche est accepté mais **silencieusement
+  ignoré** par l'API — vérifié en passant un SIRET inventé, qui renvoie
+  exactement le même nombre de résultats (13 499) qu'un SIRET réel. Un
+  premier essai avec ce paramètre laissait croire, à tort, que des sites
+  industriels majeurs (LUBRIZOL, TOTALENERGIES) ne déclaraient pas à
+  l'IREP. Corrigé en recherchant par nom d'établissement (`nomEtablissement`,
+  qui fait une vraie recherche par sous-chaîne) puis en filtrant sur la
+  commune (`findByNameAndCommune`), car un même nom peut exister dans
+  plusieurs communes (IREP recense 3 « LUBRIZOL FRANCE » distincts).
+  Revérifié en direct sur une adresse réelle à Rouen : LUBRIZOL FRANCE et
+  TOTALENERGIES LUBRIFIANTS sont désormais correctement retrouvés, avec
+  leurs rejets eau/air/déchets et prélèvements d'eau réels par année.
+
+Seuls les 20 ICPE les plus proches (`MAX_IREP_LOOKUPS`) sont enrichis avec
+leur détail IREP (un appel réseau par établissement) ; au-delà, les ICPE
+restants s'affichent sans ce détail plutôt que de multiplier les requêtes.
+Ne pas déclarer à l'IREP est un résultat honnête et attendu pour la
+plupart des ICPE (seuls les sites dépassant certains seuils y sont tenus),
+affiché comme tel plutôt que comme une erreur.
+
+**Rose des vents** (`lib/wind.ts`) : l'API officielle Météo-France exige
+une clé/un compte — inutilisable telle quelle sur un site 100 % statique
+sans backend pour garder un secret (toute clé embarquée côté client serait
+exposée à chaque visiteur). Après arbitrage explicite avec l'utilisateur,
+choix de l'API archive historique d'Open-Meteo (réanalyse ERA5) : pas de
+clé, vent horaire (vitesse + direction) sur l'année précédente pour
+n'importe quel point de France. Ce n'est pas une mesure de station
+officielle Météo-France — la page le précise — et l'offre gratuite est
+soumise à un usage non commercial et à des quotas (limite quotidienne par
+IP) ; en cas de dépassement de quota ou d'échec réseau, la même logique de
+repli honnête s'applique (« Données de vent indisponibles pour cette
+zone. » plutôt qu'une rose inventée). Les données horaires sont regroupées
+en 16 secteurs de direction × 4 bandes de vitesse, normalisées en parts de
+0 à 1, et rendues par `WindRoseChart.tsx` — un graphique polaire empilé en
+SVG à la main (même approche que `MapMotif` en son temps : pas de
+librairie de graphiques pour un seul composant).
+
 ## Compatibilité mobile
 
 Vérifiée avec Playwright à une largeur de 390 px (iPhone 12/13) sur les sept
