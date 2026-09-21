@@ -271,6 +271,22 @@
     background:var(--paper) !important; color:var(--ink) !important; border-color:var(--ink-dim) !important;
     font-family:Verdana, Geneva, sans-serif !important;
   }
+  /* The vendored Leaflet CSS sets `mix-blend-mode: plus-lighter` on every
+     tile image (it's meant to hide seams between adjacent tiles within one
+     layer). With two full-viewport tile layers stacked for the comparator,
+     that rule made the top ("after") layer's tiles blend additively with
+     the ("before") layer's tiles sitting directly behind them instead of
+     opaquely covering them — so the visible side always looked dominated
+     by whichever layer was underneath, i.e. both sides looked the same.
+     `isolation: isolate` scopes each pane's blending to its own contents,
+     so it only composites (normally, opaquely) against what's behind it. */
+  .leaflet-pane-compare-before-pane, .leaflet-pane-compare-after-pane{
+    isolation:isolate;
+  }
+  .leaflet-pane-compare-before-pane img.leaflet-tile,
+  .leaflet-pane-compare-after-pane img.leaflet-tile{
+    mix-blend-mode:normal !important;
+  }
   .compare-divider{
     /* A wide invisible drag strip, not just the 2px visual line — much
        easier to grab, especially on touch. The line itself is drawn by
@@ -910,11 +926,33 @@
   compareDivider.style.display = 'none';
   compareDivider.innerHTML = '<div class="compare-handle">⇔</div>';
   map.getContainer().appendChild(compareDivider);
+  var comparePaneBefore = map.getPane('pane-compare-before');
   var comparePaneAfter = map.getPane('pane-compare-after');
+
+  // Leaflet panes are position:absolute with no width/height of their own —
+  // every child (the tile-container divs) is ALSO position:absolute and
+  // placed purely via CSS transforms, so none of them count towards the
+  // pane's box size, leaving it a phantom 0x0 element (confirmed via
+  // getBoundingClientRect). clip-path's inset() is computed against that
+  // box, so no matter the inset values — percentage or pixel — the
+  // resulting clip region was degenerate, and Chromium fell back to
+  // rendering the pane fully unclipped: "after" covered the entire map,
+  // so both sides of the divider showed "after", i.e. the same image
+  // twice. Giving the pane an explicit real-pixel size makes clip-path's
+  // reference box match the actual visible map area, so the inset from
+  // its left edge means what it looks like it means.
+  function syncComparePaneSize(){
+    var w = map.getContainer().clientWidth + 'px';
+    var h = map.getContainer().clientHeight + 'px';
+    comparePaneBefore.style.width = w; comparePaneBefore.style.height = h;
+    comparePaneAfter.style.width = w; comparePaneAfter.style.height = h;
+  }
+  map.on('resize', syncComparePaneSize);
 
   function setCompareSplit(pct){
     compareDivider.style.left = pct + '%';
-    comparePaneAfter.style.clipPath = 'inset(0 0 0 ' + pct + '%)';
+    var clipPx = map.getContainer().clientWidth * pct / 100;
+    comparePaneAfter.style.clipPath = 'inset(0 0 0 ' + clipPx + 'px)';
   }
   var compareDragging = false;
   compareDivider.addEventListener('mousedown', function(e){ compareDragging = true; e.preventDefault(); e.stopPropagation(); map.dragging.disable(); });
@@ -949,6 +987,7 @@
     compareActive = true;
     map.removeLayer(currentBase);
     rebuildCompareLayers();
+    syncComparePaneSize();
     compareDivider.style.display = 'block';
     setCompareSplit(50);
     compareToggleBtn.textContent = '✕ Désactiver le comparateur';

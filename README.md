@@ -38,14 +38,13 @@ illustrées à la main, lettrage noir épais, formes organiques, vert/rouge) :
   `.eyebrow`).
 - Bordures épaisses (`--border-w: 2px`) et ombre portée façon autocollant
   sur les boutons/cartes (`box-shadow` décalée), plutôt que les fines
-  bordures 1px d'origine.
-- `frontend/src/components/MapMotif.tsx` : illustration décorative (pas
-  une vraie carte) façon carte communale dessinée à la main — parcelles
-  vertes irrégulières, routes blanches à liseré noir (avec un pointillé
-  orange évoquant un marquage au sol), une rivière bleue, quelques
-  bâtiments et une petite église dessinés à main levée, une rose des
-  vents, et des repères de site colorés (rouge/orange/bleu selon le
-  type) — utilisée en hero de la page d'accueil.
+  bordures 1px d'origine — reprise aussi sur `a.card:hover` (légère
+  translation + ombre agrandie) pour donner un retour visuel sur toutes
+  les cartes cliquables du site (prestations, actualités), sans l'imposer
+  aux cartes non interactives (formulaire de contact, etc.).
+- L'illustration décorative « carte communale dessinée à la main »
+  (`MapMotif.tsx`, hero de la page d'accueil) a été retirée à la demande
+  de l'utilisateur ; le composant, devenu inutilisé, a été supprimé.
 
 Le thème « Évaluer un site » utilise les mêmes classes CSS partagées
 (`.card`, `.btn`, `.badge`, `.grid`) donc hérite du nouveau style sans
@@ -76,8 +75,7 @@ réaligné sur la même identité plutôt que traité comme un style à part :
   les rangées denses (calques, parcelles sélectionnées, tableaux de
   popup) gardent leurs bordures fines d'origine pour ne pas surcharger
   visuellement un outil de travail.
-- Un bandeau tricolore (vert/rouge/orange) en tête de la barre latérale,
-  écho des couleurs de repère de site du `MapMotif`.
+- Un bandeau tricolore (vert/rouge/orange) en tête de la barre latérale.
 
 ## Déploiement — GitHub Pages
 
@@ -483,12 +481,51 @@ elle-même à 48 px, plus un `touchAction:none` + `preventDefault` sur les
 évènements tactiles pour éviter que le geste ne fasse défiler la carte en
 même temps.
 
+**Le symptôme persistait malgré tout — la cause réelle, trouvée cette
+fois.** Les deux correctifs ci-dessus portaient sur la sélection des
+*données* (quelle période choisir), et étaient réels et utiles, mais
+aucun n'était la cause du bug rapporté : le rendu lui-même. Diagnostiqué
+en lançant Chromium avec `--ignore-certificate-errors` (contournant la
+limitation connue du bac à sable pour `data.geopf.fr`) pour comparer, tuile
+par tuile, ce qui est réellement envoyé au navigateur et ce qui est
+réellement affiché à l'écran. Un test avec le mode comparateur désactivé
+(une seule couche « Photographies aériennes ») confirmait bien une image
+couleur ; en mode comparateur, le côté « après » couvrait tout l'écran,
+quelle que soit la sélection.
+
+Cause : `#pane-compare-after` est un panneau Leaflet — `position:absolute`
+sans largeur/hauteur propre, puisque ses enfants (les tuiles) sont
+positionnés uniquement par `transform`, ce qui ne compte pour rien dans le
+calcul de la taille d'un parent. `getBoundingClientRect()` confirmait une
+boîte de 0×0 px. Or `clip-path: inset(...)` se calcule par rapport à la
+boîte de l'élément auquel il s'applique — avec une boîte 0×0, l'inset
+(en pourcentage *ou* en pixels, les deux ont été testés) produit un
+rectangle dégénéré que Chromium ignore, et retombe sur un panneau non
+découpé, affiché en entier. Résultat : le panneau « après » recouvrait
+tout le panneau « avant » sur toute la largeur, donc les deux côtés du
+curseur montraient la même image — quelles que soient les deux périodes
+sélectionnées, aussi différentes soient-elles en réalité (vérifié aussi :
+`mix-blend-mode` et `isolation` n'y étaient pour rien, écartés par test
+direct avant d'identifier la vraie cause).
+
+Corrigé en donnant explicitement au panneau une largeur/hauteur réelles en
+pixels (`syncComparePaneSize()`, calées sur les dimensions du conteneur de
+la carte, appliquée à l'activation du comparateur et sur redimensionnement)
+avant d'y appliquer le `clip-path` — dès lors la boîte de référence est
+réelle et l'inset découpe exactement là où on l'attend. Vérifié en direct
+(vraies tuiles IGN, pas de mock) : mesure de « colorfulness » des pixels
+rendus de part et d'autre du curseur (avant : ≈0, cohérent avec un cliché
+N&B ; après : nettement positif, cohérent avec un cliché couleur), à 50 %
+et après glisser-déposer vers une autre position, en desktop et en mobile.
+
 ## Actualités — `/actualites` (`frontend/src/pages/Blog.tsx`, `frontend/src/content/blog.ts`)
 
 Page de veille réglementaire et environnementale : une liste de notes
 courtes (`frontend/src/content/blog.ts`, un tableau `BlogPost[]`), chacune
 avec un titre, un résumé, un corps en plusieurs paragraphes, des tags, et
-un lien obligatoire vers sa source primaire. `Blog.tsx` liste les notes
+un lien obligatoire vers sa source primaire. Les trois notes les plus
+récentes sont aussi mises en avant sur la page d'accueil (`Home.tsx`),
+juste sous le hero, avec un lien vers la liste complète. `Blog.tsx` liste les notes
 (plus récentes d'abord), `BlogPost.tsx` affiche une note en entier — même
 schéma de routes que les prestations (`/prestations` + `/prestations/:slug`).
 

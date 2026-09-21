@@ -205,6 +205,15 @@ input {
   box-shadow: 4px 4px 0 rgba(27, 42, 31, 0.12);
 }
 
+a.card {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+a.card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 rgba(27, 42, 31, 0.18);
+}
+
 .grid {
   display: grid;
   gap: 1.5rem;
@@ -270,14 +279,4 @@ input {
 .badge--indeterminee {
   color: var(--level-indeterminee);
   background: var(--level-indeterminee-bg);
-}
-
-/* Hand-illustrated-map motif — a decorative divider evoking the winding
-   white "roads" cutting through coloured land parcels on a hand-drawn
-   commune map, used between sections instead of a plain straight border. */
-.map-divider {
-  display: block;
-  width: 100%;
-  height: 28px;
-  color: var(--color-border);
 }

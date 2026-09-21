@@ -1,38 +1,91 @@
 import { Link } from 'react-router-dom'
-import MapMotif from '../components/MapMotif'
+import { posts } from '../content/blog'
 import { services } from '../content/services'
+
+function formatDate(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+const THEMES = ['Eau souterraine', 'Sites & sols pollués', 'Risques naturels', 'ICPE & activités industrielles']
 
 export default function Home() {
   const highlighted = services.filter((s) => ['conseil-strategique', 'hydrogeologie', 'due-diligence'].includes(s.slug))
+  const latestPosts = [...posts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
 
   return (
     <>
       <section className="section">
         <div className="container">
-          <div className="grid grid--2" style={{ alignItems: 'center' }}>
-            <div>
-              <p className="eyebrow">LYZa — Léo Yecora-Zorzano</p>
-              <h1>Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.</h1>
-              <p className="lede">
-                J'accompagne les entreprises, collectivités et administrations dans leurs réflexions et leurs
-                décisions relatives aux enjeux environnementaux, à la protection des ressources en eau et à la
-                gestion des risques.
-              </p>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
-                <Link to="/carte" className="btn">
-                  Évaluer la sensibilité d'un site
-                </Link>
-                <Link to="/prestations" className="btn btn--ghost">
-                  Voir les prestations
-                </Link>
-              </div>
-            </div>
-            <MapMotif style={{ width: '100%', maxWidth: '22rem', margin: '0 auto', display: 'block' }} />
+          <p className="eyebrow">LYZa — Léo Yecora-Zorzano</p>
+          <h1 style={{ maxWidth: '42rem' }}>
+            Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.
+          </h1>
+          <p className="lede">
+            J'accompagne les entreprises, collectivités et administrations dans leurs réflexions et leurs
+            décisions relatives aux enjeux environnementaux, à la protection des ressources en eau et à la
+            gestion des risques.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+            <Link to="/carte" className="btn">
+              Évaluer la sensibilité d'un site
+            </Link>
+            <Link to="/prestations" className="btn btn--ghost">
+              Voir les prestations
+            </Link>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginTop: '2.5rem' }}>
+            {THEMES.map((theme) => (
+              <span key={theme} className="badge badge--indeterminee">
+                {theme}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
       <section className="section section--muted">
+        <div className="container">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <div>
+              <p className="eyebrow">Actualités</p>
+              <h2 style={{ marginBottom: 0 }}>Veille réglementaire et environnementale</h2>
+            </div>
+            <Link to="/actualites">Toutes les actualités →</Link>
+          </div>
+
+          {latestPosts.length === 0 ? (
+            <p style={{ color: 'var(--color-muted)' }}>Aucune actualité pour le moment.</p>
+          ) : (
+            <div className="grid grid--3">
+              {latestPosts.map((post) => (
+                <Link
+                  key={post.slug}
+                  to={`/actualites/${post.slug}`}
+                  className="card"
+                  style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                >
+                  <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
+                    {formatDate(post.date)}
+                  </p>
+                  <h3 style={{ marginBottom: '0.4rem', fontSize: '1.1rem' }}>{post.title}</h3>
+                  <p style={{ color: 'var(--color-muted)', marginBottom: 0, fontSize: '0.92rem' }}>{post.summary}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="section">
         <div className="container">
           <div className="grid grid--2" style={{ alignItems: 'start' }}>
             <div>
@@ -57,7 +110,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--muted">
         <div className="container">
           <p className="eyebrow">Outil</p>
           <div className="grid grid--2" style={{ alignItems: 'center' }}>
@@ -87,7 +140,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section section--muted">
+      <section className="section">
         <div className="container">
           <p className="eyebrow">Prestations</p>
           <h2>Quelques exemples de missions</h2>
