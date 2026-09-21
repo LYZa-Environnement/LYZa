@@ -1,15 +1,13 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
+import Accompagnement from './pages/Accompagnement'
 import About from './pages/About'
-import Approach from './pages/Approach'
 import Blog from './pages/Blog'
 import BlogPost from './pages/BlogPost'
 import Carte from './pages/Carte'
 import Contact from './pages/Contact'
 import Home from './pages/Home'
-import Sectors from './pages/Sectors'
 import ServiceDetail from './pages/ServiceDetail'
-import Services from './pages/Services'
 
 export default function App() {
   return (
@@ -17,14 +15,22 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/presentation" element={<About />} />
-        <Route path="/prestations" element={<Services />} />
-        <Route path="/prestations/:slug" element={<ServiceDetail />} />
+        <Route path="/accompagnement" element={<Accompagnement />} />
+        <Route path="/accompagnement/:slug" element={<ServiceDetail />} />
         <Route path="/carte" element={<Carte />} />
-        <Route path="/secteurs" element={<Sectors />} />
-        <Route path="/demarche" element={<Approach />} />
         <Route path="/actualites" element={<Blog />} />
         <Route path="/actualites/:slug" element={<BlogPost />} />
         <Route path="/contact" element={<Contact />} />
+
+        {/* Prestations, Secteurs d'intervention and Démarche were merged into
+            one page — redirect old bookmarks/links instead of leaving them
+            with a blank screen (there was no catch-all route before either,
+            worth fixing while touching this). */}
+        <Route path="/prestations" element={<Navigate to="/accompagnement" replace />} />
+        <Route path="/prestations/:slug" element={<ServiceDetail />} />
+        <Route path="/secteurs" element={<Navigate to="/accompagnement" replace />} />
+        <Route path="/demarche" element={<Navigate to="/accompagnement" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )

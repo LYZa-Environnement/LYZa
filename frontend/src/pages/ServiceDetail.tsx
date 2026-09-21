@@ -6,7 +6,7 @@ export default function ServiceDetail() {
   const service = services.find((s) => s.slug === slug)
 
   if (!service) {
-    return <Navigate to="/prestations" replace />
+    return <Navigate to="/accompagnement" replace />
   }
 
   return (
@@ -45,8 +45,8 @@ export default function ServiceDetail() {
           <Link to="/contact" className="btn">
             Échanger sur un besoin
           </Link>
-          <Link to="/prestations" className="btn btn--ghost">
-            ← Toutes les prestations
+          <Link to="/accompagnement" className="btn btn--ghost">
+            ← Tout l'accompagnement
           </Link>
         </div>
       </div>

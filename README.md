@@ -77,24 +77,46 @@ réaligné sur la même identité plutôt que traité comme un style à part :
   visuellement un outil de travail.
 - Un bandeau tricolore (vert/rouge/orange) en tête de la barre latérale.
 
-## Priorité aux outils gratuits sur les prestations
+## Priorité aux outils gratuits sur l'accompagnement
 
-À la demande de l'utilisateur, la navigation et l'accueil mettent
-davantage en avant les deux outils gratuits (« Évaluer un site » et LYZa
-Cartes) que les prestations payantes :
+À la demande de l'utilisateur, le site pose désormais explicitement LYZa
+comme un outil d'aide à la décision en libre accès avant tout, un
+accompagnement payant restant possible mais secondaire — « si besoin » :
 
-- `Nav.tsx` : ces deux liens sont désormais juste après « Accueil » (avant
-  Présentation/Prestations) et affichés en vert accent même hors état
-  actif, pour qu'ils se distinguent visuellement du reste du menu.
-- `Home.tsx` : le second bouton du hero (auparavant « Voir les
-  prestations ») pointe maintenant vers LYZa Cartes. L'ancienne section
-  « Outil » (un seul outil, décrit en texte + un encart de badges) est
-  devenue « Outils gratuits » : deux cartes de poids égal, une par outil,
-  chacune avec son propre bouton. La section Prestations en bas de page
-  est passée de 3 cartes à 2, sans autre traitement visuel réduit — elle
-  reste lisible, juste moins large que les outils.
-- `a.card:hover` (ajouté précédemment) profite aussi à ces nouvelles
-  cartes d'outils.
+- `Nav.tsx` : « Évaluer un site » et « LYZa Cartes » sont juste après
+  « Accueil » (avant Présentation/Accompagnement) et affichés en vert
+  accent même hors état actif, pour se distinguer visuellement du reste
+  du menu.
+- `Home.tsx` : le second bouton du hero pointe vers LYZa Cartes (plus
+  vers les prestations). La section « Outils gratuits » (deux cartes de
+  poids égal, une par outil) est mise en avant tôt sur la page. La
+  section accompagnement — désormais intitulée « Si besoin » — est la
+  toute dernière section de la page, volontairement : jamais la première
+  chose vue à l'arrivée sur le site.
+- `a.card:hover` profite aussi à ces cartes d'outils.
+
+**Fusion de Prestations, Secteurs d'intervention et Démarche en une
+seule page** (`/accompagnement`, `frontend/src/pages/Accompagnement.tsx`).
+Ces trois anciennes pages séparées (`Services.tsx`, `Sectors.tsx`,
+`Approach.tsx`, désormais supprimées) racontaient en réalité une seule
+histoire — comment je travaille, pour qui, sous quelles formes — et sont
+maintenant trois chapitres d'une même page plutôt que trois entrées de
+menu distinctes : « Comment je travaille » (démarche : principes, étapes,
+citation), « Secteurs d'intervention » (pour qui), puis « Neuf formes
+d'intervention » (les prestations, en grille de cartes renvoyant chacune
+vers sa page de détail à `/accompagnement/:slug` — `ServiceDetail.tsx`
+n'a pas changé, seule sa route parente a été renommée). Contenu intégral
+conservé, rien de supprimé — uniquement réorganisé en sections chapitrées
+sur une page au lieu de trois pages.
+
+D'anciens liens vers `/prestations`, `/secteurs` ou `/demarche`
+redirigent maintenant vers `/accompagnement` (`App.tsx`), et
+`/prestations/:slug` continue de fonctionner directement (même
+composant `ServiceDetail`, mêmes `slug`) — pas de lien cassé pour qui
+aurait gardé un ancien signet. Une route `*` de repli vers l'accueil a
+aussi été ajoutée à cette occasion : il n'en existait aucune avant, donc
+une URL invalide affichait auparavant une page entièrement blanche (pas
+même la navigation), un défaut préexistant corrigé au passage.
 
 ## Déploiement — GitHub Pages
 
@@ -105,10 +127,11 @@ Pages une fois dans les paramètres du dépôt : Settings → Pages → Source =
 
 Deux adaptations spécifiques à ce mode d'hébergement statique :
 
-- Le routage utilise `HashRouter` (URLs en `#/prestations`) plutôt que
+- Le routage utilise `HashRouter` (URLs en `#/accompagnement`) plutôt que
   `BrowserRouter`, car GitHub Pages n'a pas de règle de réécriture
   serveur pour les liens profonds d'une SPA — un rafraîchissement sur
-  `/prestations` renverrait une 404 avec un routeur basé sur l'URL réelle.
+  `/accompagnement` renverrait une 404 avec un routeur basé sur l'URL
+  réelle.
 - Le build est préfixé par `/LYZa/` (`base` dans `vite.config.ts`, activé
   uniquement quand `GITHUB_PAGES=true`, donc sans effet sur `npm run dev`
   ou un build local classique).
@@ -125,9 +148,9 @@ npm install
 npm run dev
 ```
 
-Pages : Accueil, Présentation, Prestations (+ page de détail par
-prestation), Évaluer un site (la carte), LYZa Cartes, Secteurs
-d'intervention, Démarche, Contact.
+Pages : Accueil, Présentation, Accompagnement (démarche + secteurs
+d'intervention + prestations, avec une page de détail par prestation),
+Évaluer un site (la carte), LYZa Cartes, Actualités, Contact.
 
 ## L'outil "Évaluer un site"
 
@@ -567,7 +590,7 @@ un lien obligatoire vers sa source primaire. Les trois notes les plus
 récentes sont aussi mises en avant sur la page d'accueil (`Home.tsx`),
 juste sous le hero, avec un lien vers la liste complète. `Blog.tsx` liste les notes
 (plus récentes d'abord), `BlogPost.tsx` affiche une note en entier — même
-schéma de routes que les prestations (`/prestations` + `/prestations/:slug`).
+schéma de routes que l'accompagnement (`/accompagnement` + `/accompagnement/:slug`).
 
 Le site restant entièrement statique (pas de backend, pas de base de
 données), le contenu vit dans le dépôt : chaque nouvelle note est un ajout

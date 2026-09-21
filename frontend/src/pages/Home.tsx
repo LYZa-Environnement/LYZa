@@ -154,19 +154,23 @@ export default function Home() {
 
       <section className="section">
         <div className="container">
-          <p className="eyebrow">Prestations</p>
-          <h2>Quelques exemples de missions</h2>
-          <div className="grid grid--2">
+          <p className="eyebrow">Si besoin</p>
+          <h2>Un accompagnement est aussi possible</h2>
+          <p className="lede">
+            Au-delà des outils en libre accès, certaines situations justifient un accompagnement plus poussé —
+            deux exemples parmi neuf formes d'intervention.
+          </p>
+          <div className="grid grid--2" style={{ marginTop: '1.5rem' }}>
             {highlighted.map((service) => (
               <div className="card" key={service.slug}>
                 <h3>{service.titre}</h3>
                 <p style={{ color: 'var(--color-muted)' }}>{service.accroche}</p>
-                <Link to={`/prestations/${service.slug}`}>Voir le détail →</Link>
+                <Link to={`/accompagnement/${service.slug}`}>Voir le détail →</Link>
               </div>
             ))}
           </div>
           <p style={{ marginTop: '1.5rem' }}>
-            <Link to="/prestations">Voir les neuf prestations →</Link>
+            <Link to="/accompagnement">Voir tout l'accompagnement →</Link>
           </p>
         </div>
       </section>

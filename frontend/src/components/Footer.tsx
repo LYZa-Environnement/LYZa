@@ -23,12 +23,12 @@ export default function Footer() {
         <div>
           <strong>Navigation</strong>
           <p style={{ marginTop: '0.5rem' }}>
-            <Link to="/prestations" style={{ color: 'var(--color-accent-ink)' }}>
-              Prestations
-            </Link>
-            <br />
             <Link to="/carte" style={{ color: 'var(--color-accent-ink)' }}>
               Évaluer un site
+            </Link>
+            <br />
+            <Link to="/accompagnement" style={{ color: 'var(--color-accent-ink)' }}>
+              Accompagnement
             </Link>
             <br />
             <Link to="/contact" style={{ color: 'var(--color-accent-ink)' }}>

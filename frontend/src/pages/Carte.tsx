@@ -162,7 +162,7 @@ export default function Carte() {
             {uniqueServices.length > 0 ? (
               <div className="grid grid--3">
                 {uniqueServices.map((service) => (
-                  <Link key={service.slug} to={`/prestations/${service.slug}`} className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link key={service.slug} to={`/accompagnement/${service.slug}`} className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <strong>{service.label}</strong>
                   </Link>
                 ))}

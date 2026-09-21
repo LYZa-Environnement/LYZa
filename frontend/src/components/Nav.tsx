@@ -6,9 +6,7 @@ const links = [
   { to: '/carte', label: 'Évaluer un site', highlight: true },
   { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true, highlight: true },
   { to: '/presentation', label: 'Présentation' },
-  { to: '/prestations', label: 'Prestations' },
-  { to: '/secteurs', label: "Secteurs d'intervention" },
-  { to: '/demarche', label: 'Démarche' },
+  { to: '/accompagnement', label: 'Accompagnement' },
   { to: '/actualites', label: 'Actualités' },
   { to: '/contact', label: 'Contact' },
 ]
