@@ -7,6 +7,7 @@ import BlogPost from './pages/BlogPost'
 import Carte from './pages/Carte'
 import Contact from './pages/Contact'
 import Home from './pages/Home'
+import Restrictions from './pages/Restrictions'
 import ServiceDetail from './pages/ServiceDetail'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/accompagnement" element={<Accompagnement />} />
         <Route path="/accompagnement/:slug" element={<ServiceDetail />} />
         <Route path="/carte" element={<Carte />} />
+        <Route path="/restrictions-eau" element={<Restrictions />} />
         <Route path="/actualites" element={<Blog />} />
         <Route path="/actualites/:slug" element={<BlogPost />} />
         <Route path="/contact" element={<Contact />} />

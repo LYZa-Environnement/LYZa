@@ -5,6 +5,7 @@ const links = [
   { to: '/', label: 'Accueil', end: true },
   { to: '/carte', label: 'Évaluer un site', highlight: true },
   { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true, highlight: true },
+  { to: '/restrictions-eau', label: "Restrictions d'eau", highlight: true },
   { to: '/presentation', label: 'Présentation' },
   { to: '/accompagnement', label: 'Accompagnement' },
   { to: '/actualites', label: 'Actualités' },

@@ -625,6 +625,36 @@ l'assouplissement 2024 sur les plans d'eau en zone humide) ont été rédigées
 à la mise en place de la page, comme premier contenu ; la routine prend le
 relais pour les jours suivants.
 
+## Restrictions d'eau — `/restrictions-eau` (`frontend/src/pages/Restrictions.tsx`, `frontend/src/lib/vigieau.ts`)
+
+Troisième outil gratuit, ajouté après une recherche de jeux de données
+data.gouv.fr adaptés (à la demande de l'utilisateur). L'API VigiEau
+(ministère de la Transition écologique,
+[api.vigieau.beta.gouv.fr](https://api.vigieau.beta.gouv.fr) — spec
+trouvée en direct sur `/swagger-json`, non documentée dans le catalogue
+data.gouv.fr) renvoie, pour une adresse, le niveau de restriction d'eau
+réellement en vigueur — `vigilance` / `alerte` / `alerte_renforcee` /
+`crise` — séparément pour les eaux superficielles, les eaux souterraines
+et l'eau potable (`GET /api/zones?lat&lon`), avec le détail des usages
+concrètement interdits ou limités (arrosage, prélèvements, lavage…) et un
+lien vers l'arrêté préfectoral (PDF) réellement en vigueur. Vérifié en
+direct avant implémentation : une adresse réelle testée pendant le
+développement (Manche, sécheresse 2026) est ressortie en niveau *crise*
+sur les trois types d'eau, avec 17 à 22 usages listés par zone — donnée
+manifestement vivante, pas un jeu de données figé.
+
+Un tableau de zones plutôt qu'une valeur unique est renvoyé par
+l'API : un même site peut être en alerte renforcée pour les eaux
+superficielles et seulement en vigilance pour l'eau potable, d'où
+plusieurs cartes possibles par adresse, triées par gravité décroissante
+(`sortBySeverityDesc`). Chaque carte affiche son niveau, son type d'eau,
+les dates de validité de l'arrêté, et un repli `<details>` listant les
+usages (groupés par thématique) — repliable pour ne pas noyer la page
+quand une zone en compte vingt. Comme partout ailleurs sur le site : `null`
+en cas d'échec réseau, message honnête plutôt qu'une absence de
+restriction fabriquée ; un tableau vide est un résultat réel et distinct
+(« aucune restriction actuellement »), pas une erreur.
+
 ## Compatibilité mobile
 
 Vérifiée avec Playwright à une largeur de 390 px (iPhone 12/13) sur les sept

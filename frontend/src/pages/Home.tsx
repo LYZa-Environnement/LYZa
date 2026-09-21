@@ -120,10 +120,10 @@ export default function Home() {
           <p className="eyebrow">Outils gratuits</p>
           <h2>Deux outils en libre accès pour une première lecture</h2>
           <p className="lede">
-            Sans compte, sans engagement : deux façons d'explorer gratuitement les bases de données publiques
+            Sans compte, sans engagement : trois façons d'explorer gratuitement les bases de données publiques
             disponibles sur un site ou un secteur.
           </p>
-          <div className="grid grid--2" style={{ marginTop: '2rem' }}>
+          <div className="grid grid--3" style={{ marginTop: '2rem' }}>
             <div className="card">
               <h3>Évaluer un site</h3>
               <p style={{ color: 'var(--color-muted)' }}>
@@ -147,6 +147,16 @@ export default function Home() {
               <a href={lyzaCartesUrl} className="btn" style={{ marginTop: '0.5rem' }}>
                 Explorer LYZa Cartes
               </a>
+            </div>
+            <div className="card">
+              <h3>Restrictions d'eau</h3>
+              <p style={{ color: 'var(--color-muted)' }}>
+                Le niveau de restriction d'eau en vigueur à une adresse — eaux superficielles, souterraines et eau
+                potable — d'après les arrêtés préfectoraux publiés sur VigiEau.
+              </p>
+              <Link to="/restrictions-eau" className="btn" style={{ marginTop: '0.5rem' }}>
+                Vérifier une adresse
+              </Link>
             </div>
           </div>
         </div>
