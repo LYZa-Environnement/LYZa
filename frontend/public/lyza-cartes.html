@@ -272,14 +272,21 @@
     font-family:Verdana, Geneva, sans-serif !important;
   }
   .compare-divider{
-    position:absolute; top:0; bottom:0; width:0; border-left:2px solid #fff;
-    box-shadow:0 0 0 1px rgba(0,0,0,.35); z-index:650; cursor:ew-resize;
+    /* A wide invisible drag strip, not just the 2px visual line — much
+       easier to grab, especially on touch. The line itself is drawn by
+       ::before, centered inside the strip. */
+    position:absolute; top:0; bottom:0; width:36px; margin-left:-18px;
+    z-index:650; cursor:ew-resize; touch-action:none;
+  }
+  .compare-divider::before{
+    content:""; position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px;
+    background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35); pointer-events:none;
   }
   .compare-handle{
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:34px; height:34px; border-radius:50%; background:#fff; border:1px solid var(--line);
+    width:48px; height:48px; border-radius:50%; background:#fff; border:2px solid var(--ink);
     display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); cursor:ew-resize;
-    font-size:16px; color:var(--ink); pointer-events:none;
+    font-size:18px; color:var(--ink); pointer-events:none;
   }
 
   .radius-note{
@@ -703,6 +710,25 @@
       '&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&STYLE=' + style +
       '&TILEMATRIXSET=PM&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x;
   }
+  function currentTileUrl(z, x, y){
+    return 'https://data.geopf.fr/wmts?LAYER=ORTHOIMAGERY.ORTHOPHOTOS' +
+      '&EXCEPTIONS=text/xml&FORMAT=image/jpeg' +
+      '&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&STYLE=normal' +
+      '&TILEMATRIXSET=PM&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x;
+  }
+  // Cheap non-cryptographic hash (length + sampled checksum) used only to
+  // detect byte-identical tiles — enough to notice when a "recent" mosaic
+  // period and "aujourd'hui" serve the exact same underlying capture for a
+  // given spot, which happens often since "current" usually just is the
+  // latest published campaign. Comparing two identical tiles is an honest
+  // no-op, not a broken comparator, so it's worth telling apart from a
+  // genuine historical-vs-current difference.
+  function cheapImageHash(buf){
+    var view = new Uint8Array(buf);
+    var h = view.length >>> 0;
+    for (var i = 0; i < view.length; i += 37){ h = (h * 33 + view[i]) >>> 0; }
+    return h + ':' + view.length;
+  }
   function lonLatToTile(lon, lat, z){
     var n = Math.pow(2, z);
     var x = Math.floor((lon + 180) / 360 * n);
@@ -711,21 +737,48 @@
     return { x:x, y:y };
   }
   var histoAvailability = {}; // period -> true/false, undefined = unknown yet
+  var histoHash = {}; // period (or 'current') -> content hash, or undefined if not comparable
   var histoCheckToken = 0;
+  // True when a and b would render the same tile here — either because
+  // they're literally the same option, or because both are modern (hashed)
+  // periods whose content hashes match. Two periods can be identical to
+  // each other without either being "current" (e.g. two recent mosaics
+  // that both fall back to the same, only, flight for this spot) — hence
+  // comparing hashes pairwise rather than only ever against "current".
+  function looksIdentical(a, b){
+    if (a === b) return true;
+    return !!(histoHash[a] && histoHash[b] && histoHash[a] === histoHash[b]);
+  }
   function refreshHistoAvailability(){
     var myToken = ++histoCheckToken;
     var center = map.getCenter();
     var z = Math.max(9, Math.min(18, map.getZoom()));
     var t = lonLatToTile(center.lng, center.lat, z);
     histoNote.textContent = 'Vérification des périodes disponibles sur cette zone…';
-    Promise.all(HISTO_PERIODS.map(function(p){
-      return fetchWithTimeout(histoTileUrl(p.value, z, t.x, t.y), {}, 6000).then(function(r){
-        var ct = r.headers.get('content-type') || '';
-        return { period:p.value, ok: r.ok && ct.indexOf('image') === 0 };
-      }).catch(function(){ return { period:p.value, ok:false }; });
-    })).then(function(results){
+    var currentHashPromise = fetchWithTimeout(currentTileUrl(z, t.x, t.y), {}, 6000)
+      .then(function(r){ return r.ok ? r.arrayBuffer().then(cheapImageHash) : null; })
+      .catch(function(){ return null; });
+    Promise.all([
+      currentHashPromise,
+      Promise.all(HISTO_PERIODS.map(function(p){
+        var info = histoLayerName(p.value);
+        return fetchWithTimeout(histoTileUrl(p.value, z, t.x, t.y), {}, 6000).then(function(r){
+          var ct = r.headers.get('content-type') || '';
+          var ok = r.ok && ct.indexOf('image') === 0;
+          // Old B&W ranges are PNG/BDORTHOHISTORIQUE — a different pipeline
+          // from "current"'s JPEG, never worth hashing for a duplicate check.
+          if (!ok || info.isOldRange) return { period:p.value, ok:ok, hash:null };
+          return r.arrayBuffer().then(function(buf){ return { period:p.value, ok:ok, hash:cheapImageHash(buf) }; });
+        }).catch(function(){ return { period:p.value, ok:false, hash:null }; });
+      }))
+    ]).then(function(all){
       if (myToken !== histoCheckToken) return;
-      results.forEach(function(r){ histoAvailability[r.period] = r.ok; });
+      var currentHash = all[0], results = all[1];
+      histoHash = { current: currentHash };
+      results.forEach(function(r){
+        histoAvailability[r.period] = r.ok;
+        histoHash[r.period] = r.hash;
+      });
       var previousValue = histoSelect.value;
       histoSelect.innerHTML = '';
       var anyAvailable = false;
@@ -747,6 +800,8 @@
       }
 
       // Rebuild the comparator's period lists too, filtered to what's actually available here.
+      // A period that renders identically to "current" here is flagged in
+      // its label, so a user who picks one anyway isn't left guessing why.
       [compareLeftSelect, compareRightSelect].forEach(function(sel){
         var prev = sel.value;
         sel.innerHTML = '';
@@ -756,27 +811,43 @@
         HISTO_PERIODS.forEach(function(p){
           if (!histoAvailability[p.value]) return;
           var opt = document.createElement('option');
-          opt.value = p.value; opt.textContent = p.label;
+          opt.value = p.value;
+          opt.textContent = p.label + (looksIdentical(p.value, 'current') ? ' (≈ identique à l’actuelle ici)' : '');
           sel.appendChild(opt);
         });
         var stillThere = Array.prototype.some.call(sel.options, function(o){ return o.value === prev; });
-        sel.value = stillThere ? prev : (sel === compareLeftSelect ? (sel.options[1] ? sel.options[1].value : 'current') : 'current');
+        if (stillThere){ sel.value = prev; return; }
+        if (sel === compareRightSelect){ sel.value = 'current'; return; }
+        // Default compareLeftSelect to the oldest available period that
+        // isn't just a repeat of "current" — a real difference to show,
+        // not a coincidentally-identical recent mosaic.
+        var distinctOpt = Array.prototype.slice.call(sel.options).find(function(o){
+          return o.value !== 'current' && !looksIdentical(o.value, 'current');
+        });
+        sel.value = distinctOpt ? distinctOpt.value : (sel.options[1] ? sel.options[1].value : 'current');
       });
-      // Never let both sides silently end up on the same period — that would
-      // render two identical panes with the divider still shown, looking
-      // like a broken comparator rather than an honest "nothing to compare".
-      if (compareLeftSelect.value === compareRightSelect.value && compareRightSelect.options.length > 1){
-        var altIndex = Array.prototype.findIndex.call(compareRightSelect.options, function(o){ return o.value !== compareLeftSelect.value; });
-        if (altIndex !== -1) compareRightSelect.value = compareRightSelect.options[altIndex].value;
-      }
-      var comparable = compareLeftSelect.value !== compareRightSelect.value;
-      compareToggleBtn.disabled = !comparable;
-      compareNote.textContent = comparable
-        ? "Faites glisser le curseur sur la carte pour comparer deux périodes. Seules les périodes couvrant la zone visible sont proposées."
-        : "Une seule période (la photo actuelle) est disponible sur cette zone à ce niveau de zoom : rien à comparer pour l'instant.";
+      var comparable = updateCompareComparability(true);
       if (compareActive && !comparable) stopCompare();
       else if (compareActive) rebuildCompareLayers();
     });
+  }
+  // Checks whether the two selected periods would actually look different,
+  // updates the toggle button + note accordingly, and — when autoFix is set
+  // (after a fresh availability scan, not after a manual pick) — nudges the
+  // right side off of an accidental duplicate. Returns whether comparable.
+  function updateCompareComparability(autoFix){
+    if (autoFix && looksIdentical(compareLeftSelect.value, compareRightSelect.value)){
+      var altIndex = Array.prototype.findIndex.call(compareRightSelect.options, function(o){
+        return !looksIdentical(compareLeftSelect.value, o.value);
+      });
+      if (altIndex !== -1) compareRightSelect.value = compareRightSelect.options[altIndex].value;
+    }
+    var comparable = !looksIdentical(compareLeftSelect.value, compareRightSelect.value);
+    compareToggleBtn.disabled = !comparable;
+    compareNote.textContent = comparable
+      ? "Faites glisser le curseur sur la carte pour comparer deux périodes. Seules les périodes couvrant la zone visible sont proposées."
+      : "Les clichés disponibles semblent identiques à cet endroit à ce niveau de zoom (pas de nouvelle prise de vue) : rien à comparer pour l'instant.";
+    return comparable;
   }
   var currentBase = baseIGN;
   var histoYearRow = document.getElementById('histo-year-row');
@@ -855,13 +926,14 @@
     setCompareSplit(pct);
   });
   document.addEventListener('mouseup', function(){ compareDragging = false; });
-  compareDivider.addEventListener('touchstart', function(){ compareDragging = true; map.dragging.disable(); }, { passive:true });
+  compareDivider.addEventListener('touchstart', function(e){ compareDragging = true; map.dragging.disable(); e.preventDefault(); }, { passive:false });
   document.addEventListener('touchmove', function(e){
     if (!compareDragging || !e.touches[0]) return;
+    e.preventDefault();
     var rect = map.getContainer().getBoundingClientRect();
     var pct = Math.max(2, Math.min(98, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
     setCompareSplit(pct);
-  });
+  }, { passive:false });
   document.addEventListener('touchend', function(){ compareDragging = false; map.dragging.enable(); });
 
   var compareActive = false, compareBeforeLayer = null, compareAfterLayer = null;
@@ -894,8 +966,15 @@
     compareToggleBtn.classList.remove('active');
   }
   compareToggleBtn.addEventListener('click', function(){ if (compareActive) stopCompare(); else startCompare(); });
-  compareLeftSelect.addEventListener('change', function(){ if (compareActive) rebuildCompareLayers(); });
-  compareRightSelect.addEventListener('change', function(){ if (compareActive) rebuildCompareLayers(); });
+  [compareLeftSelect, compareRightSelect].forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var comparable = updateCompareComparability(false);
+      if (compareActive){
+        if (!comparable) stopCompare();
+        else rebuildCompareLayers();
+      }
+    });
+  });
 
   var cadastreLayer = geopfWMTS('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', { opacity:0.75, pane:'pane-cadastre' });
   document.getElementById('lyr-cadastre').addEventListener('change', function(e){

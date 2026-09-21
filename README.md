@@ -452,6 +452,69 @@ se retrouver sur la même période (donnée indisponible sur la zone), le
 bouton se désactive et un message explicite s'affiche plutôt que de
 montrer deux vues identiques sans le dire.
 
+**Le même symptôme est réapparu après ce premier correctif**, pour une
+raison différente et plus subtile : la couche « actuelle »
+(`ORTHOIMAGERY.ORTHOPHOTOS`, sans année) *est*, pour l'essentiel du
+territoire, la mosaïque la plus récente déjà publiée — donc comparer
+« Aujourd'hui » à la période la plus récente (ex. 2021-2023) sert
+fréquemment, à un endroit donné, exactement la même prise de vue des deux
+côtés, même s'il s'agit bien de deux requêtes WMTS distinctes. La
+vérification de disponibilité ne suffisait donc pas : une période peut
+être disponible (HTTP 200, vraie image) sans être *différente*.
+Corrigé en calculant, pendant le même balayage de disponibilité, une
+empreinte (longueur + somme de contrôle échantillonnée) de la tuile
+« actuelle » et de chaque mosaïque récente au point testé, puis en
+comparant deux à deux (`looksIdentical`, pas seulement contre
+« actuelle ») avant de choisir les valeurs par défaut, avant d'activer le
+comparateur, et à chaque changement manuel de sélection. Une période
+identifiée comme identique à l'actuelle ici est annotée dans son libellé
+(« ≈ identique à l'actuelle ici ») ; si les deux sélections en cours
+rendraient malgré tout la même image, le bouton se désactive avec le
+message « Les clichés disponibles semblent identiques à cet endroit… »
+plutôt que d'afficher silencieusement deux vues indiscernables.
+
+**Poignée du comparateur agrandie.** La bande cliquable pour faire glisser
+le curseur était en pratique large de 2 px (la seule bordure visible du
+séparateur) : la poignée ronde à 34 px de diamètre restait cliquable par
+propagation d'évènement, mais rien entre les deux. Élargi la zone de
+glisser-déposer invisible à 36 px sur toute la hauteur de la carte
+(`::before` dessine le trait visuel de 2 px en son centre) et la poignée
+elle-même à 48 px, plus un `touchAction:none` + `preventDefault` sur les
+évènements tactiles pour éviter que le geste ne fasse défiler la carte en
+même temps.
+
+## Actualités — `/actualites` (`frontend/src/pages/Blog.tsx`, `frontend/src/content/blog.ts`)
+
+Page de veille réglementaire et environnementale : une liste de notes
+courtes (`frontend/src/content/blog.ts`, un tableau `BlogPost[]`), chacune
+avec un titre, un résumé, un corps en plusieurs paragraphes, des tags, et
+un lien obligatoire vers sa source primaire. `Blog.tsx` liste les notes
+(plus récentes d'abord), `BlogPost.tsx` affiche une note en entier — même
+schéma de routes que les prestations (`/prestations` + `/prestations/:slug`).
+
+Le site restant entièrement statique (pas de backend, pas de base de
+données), le contenu vit dans le dépôt : chaque nouvelle note est un ajout
+au tableau `posts`, commité et poussé sur `main` comme n'importe quel autre
+changement — le déploiement GitHub Pages existant s'en charge.
+
+**Alimentation quotidienne automatique.** Une routine planifiée (déclenchée
+une fois par jour) relance une session Claude Code dédiée qui :
+1. Recherche l'actualité réglementaire/environnementale française récente
+   pertinente pour le métier (eau, sols, risques, zones protégées, ICPE…) ;
+2. Rédige une note courte et factuelle en français, sourcée ;
+3. Vérifie qu'aucune note existante ne couvre déjà le même sujet/la même
+   source récemment ;
+4. L'ajoute à `frontend/src/content/blog.ts`, vérifie `tsc`/`build`, commite
+   et pousse sur `main` — sans rien inventer : si aucune actualité
+   pertinente n'est trouvée ce jour-là, la routine ne publie rien plutôt que
+   de forcer une note creuse.
+
+Les deux notes actuellement en place (état des nappes phréatiques au 1er
+septembre 2026 d'après le BRGM, et l'annulation par le Conseil d'État de
+l'assouplissement 2024 sur les plans d'eau en zone humide) ont été rédigées
+à la mise en place de la page, comme premier contenu ; la routine prend le
+relais pour les jours suivants.
+
 ## Compatibilité mobile
 
 Vérifiée avec Playwright à une largeur de 390 px (iPhone 12/13) sur les sept

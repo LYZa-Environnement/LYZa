@@ -2,6 +2,8 @@ import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import About from './pages/About'
 import Approach from './pages/Approach'
+import Blog from './pages/Blog'
+import BlogPost from './pages/BlogPost'
 import Carte from './pages/Carte'
 import Contact from './pages/Contact'
 import Home from './pages/Home'
@@ -20,6 +22,8 @@ export default function App() {
         <Route path="/carte" element={<Carte />} />
         <Route path="/secteurs" element={<Sectors />} />
         <Route path="/demarche" element={<Approach />} />
+        <Route path="/actualites" element={<Blog />} />
+        <Route path="/actualites/:slug" element={<BlogPost />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
     </Routes>
