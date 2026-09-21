@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import logo from '../assets/lyza-logo.png'
 
 const links = [
   { to: '/', label: 'Accueil', end: true },
@@ -16,8 +17,8 @@ export default function Nav() {
     <header style={{ borderBottom: 'var(--border-w) solid var(--color-border)', background: 'var(--color-surface)' }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '4.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <NavLink to="/" style={{ textDecoration: 'none', color: 'var(--color-ink)' }}>
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800 }}>LYZa</span>
-          <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.04em' }}>
+          <img src={logo} alt="LYZa" style={{ display: 'block', height: '2.6rem', width: 'auto' }} />
+          <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.04em', marginTop: '0.2rem' }}>
             Environnement &amp; hydrogéologie
           </span>
         </NavLink>
