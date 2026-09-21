@@ -3,10 +3,10 @@ import logo from '../assets/lyza-logo.png'
 
 const links = [
   { to: '/', label: 'Accueil', end: true },
+  { to: '/carte', label: 'Évaluer un site', highlight: true },
+  { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true, highlight: true },
   { to: '/presentation', label: 'Présentation' },
   { to: '/prestations', label: 'Prestations' },
-  { to: '/carte', label: 'Évaluer un site' },
-  { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true },
   { to: '/secteurs', label: "Secteurs d'intervention" },
   { to: '/demarche', label: 'Démarche' },
   { to: '/actualites', label: 'Actualités' },
@@ -29,7 +29,12 @@ export default function Nav() {
               <a
                 key={link.to}
                 href={link.to}
-                style={{ textDecoration: 'none', fontSize: '0.92rem', fontWeight: 500, color: 'var(--color-ink)' }}
+                style={{
+                  textDecoration: 'none',
+                  fontSize: '0.92rem',
+                  fontWeight: link.highlight ? 700 : 500,
+                  color: link.highlight ? 'var(--color-accent)' : 'var(--color-ink)',
+                }}
               >
                 {link.label}
               </a>
@@ -41,8 +46,8 @@ export default function Nav() {
                 style={({ isActive }) => ({
                   textDecoration: 'none',
                   fontSize: '0.92rem',
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? 'var(--color-accent)' : 'var(--color-ink)',
+                  fontWeight: isActive || link.highlight ? 700 : 500,
+                  color: isActive || link.highlight ? 'var(--color-accent)' : 'var(--color-ink)',
                 })}
               >
                 {link.label}

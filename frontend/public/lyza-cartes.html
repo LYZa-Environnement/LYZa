@@ -949,11 +949,34 @@
   }
   map.on('resize', syncComparePaneSize);
 
-  function setCompareSplit(pct){
-    compareDivider.style.left = pct + '%';
-    var clipPx = map.getContainer().clientWidth * pct / 100;
+  var compareSplitPct = 50;
+  function updateCompareClip(){
+    // The pane inherits its ancestor (.leaflet-map-pane)'s pan/zoom
+    // transform, which Leaflet shifts continuously while panning and only
+    // periodically "recenters" — so the pane's own coordinate origin moves
+    // relative to the viewport while a drag is in progress. The divider is
+    // deliberately outside that transform (appended straight to the map
+    // container) so it stays screen-fixed, which is what you want for a
+    // comparator handle — but it means a clip-path inset expressed in the
+    // pane's own (moving) coordinate space drifts away from the (fixed)
+    // divider as soon as you pan, even though it was correct the instant
+    // it was set. Recomputing from each element's actual current
+    // getBoundingClientRect() (which reflects any inherited transform)
+    // converts the desired *screen* split position into the pane's
+    // *local* coordinate space fresh each time, so the clip line tracks
+    // the divider regardless of how far the map has panned since.
+    var containerRect = map.getContainer().getBoundingClientRect();
+    var paneRect = comparePaneAfter.getBoundingClientRect();
+    var dividerScreenX = containerRect.left + containerRect.width * compareSplitPct / 100;
+    var clipPx = dividerScreenX - paneRect.left;
     comparePaneAfter.style.clipPath = 'inset(0 0 0 ' + clipPx + 'px)';
   }
+  function setCompareSplit(pct){
+    compareSplitPct = pct;
+    compareDivider.style.left = pct + '%';
+    updateCompareClip();
+  }
+  map.on('move zoom', function(){ if (compareActive) updateCompareClip(); });
   var compareDragging = false;
   compareDivider.addEventListener('mousedown', function(e){ compareDragging = true; e.preventDefault(); e.stopPropagation(); map.dragging.disable(); });
   document.addEventListener('mouseup', function(){ if (compareDragging) map.dragging.enable(); });

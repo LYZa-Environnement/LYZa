@@ -15,7 +15,12 @@ export default function Blog() {
         <h1>Veille réglementaire et environnementale</h1>
         <p className="lede">
           Une sélection de textes, décisions et données publiques qui touchent directement les sujets suivis par
-          LYZa — eau, sols, risques, zones protégées. Chaque note renvoie vers sa source primaire.
+          LYZa — eau, sols, risques naturels et industriels, zones protégées. Chaque note renvoie vers sa source
+          primaire.
+        </p>
+        <p style={{ color: 'var(--color-muted)' }}>
+          Mise à jour quotidienne : une note est ajoutée dès qu'une actualité pertinente est identifiée par la
+          veille — jamais de contenu forcé les jours sans actualité notable.
         </p>
 
         {sorted.length === 0 ? (

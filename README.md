@@ -77,6 +77,25 @@ réaligné sur la même identité plutôt que traité comme un style à part :
   visuellement un outil de travail.
 - Un bandeau tricolore (vert/rouge/orange) en tête de la barre latérale.
 
+## Priorité aux outils gratuits sur les prestations
+
+À la demande de l'utilisateur, la navigation et l'accueil mettent
+davantage en avant les deux outils gratuits (« Évaluer un site » et LYZa
+Cartes) que les prestations payantes :
+
+- `Nav.tsx` : ces deux liens sont désormais juste après « Accueil » (avant
+  Présentation/Prestations) et affichés en vert accent même hors état
+  actif, pour qu'ils se distinguent visuellement du reste du menu.
+- `Home.tsx` : le second bouton du hero (auparavant « Voir les
+  prestations ») pointe maintenant vers LYZa Cartes. L'ancienne section
+  « Outil » (un seul outil, décrit en texte + un encart de badges) est
+  devenue « Outils gratuits » : deux cartes de poids égal, une par outil,
+  chacune avec son propre bouton. La section Prestations en bas de page
+  est passée de 3 cartes à 2, sans autre traitement visuel réduit — elle
+  reste lisible, juste moins large que les outils.
+- `a.card:hover` (ajouté précédemment) profite aussi à ces nouvelles
+  cartes d'outils.
+
 ## Déploiement — GitHub Pages
 
 `.github/workflows/deploy-pages.yml` build et déploie automatiquement
@@ -518,6 +537,27 @@ rendus de part et d'autre du curseur (avant : ≈0, cohérent avec un cliché
 N&B ; après : nettement positif, cohérent avec un cliché couleur), à 50 %
 et après glisser-déposer vers une autre position, en desktop et en mobile.
 
+**Le curseur se décalait de la ligne de séparation en déplaçant la
+carte.** Conséquence directe du correctif précédent : `#pane-compare-after`
+hérite du `transform` de son ancêtre `.leaflet-map-pane`, que Leaflet
+décale en continu pendant un glisser de la carte (et ne remet pas à zéro
+après, contrairement à ce qu'on pourrait attendre — vérifié en lisant
+`getBoundingClientRect()` du panneau plusieurs secondes après un
+déplacement : toujours décalé exactement du delta du glisser). Le
+séparateur visuel, lui, est volontairement en dehors de cette
+transformation (ajouté directement au conteneur de la carte, pour rester
+fixe à l'écran) — donc le `clip-path`, exprimé en pixels dans le repère
+*local* (mobile) du panneau, part se désynchroniser du séparateur dès que
+la carte bouge. Corrigé en recalculant le `clip-path` à chaque évènement
+`move`/`zoom` de la carte, à partir des `getBoundingClientRect()` actuels
+du conteneur et du panneau plutôt que d'une valeur figée au moment du
+réglage — ça convertit la position d'écran voulue vers le repère local du
+panneau à chaque fois, donc la ligne de découpe suit le séparateur quel
+que soit le décalage accumulé. Vérifié en direct : glisser-déposer du
+curseur, puis déplacement de la carte, puis zoom, puis un second
+déplacement — la ligne de séparation reste alignée avec le curseur à
+chaque étape.
+
 ## Actualités — `/actualites` (`frontend/src/pages/Blog.tsx`, `frontend/src/content/blog.ts`)
 
 Page de veille réglementaire et environnementale : une liste de notes
@@ -545,6 +585,16 @@ une fois par jour) relance une session Claude Code dédiée qui :
    et pousse sur `main` — sans rien inventer : si aucune actualité
    pertinente n'est trouvée ce jour-là, la routine ne publie rien plutôt que
    de forcer une note creuse.
+
+Le champ `summary` de chaque note est volontairement une courte synthèse
+autoportante de 2-3 phrases (pas juste une accroche à une ligne) — c'est
+ce texte qui apparaît dans les cartouches de la page Actualités et de
+l'accueil, donc quelqu'un qui ne lit que le cartouche doit repartir avec
+les faits clés, pas seulement l'envie de cliquer. Le corps (`body`)
+détaille davantage. La page `/actualites` et l'accueil rappellent tous
+deux la portée de la veille et sa fréquence (« mise à jour quotidienne »),
+pour que le lecteur sache sur quoi porte la sélection sans avoir à le
+deviner.
 
 Les deux notes actuellement en place (état des nappes phréatiques au 1er
 septembre 2026 d'après le BRGM, et l'annulation par le Conseil d'État de
