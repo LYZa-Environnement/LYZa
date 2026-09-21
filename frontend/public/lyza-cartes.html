@@ -479,6 +479,7 @@
         <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Enregistrement" checked><span class="swatch" style="background:var(--c-icpe-enr)"></span><span class="lbl">Enregistrement</span><span class="count" id="cnt-enr">–</span></label>
         <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Déclaration" checked><span class="swatch" style="background:var(--c-icpe-decl)"></span><span class="lbl">Déclaration</span><span class="count" id="cnt-decl">–</span></label>
         <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="other"><span class="swatch" style="background:var(--c-icpe-other)"></span><span class="lbl">Autre / non classé</span><span class="count" id="cnt-other">–</span></label>
+        <div class="legend-note">Cliquer sur une installation charge ses émissions et prélèvements déclarés au registre IREP, quand elle y déclare.</div>
       </div>
       <div class="layer-group">
         <div class="group-label">Anciens sites industriels</div>
@@ -1353,12 +1354,105 @@
     return L.divIcon({ html:html, className:'badge-icon', iconSize:[size,size], iconAnchor:[size/2,size/2] });
   }
 
+  // ---- Émissions déclarées (registre IREP), intégrées au cartouche ICPE ----
+  //
+  // Même API non documentée que l'outil React "Évaluer un site"
+  // (frontend/src/lib/irep.ts) : recherche par nom d'établissement, filtrée
+  // par commune (le paramètre `siret` de l'API est silencieusement ignoré —
+  // vérifié en direct). Chargé au clic (popupopen), pas au chargement de la
+  // couche ICPE : un scan peut remonter des centaines d'installations, et la
+  // plupart d'entre elles ne déclarent de toute façon rien à l'IREP.
+  var IREP_BASE = 'https://www.georisques.gouv.fr/webappReport/ws/irep';
+  var irepEtabCache = {};
+  var irepDetailCache = {};
+  var icpeIrepCounter = 0;
+
+  function normalizeIrepName(s){
+    return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  function irepSearchByName(nom, annee){
+    var url = IREP_BASE + '/etablissement/search?nomEtablissement=' + encodeURIComponent(nom) + '&annee=' + annee + '&start=0&size=15';
+    return fetchWithTimeout(url, {}, 10000).then(function(r){ return r.json(); }).then(function(j){ return j.datas || []; }).catch(function(){ return []; });
+  }
+  function findIrepEtablissement(nom, commune){
+    var key = nom + '|' + commune;
+    if (irepEtabCache[key]) return irepEtabCache[key];
+    var annee = new Date().getFullYear() - 1;
+    var targetCommune = normalizeIrepName(commune);
+    var tryQuery = function(q){
+      if (!q || !q.trim()) return Promise.resolve(null);
+      return irepSearchByName(q, annee).then(function(candidates){
+        var match = candidates.filter(function(c){ return normalizeIrepName(c.nomCommune) === targetCommune; })[0];
+        return match || null;
+      });
+    };
+    var p = tryQuery(nom).then(function(m){ return m || tryQuery((nom||'').split(/\s+/)[0]); });
+    irepEtabCache[key] = p;
+    return p;
+  }
+  function fetchIrepDetail(idEtab){
+    if (irepDetailCache[idEtab]) return irepDetailCache[idEtab];
+    var base = IREP_BASE + '/etablissement/' + idEtab;
+    var p = Promise.all([
+      fetchWithTimeout(base + '/emission', {}, 10000).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+      fetchWithTimeout(base + '/prelevement', {}, 10000).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    ]).then(function(res){
+      return { emissions: res[0], prelevements: (res[1] && res[1].datas) || null };
+    });
+    irepDetailCache[idEtab] = p;
+    return p;
+  }
+  function latestIrepValue(datas){
+    var withValue = (datas||[]).filter(function(d){ return d.quantite !== null && d.quantite !== undefined && d.quantite !== '' && d.quantite !== '0'; });
+    if (!withValue.length) return null;
+    return withValue.slice().sort(function(a,b){ return b.annee - a.annee; })[0];
+  }
+  var IREP_MAX_ROWS = 8;
+  function buildIrepEmissionsHtml(detail){
+    var groupes = (detail.emissions && detail.emissions.datas) || [];
+    var allRejets = [];
+    groupes.forEach(function(g){
+      (g.rejets||[]).forEach(function(r){
+        var latest = latestIrepValue(r.datas);
+        if (latest) allRejets.push({ libelleRejet:g.libelleRejet, r:r, latest:latest });
+      });
+    });
+    var lines = [];
+    if (allRejets.length){
+      var shownRejets = allRejets.slice(0, IREP_MAX_ROWS);
+      var lastGroup = null;
+      shownRejets.forEach(function(x){
+        if (x.libelleRejet !== lastGroup){
+          lines.push('<div style="font-size:10.5px;font-weight:700;margin-top:6px;">Rejets — '+escapeHtml(x.libelleRejet||'')+'</div>');
+          lastGroup = x.libelleRejet;
+        }
+        lines.push('<div style="font-size:10.5px;">'+escapeHtml(x.r.description||'')+' : <strong>'+escapeHtml(String(x.latest.quantite))+'</strong> ('+x.latest.annee+')</div>');
+      });
+      if (allRejets.length > IREP_MAX_ROWS){
+        lines.push('<div style="font-size:10px;color:var(--ink-dim);margin-top:2px;">+ '+(allRejets.length - IREP_MAX_ROWS)+' autre(s) polluant(s) déclaré(s)</div>');
+      }
+    }
+    var prelevements = (detail.prelevements||[]).map(function(p){ return { p:p, latest: latestIrepValue(p.datas) }; }).filter(function(x){ return x.latest; });
+    if (prelevements.length){
+      lines.push('<div style="font-size:10.5px;font-weight:700;margin-top:6px;">Prélèvements d\'eau</div>');
+      prelevements.slice(0, IREP_MAX_ROWS).forEach(function(x){
+        lines.push('<div style="font-size:10.5px;">'+escapeHtml((x.p.libelle||'').replace(/_/g,' '))+' : <strong>'+escapeHtml(String(x.latest.quantite))+' m³</strong> ('+x.latest.annee+')</div>');
+      });
+      if (prelevements.length > IREP_MAX_ROWS){
+        lines.push('<div style="font-size:10px;color:var(--ink-dim);margin-top:2px;">+ '+(prelevements.length - IREP_MAX_ROWS)+' autre(s)</div>');
+      }
+    }
+    if (!lines.length) return '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Aucune quantité de rejet ou de prélèvement déclarée récemment.</div>';
+    return lines.join('');
+  }
+
   function icpeMarker(item){
     var color = regimeColor(item.regime);
     var m = L.circleMarker([item.latitude, item.longitude], {
       radius:6, weight:1.5, color:'#00000055', fillColor:color, fillOpacity:0.9, pane:'pane-icpe'
     });
     m._bucket = regimeBucket(item.regime);
+    var boxId = 'icpe-irep-' + (item.codeAIOT ? String(item.codeAIOT).replace(/[^A-Za-z0-9_-]/g, '') : ('idx' + (icpeIrepCounter++)));
     var html = '<div class="popup"><span class="tag" style="background:'+color+'">ICPE · '+escapeHtml(item.regime||'—')+'</span>' +
       '<h3>'+escapeHtml(item.raisonSociale||'Établissement')+'</h3>' +
       '<dl>' +
@@ -1367,8 +1461,28 @@
         (item.statutSeveso ? '<dt>Seveso</dt><dd>'+escapeHtml(item.statutSeveso)+'</dd>' : '') +
         (item.codeAIOT ? '<dt>Code AIOT</dt><dd class="mono">'+escapeHtml(item.codeAIOT)+'</dd>' : '') +
       '</dl>' +
-      '<a class="fiche" target="_blank" rel="noopener" href="https://www.georisques.gouv.fr/risques/installations/donnees/details/'+encodeURIComponent(item.codeAIOT||'')+'">Fiche Géorisques →</a></div>';
+      '<a class="fiche" target="_blank" rel="noopener" href="https://www.georisques.gouv.fr/risques/installations/donnees/details/'+encodeURIComponent(item.codeAIOT||'')+'">Fiche Géorisques →</a>' +
+      '<div id="'+boxId+'"></div></div>';
     m.bindPopup(html);
+    m.on('popupopen', function(){
+      var box = document.getElementById(boxId);
+      if (!box) return;
+      box.innerHTML = '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Registre des émissions polluantes (IREP)…</div>';
+      findIrepEtablissement(item.raisonSociale, item.commune).then(function(etab){
+        var el = document.getElementById(boxId);
+        if (!el) return;
+        if (!etab){
+          el.innerHTML = '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Ne déclare pas au registre des émissions polluantes (IREP) — seuls les sites dépassant certains seuils y sont tenus.</div>';
+          return;
+        }
+        el.innerHTML = '<div style="font-size:10.5px;color:var(--ink-dim);margin-top:6px;">Chargement des émissions déclarées…</div>';
+        fetchIrepDetail(etab.idEtab).then(function(detail){
+          var el2 = document.getElementById(boxId);
+          if (!el2) return;
+          el2.innerHTML = '<div style="font-size:10.5px;font-weight:700;margin-top:4px;">Émissions et rejets déclarés (IREP)</div>' + buildIrepEmissionsHtml(detail);
+        });
+      });
+    });
     return m;
   }
 

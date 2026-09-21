@@ -1,16 +1,22 @@
 import { NavLink } from 'react-router-dom'
 import logo from '../assets/lyza-logo.png'
 
+// Les outils gratuits (évaluation de site, LYZa Cartes, eau quantitative) et
+// la veille réglementaire (actualités) sont mis en avant en premier — c'est
+// le cœur de la plateforme. La partie prestation payante (« Accompagnement »)
+// est volontairement reléguée en tout dernier, sans mise en avant visuelle,
+// et « Présentation » n'apparaît plus du tout ici (encore accessible depuis
+// le pied de page) : à la demande de l'utilisateur, le site se présente
+// d'abord comme un outil d'aide à la décision en libre accès, l'accompagnement
+// restant possible mais très secondaire.
 const links = [
   { to: '/', label: 'Accueil', end: true },
   { to: '/carte', label: 'Évaluer un site', highlight: true },
   { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true, highlight: true },
-  { to: '/restrictions-eau', label: "Restrictions d'eau", highlight: true },
-  { to: '/icpe-emissions', label: 'ICPE & émissions', highlight: true },
-  { to: '/presentation', label: 'Présentation' },
-  { to: '/accompagnement', label: 'Accompagnement' },
+  { to: '/eau-quantitative', label: 'Eau quantitative', highlight: true },
   { to: '/actualites', label: 'Actualités' },
   { to: '/contact', label: 'Contact' },
+  { to: '/accompagnement', label: 'Accompagnement' },
 ]
 
 export default function Nav() {

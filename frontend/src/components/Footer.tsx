@@ -27,12 +27,24 @@ export default function Footer() {
               Évaluer un site
             </Link>
             <br />
-            <Link to="/accompagnement" style={{ color: 'var(--color-accent-ink)' }}>
-              Accompagnement
+            <Link to="/eau-quantitative" style={{ color: 'var(--color-accent-ink)' }}>
+              Eau quantitative
+            </Link>
+            <br />
+            <Link to="/actualites" style={{ color: 'var(--color-accent-ink)' }}>
+              Actualités
             </Link>
             <br />
             <Link to="/contact" style={{ color: 'var(--color-accent-ink)' }}>
               Contact
+            </Link>
+            <br />
+            <Link to="/presentation" style={{ color: '#a9c2b6', fontSize: '0.9rem' }}>
+              Présentation
+            </Link>
+            <br />
+            <Link to="/accompagnement" style={{ color: '#a9c2b6', fontSize: '0.9rem' }}>
+              Accompagnement
             </Link>
           </p>
         </div>

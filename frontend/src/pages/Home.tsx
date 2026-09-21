@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { posts } from '../content/blog'
-import { services } from '../content/services'
 
 function formatDate(iso: string): string {
   return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -10,25 +9,24 @@ const THEMES = ['Eau souterraine', 'Sites & sols pollués', 'Risques naturels', 
 const lyzaCartesUrl = `${import.meta.env.BASE_URL}lyza-cartes.html`
 
 export default function Home() {
-  const highlighted = services.filter((s) => ['conseil-strategique', 'hydrogeologie'].includes(s.slug))
   const latestPosts = [...posts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
 
   return (
     <>
       <section className="section">
         <div className="container">
-          <p className="eyebrow">LYZa — Léo Yecora-Zorzano</p>
+          <p className="eyebrow">LYZa — plateforme d'évaluation environnementale</p>
           <h1 style={{ maxWidth: '42rem' }}>
-            Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.
+            Évaluer la vulnérabilité d'un site face à son environnement, à partir des données publiques.
           </h1>
           <p className="lede">
-            J'accompagne les entreprises, collectivités et administrations dans leurs réflexions et leurs
-            décisions relatives aux enjeux environnementaux, à la protection des ressources en eau et à la
-            gestion des risques.
+            Risques naturels et technologiques, sites et sols pollués, eau souterraine et superficielle : LYZa
+            croise en direct les bases de données publiques (Géorisques, Hub'Eau, BRGM, IGN, VigiEau...) et les
+            présente sur des cartes, gratuitement et sans compte, pour une première lecture avant toute décision.
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
             <Link to="/carte" className="btn">
-              Évaluer la sensibilité d'un site
+              Évaluer la vulnérabilité d'un site
             </Link>
             <a href={lyzaCartesUrl} className="btn btn--ghost">
               Explorer LYZa Cartes
@@ -45,6 +43,54 @@ export default function Home() {
       </section>
 
       <section className="section section--muted">
+        <div className="container">
+          <p className="eyebrow">Outils gratuits</p>
+          <h2>Trois outils en libre accès, sans compte</h2>
+          <p className="lede">
+            Chaque outil présente ses résultats sur une carte en priorité — la donnée brute vient en complément,
+            pas l'inverse.
+          </p>
+          <div className="grid grid--3" style={{ marginTop: '2rem' }}>
+            <div className="card">
+              <h3>Évaluer un site</h3>
+              <p style={{ color: 'var(--color-muted)' }}>
+                Entrez une adresse : une lecture en deux temps — les risques qui s'appliquent au site (naturels,
+                industriels), puis l'impact qu'une activité sur ce site pourrait avoir sur son environnement.
+              </p>
+              <div style={{ display: 'grid', gap: '0.6rem', margin: '1rem 0' }}>
+                <span className="badge badge--faible">Risques naturels — Faible</span>
+                <span className="badge badge--moderee">Risques industriels — Modérée</span>
+              </div>
+              <Link to="/carte" className="btn">
+                Ouvrir la carte
+              </Link>
+            </div>
+            <div className="card">
+              <h3>LYZa Cartes</h3>
+              <p style={{ color: 'var(--color-muted)' }}>
+                L'explorateur cartographique complet : ICPE et leurs émissions déclarées, sites et sols pollués,
+                BSS, nappes et eau potable, espaces protégés, cadastre, photos aériennes historiques et bien plus —
+                à parcourir librement.
+              </p>
+              <a href={lyzaCartesUrl} className="btn" style={{ marginTop: '0.5rem' }}>
+                Explorer LYZa Cartes
+              </a>
+            </div>
+            <div className="card">
+              <h3>Eau quantitative</h3>
+              <p style={{ color: 'var(--color-muted)' }}>
+                Pour les collectivités : état des ressources en eau (souterraine et superficielle), arrêtés de
+                restriction en vigueur, et exemples concrets pour réduire les consommations sur un territoire.
+              </p>
+              <Link to="/eau-quantitative" className="btn" style={{ marginTop: '0.5rem' }}>
+                Ouvrir l'outil
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
         <div className="container">
           <div
             style={{
@@ -90,108 +136,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section">
-        <div className="container">
-          <div className="grid grid--2" style={{ alignItems: 'start' }}>
-            <div>
-              <h2>Une expertise, pas un guichet d'études</h2>
-              <p>
-                La plupart des acteurs du secteur produisent des études, réalisent des mesures ou interviennent
-                sur le terrain. Ces prestations sont souvent indispensables, mais elles ne répondent pas toujours
-                à la question principale que se pose un dirigeant, un élu ou un responsable de projet :
-              </p>
-              <p className="quote">« Que signifie réellement cette situation et quelle décision devons-nous prendre ? »</p>
-            </div>
-            <div>
-              <p>
-                Mon rôle consiste avant tout à apporter un regard indépendant et une capacité d'analyse permettant
-                de transformer une information technique parfois complexe en éléments de décision clairs et
-                exploitables. J'interviens comme un partenaire de confiance capable d'aider à comprendre les
-                enjeux, évaluer les risques et orienter les choix stratégiques.
-              </p>
-              <Link to="/presentation">En savoir plus sur la démarche →</Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section section--muted">
-        <div className="container">
-          <p className="eyebrow">Outils gratuits</p>
-          <h2>Quatre outils en libre accès pour une première lecture</h2>
-          <p className="lede">
-            Sans compte, sans engagement : quatre façons d'explorer gratuitement les bases de données publiques
-            disponibles sur un site ou un secteur.
+      <section className="section section--muted" style={{ paddingTop: '1.5rem', paddingBottom: '1.5rem' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <p style={{ margin: 0, color: 'var(--color-muted)' }}>
+            Un accompagnement plus poussé reste possible au-delà des outils en libre accès, si une situation le
+            justifie.
           </p>
-          <div className="grid grid--2" style={{ marginTop: '2rem' }}>
-            <div className="card">
-              <h3>Évaluer un site</h3>
-              <p style={{ color: 'var(--color-muted)' }}>
-                Entrez une adresse : une lecture en deux temps — les risques qui s'appliquent au site (naturels,
-                industriels), puis l'impact qu'une activité sur ce site pourrait avoir sur son environnement.
-              </p>
-              <div style={{ display: 'grid', gap: '0.6rem', margin: '1rem 0' }}>
-                <span className="badge badge--faible">Risques naturels — Faible</span>
-                <span className="badge badge--moderee">Risques industriels — Modérée</span>
-              </div>
-              <Link to="/carte" className="btn">
-                Ouvrir la carte
-              </Link>
-            </div>
-            <div className="card">
-              <h3>LYZa Cartes</h3>
-              <p style={{ color: 'var(--color-muted)' }}>
-                L'explorateur cartographique complet : ICPE, sites et sols pollués, BSS, nappes et eau potable,
-                espaces protégés, cadastre, photos aériennes historiques et bien plus — à parcourir librement.
-              </p>
-              <a href={lyzaCartesUrl} className="btn" style={{ marginTop: '0.5rem' }}>
-                Explorer LYZa Cartes
-              </a>
-            </div>
-            <div className="card">
-              <h3>Restrictions d'eau</h3>
-              <p style={{ color: 'var(--color-muted)' }}>
-                Le niveau de restriction d'eau en vigueur à une adresse — eaux superficielles, souterraines et eau
-                potable — d'après les arrêtés préfectoraux publiés sur VigiEau.
-              </p>
-              <Link to="/restrictions-eau" className="btn" style={{ marginTop: '0.5rem' }}>
-                Vérifier une adresse
-              </Link>
-            </div>
-            <div className="card">
-              <h3>ICPE & émissions</h3>
-              <p style={{ color: 'var(--color-muted)' }}>
-                Les installations classées à proximité, leurs rejets déclarés au registre des émissions polluantes
-                (IREP) et la rose des vents du secteur.
-              </p>
-              <Link to="/icpe-emissions" className="btn" style={{ marginTop: '0.5rem' }}>
-                Explorer une adresse
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="container">
-          <p className="eyebrow">Si besoin</p>
-          <h2>Un accompagnement est aussi possible</h2>
-          <p className="lede">
-            Au-delà des outils en libre accès, certaines situations justifient un accompagnement plus poussé —
-            deux exemples parmi neuf formes d'intervention.
-          </p>
-          <div className="grid grid--2" style={{ marginTop: '1.5rem' }}>
-            {highlighted.map((service) => (
-              <div className="card" key={service.slug}>
-                <h3>{service.titre}</h3>
-                <p style={{ color: 'var(--color-muted)' }}>{service.accroche}</p>
-                <Link to={`/accompagnement/${service.slug}`}>Voir le détail →</Link>
-              </div>
-            ))}
-          </div>
-          <p style={{ marginTop: '1.5rem' }}>
-            <Link to="/accompagnement">Voir tout l'accompagnement →</Link>
-          </p>
+          <Link to="/accompagnement">En savoir plus sur l'accompagnement →</Link>
         </div>
       </section>
     </>

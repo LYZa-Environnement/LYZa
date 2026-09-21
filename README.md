@@ -118,6 +118,52 @@ aussi été ajoutée à cette occasion : il n'en existait aucune avant, donc
 une URL invalide affichait auparavant une page entièrement blanche (pas
 même la navigation), un défaut préexistant corrigé au passage.
 
+## Refonte plateforme (septembre 2026)
+
+À la demande explicite de l'utilisateur, une seconde passe pousse plus loin
+la logique de la section précédente : le site se présente d'abord comme une
+**plateforme d'évaluation de la vulnérabilité d'un site face à son
+environnement** (risques technologiques et naturels), la vente de
+prestations devenant quasi invisible plutôt que « juste secondaire ».
+
+- **`Nav.tsx` réordonné** : Accueil, Évaluer un site, LYZa Cartes, Eau
+  quantitative (nouveau), Actualités, Contact — puis, en tout dernier,
+  sans mise en avant visuelle, Accompagnement. « Présentation » a été
+  retirée du menu principal (reste accessible depuis le pied de page) :
+  les deux pages à caractère commercial ne sont plus dans la barre de
+  navigation du tout, seulement dans `Footer.tsx`.
+- **`Home.tsx` réordonné** : la section « Outils gratuits » (désormais
+  trois cartes — Évaluer un site, LYZa Cartes, Eau quantitative) est
+  remontée juste après le hero, avant les actualités. La section
+  « Une expertise, pas un guichet d'études » (positionnement consultant)
+  a été retirée ; ce qui restait d'accompagnement tient maintenant en un
+  bandeau d'une ligne tout en bas de page (« Un accompagnement plus
+  poussé reste possible… ») plutôt qu'une section à deux cartes. Le hero
+  lui-même a été réécrit pour parler plateforme/données publiques
+  d'abord (« Évaluer la vulnérabilité d'un site… ») plutôt que conseil
+  stratégique.
+- **ICPE & émissions n'est plus une page séparée.** L'ancienne page
+  `/icpe-emissions` (recherche par adresse + IREP + rose des vents) est
+  retirée ; les émissions et prélèvements déclarés au registre IREP sont
+  désormais chargés **au clic sur une installation, directement dans le
+  cartouche ICPE de LYZa Cartes** — voir la section dédiée plus bas.
+  L'ancienne URL redirige maintenant vers `lyza-cartes.html`
+  (`RedirectToLyzaCartes.tsx`). La rose des vents (Open-Meteo/ERA5,
+  `lib/wind.ts`, `WindRoseChart.tsx`) n'a pas été portée dans ce cartouche
+  et a été retirée du site plutôt que laissée orpheline — hors du
+  périmètre explicitement demandé (« ICPE et émission »).
+- **Nouvel onglet « Eau quantitative »** (`/eau-quantitative`,
+  `EauQuantitative.tsx`) — voir sa section dédiée plus bas. Absorbe
+  l'ancien outil « Restrictions d'eau » (`/restrictions-eau` redirige
+  maintenant ici) comme un chapitre parmi d'autres, plutôt que deux
+  entrées de menu voisines pour deux facettes du même sujet.
+- **Présentation cartographique par défaut** : quand une nouvelle donnée
+  géolocalisée est ajoutée (ici, la ressource en eau souterraine/
+  superficielle la plus proche d'une adresse), le réflexe pris est de la
+  poser sur une carte (réutilisation de `SensitivityMap.tsx`) plutôt que
+  de se limiter à du texte — cohérent avec ce que fait déjà chaque autre
+  outil du site.
+
 ## Déploiement — GitHub Pages
 
 `.github/workflows/deploy-pages.yml` build et déploie automatiquement
@@ -148,9 +194,11 @@ npm install
 npm run dev
 ```
 
-Pages : Accueil, Présentation, Accompagnement (démarche + secteurs
-d'intervention + prestations, avec une page de détail par prestation),
-Évaluer un site (la carte), LYZa Cartes, Actualités, Contact.
+Pages : Accueil, Évaluer un site (la carte), LYZa Cartes, Eau quantitative,
+Actualités, Contact, Présentation, Accompagnement (démarche + secteurs
+d'intervention + prestations, avec une page de détail par prestation) — les
+deux dernières ne sont plus dans le menu principal (voir « Refonte
+plateforme » plus haut).
 
 ## L'outil "Évaluer un site"
 
@@ -625,12 +673,58 @@ l'assouplissement 2024 sur les plans d'eau en zone humide) ont été rédigées
 à la mise en place de la page, comme premier contenu ; la routine prend le
 relais pour les jours suivants.
 
-## Restrictions d'eau — `/restrictions-eau` (`frontend/src/pages/Restrictions.tsx`, `frontend/src/lib/vigieau.ts`)
+## Eau quantitative — `/eau-quantitative` (`frontend/src/pages/EauQuantitative.tsx`)
 
-Troisième outil gratuit, ajouté après une recherche de jeux de données
-data.gouv.fr adaptés (à la demande de l'utilisateur). L'API VigiEau
-(ministère de la Transition écologique,
-[api.vigieau.beta.gouv.fr](https://api.vigieau.beta.gouv.fr) — spec
+Onglet demandé explicitement, orienté collectivités : un état de la
+ressource en eau (souterraine et superficielle), les arrêtés de
+restriction en vigueur, et des exemples concrets pour réduire les
+consommations sur un territoire. Remplace l'ancien outil « Restrictions
+d'eau » (`/restrictions-eau` y redirige désormais) en l'intégrant comme un
+chapitre parmi d'autres plutôt que comme un outil isolé.
+
+**Exemples pour réduire les consommations** : six leviers déjà mobilisés
+par des collectivités (rendement des réseaux/sectorisation, patrimoine et
+services publics, gestion différenciée des espaces verts, récupération/
+réutilisation de l'eau, désimperméabilisation, tarification et
+sensibilisation), rédigés à partir d'une recherche des dispositifs
+publics réels en cours (Plan Eau, « Défi Sobriété -10 % d'Eau »
+ministère/AMORCE, ADEME) plutôt qu'inventés — chaque carte pointe vers sa
+source. Section statique, affichée sans qu'une adresse soit nécessaire :
+c'est le contenu qu'un visiteur qui ne cherche pas une adresse précise
+doit quand même repartir avec.
+
+**État des ressources**, une fois une adresse saisie (mairie, siège de la
+collectivité) — toujours présenté sur une carte (réutilisation de
+`SensitivityMap.tsx`), avec deux cartouches à côté :
+- *Eaux souterraines* : réutilise `findNearestAdesPoint` (`lib/hubeau.ts`,
+  déjà utilisé par la note de vulnérabilité hydro de l'outil « Évaluer un
+  site ») — entité hydrogéologique, dernier niveau mesuré ou profondeur de
+  l'ouvrage à défaut, lien vers la chronique ADES complète.
+- *Eaux superficielles* : nouvelle librairie `frontend/src/lib/hydrometrie.ts`
+  — Hub'Eau Hydrométrie (`/v2/hydrometrie/`), vérifiée en direct
+  (septembre 2026) : `referentiel/stations` pour la station en service la
+  plus proche (champs `latitude_station`/`longitude_station`, pas une
+  géométrie GeoJSON contrairement aux autres API Hub'Eau utilisées
+  ailleurs sur ce site), puis `obs_elab` avec `grandeur_hydro_elab=QmnJ`
+  (débit moyen journalier — `QmJ` sans le « n » n'est *pas* une valeur
+  valide, confirmé par l'erreur de validation de l'API elle-même) filtré
+  par `date_debut_obs_elab`/`date_fin_obs_elab` sur les ~120 derniers
+  jours. Débit le plus récent affiché en m³/s, avec une tendance à 30
+  jours (comparaison simple dernière valeur / valeur ~30 jours plus tôt,
+  pas une comparaison statistique à l'historique pluriannuel — hors de
+  portée d'un appel unique côté navigateur) et un mini-graphique
+  (`DischargeSparkline`, SVG à la main).
+
+**Arrêtés en vigueur** : même logique que l'ancien outil « Restrictions
+d'eau » (API VigiEau, ministère de la Transition écologique — voir détail
+ci-après), simplement déplacée dans cette page comme second chapitre après
+l'état des ressources plutôt que sur sa propre URL.
+
+<details>
+<summary>Détail VigiEau (historique, inchangé)</summary>
+
+L'API VigiEau
+([api.vigieau.beta.gouv.fr](https://api.vigieau.beta.gouv.fr) — spec
 trouvée en direct sur `/swagger-json`, non documentée dans le catalogue
 data.gouv.fr) renvoie, pour une adresse, le niveau de restriction d'eau
 réellement en vigueur — `vigilance` / `alerte` / `alerte_renforcee` /
@@ -655,18 +749,29 @@ en cas d'échec réseau, message honnête plutôt qu'une absence de
 restriction fabriquée ; un tableau vide est un résultat réel et distinct
 (« aucune restriction actuellement »), pas une erreur.
 
-## ICPE & émissions — `/icpe-emissions` (`frontend/src/pages/IcpeEmissions.tsx`, `frontend/src/lib/irep.ts`, `frontend/src/lib/wind.ts`)
+</details>
 
-Quatrième outil gratuit, demandé explicitement (« avoir les ICPE + les
-roses des vents + les résultats émissions/rejet », comme outil
-indépendant). Combine trois sources pour une adresse : les installations
-classées à proximité (Géorisques, déjà utilisées par l'outil « Évaluer un
-site », via `frontend/src/lib/georisques.ts`), leurs rejets et
-prélèvements déclarés au registre des émissions polluantes IREP, et la
-rose des vents du secteur.
+## ICPE & émissions — cartouche de LYZa Cartes (`frontend/public/lyza-cartes.html`)
 
-**IREP** (`lib/irep.ts`) : le seul accès *documenté* est un export ZIP
-annuel — inutilisable pour une consultation live par adresse. Géorisques a
+Initialement une page dédiée (`/icpe-emissions`), demandée explicitement
+(« avoir les ICPE + les roses des vents + les résultats émissions/rejet »).
+À la demande de l'utilisateur lors de la refonte plateforme, la partie
+ICPE + émissions est maintenant gérée directement **dans le cartouche
+(popup) ICPE de LYZa Cartes** plutôt que sur une page séparée : cliquer sur
+une installation classée charge, en plus de sa fiche existante (régime,
+NAF, Seveso, lien Géorisques), ses émissions et prélèvements déclarés au
+registre IREP — chargés à la demande (`popupopen`), pas au chargement de
+la couche : un scan peut remonter des centaines d'ICPE, et la plupart ne
+déclarent de toute façon rien à l'IREP. Même mécanisme que les analyses de
+qualité des cours d'eau au clic (`riverQualityMarker`, déjà en place) :
+placeholder dans le popup, rempli après coup. Jusqu'à 8 lignes de rejets
+et 8 de prélèvements par établissement, puis un repli « + N autres » —
+même convention que les tableaux CASIAS/SIS de l'outil « Évaluer un
+site » — pour éviter un cartouche interminable sur un site qui déclare des
+dizaines de polluants.
+
+**IREP** : le seul accès *documenté* est un export ZIP annuel —
+inutilisable pour une consultation live par adresse. Géorisques a
 cependant sa propre page « registre des émissions polluantes » par
 établissement, adossée à une API JSON non documentée mais réelle, trouvée
 en chargeant cette page et en inspectant ses propres appels réseau, puis
@@ -683,35 +788,21 @@ pièges découverts et corrigés en cours de route :
   industriels majeurs (LUBRIZOL, TOTALENERGIES) ne déclaraient pas à
   l'IREP. Corrigé en recherchant par nom d'établissement (`nomEtablissement`,
   qui fait une vraie recherche par sous-chaîne) puis en filtrant sur la
-  commune (`findByNameAndCommune`), car un même nom peut exister dans
-  plusieurs communes (IREP recense 3 « LUBRIZOL FRANCE » distincts).
-  Revérifié en direct sur une adresse réelle à Rouen : LUBRIZOL FRANCE et
-  TOTALENERGIES LUBRIFIANTS sont désormais correctement retrouvés, avec
-  leurs rejets eau/air/déchets et prélèvements d'eau réels par année.
+  commune, car un même nom peut exister dans plusieurs communes (IREP
+  recense 3 « LUBRIZOL FRANCE » distincts). Revérifié en direct : un ICPE
+  réel (TRIADIS SERVICES, Rouen) retrouve bien ses rejets air/CO2 et
+  seuils déclarés par polluant, à jour 2025.
 
-Seuls les 20 ICPE les plus proches (`MAX_IREP_LOOKUPS`) sont enrichis avec
-leur détail IREP (un appel réseau par établissement) ; au-delà, les ICPE
-restants s'affichent sans ce détail plutôt que de multiplier les requêtes.
 Ne pas déclarer à l'IREP est un résultat honnête et attendu pour la
 plupart des ICPE (seuls les sites dépassant certains seuils y sont tenus),
 affiché comme tel plutôt que comme une erreur.
 
-**Rose des vents** (`lib/wind.ts`) : l'API officielle Météo-France exige
-une clé/un compte — inutilisable telle quelle sur un site 100 % statique
-sans backend pour garder un secret (toute clé embarquée côté client serait
-exposée à chaque visiteur). Après arbitrage explicite avec l'utilisateur,
-choix de l'API archive historique d'Open-Meteo (réanalyse ERA5) : pas de
-clé, vent horaire (vitesse + direction) sur l'année précédente pour
-n'importe quel point de France. Ce n'est pas une mesure de station
-officielle Météo-France — la page le précise — et l'offre gratuite est
-soumise à un usage non commercial et à des quotas (limite quotidienne par
-IP) ; en cas de dépassement de quota ou d'échec réseau, la même logique de
-repli honnête s'applique (« Données de vent indisponibles pour cette
-zone. » plutôt qu'une rose inventée). Les données horaires sont regroupées
-en 16 secteurs de direction × 4 bandes de vitesse, normalisées en parts de
-0 à 1, et rendues par `WindRoseChart.tsx` — un graphique polaire empilé en
-SVG à la main (même approche que `MapMotif` en son temps : pas de
-librairie de graphiques pour un seul composant).
+**Rose des vents retirée.** L'ancienne page combinait aussi une rose des
+vents (Open-Meteo/ERA5, `lib/wind.ts` + `WindRoseChart.tsx`) — hors du
+périmètre explicitement demandé pour ce cartouche (« ICPE et émission »,
+pas la météo) et sans autre emplacement naturel sur le site après la
+suppression de la page dédiée ; plutôt que la laisser orpheline, elle a
+été retirée avec les fichiers qui ne servaient qu'à elle.
 
 ## Compatibilité mobile
 
