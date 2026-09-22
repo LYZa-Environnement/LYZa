@@ -121,13 +121,17 @@ function averageRing(ring: unknown): [number, number] | null {
 export interface Localisation {
   distanceM: number
   direction: string
+  /** Representative position of the feature — needed to draw it on a map,
+   * not just to describe how far away it is. */
+  lat: number
+  lon: number
 }
 
 function localise(siteLat: number, siteLon: number, geom: unknown): Localisation | null {
   const point = representativePoint(geom)
   if (!point) return null
   const [lon, lat] = point
-  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)) }
+  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)), lat, lon }
 }
 
 /** Same as `localise`, but for endpoints (mvt, cavites) that give flat
@@ -136,7 +140,7 @@ function localisePoint(siteLat: number, siteLon: number, itemLon: unknown, itemL
   const lon = typeof itemLon === 'number' ? itemLon : Number(itemLon)
   const lat = typeof itemLat === 'number' ? itemLat : Number(itemLat)
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null
-  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)) }
+  return { distanceM: haversineMeters(siteLat, siteLon, lat, lon), direction: cardinalDirection(bearingDegrees(siteLat, siteLon, lat, lon)), lat, lon }
 }
 
 /** Géorisques' gaspar/catnat dates are DD/MM/YYYY strings (verified live
@@ -166,6 +170,19 @@ export interface IcpeItem {
   seveso: string | null
   ficheUrl: string | null
   localisation: Localisation | null
+  /** Whether the establishment is actually under an ICPE regime today.
+   * `installations_classees` also returns sites recorded as "Non ICPE" —
+   * verified live: 62 of the 93 entries within 3 km of central Nantes — which
+   * are establishments known to the inspectorate but not classified. Counting
+   * them as installations classées would inflate every reading, so callers
+   * filter on this rather than on the raw list. */
+  classee: boolean
+}
+
+/** True for a SEVESO establishment at any threshold. The field carries a
+ * descriptive label ("Seveso seuil haut"…) or a negative one, not a flag. */
+export function estSeveso(item: IcpeItem): boolean {
+  return item.seveso !== null && !/^\s*(non|néant)/i.test(item.seveso)
 }
 
 export async function fetchIcpe(lat: number, lon: number, rayon: number): Promise<ListResult<IcpeItem> | null> {
@@ -174,10 +191,12 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
   const items: IcpeItem[] = raw.map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
     const codeAIOT = str(item.codeAIOT)
+    const regime = str(item.regime) ?? '—'
     return {
       nom: str(item.raisonSociale) ?? 'Établissement',
       commune: str(item.commune) ?? '',
-      regime: str(item.regime) ?? '—',
+      regime,
+      classee: !/^non icpe$/i.test(regime),
       codeNaf: str(item.codeNaf),
       seveso: str(item.statutSeveso),
       ficheUrl: codeAIOT ? `https://www.georisques.gouv.fr/risques/installations/donnees/details/${encodeURIComponent(codeAIOT)}` : null,
@@ -427,6 +446,75 @@ export async function argilesExposition(codeInsee: string): Promise<string | nul
 export async function radonClasse(codeInsee: string): Promise<number | null> {
   const payload = await getRaw('radon', { code_insee: codeInsee })
   return toInt(firstField(payload, 'classe_potentiel', 'classe'))
+}
+
+// ---- Risques recensés pour la commune (GASPAR) ----------------------------
+
+/** The commune's official risk list. Verified live (44109): `gaspar/risques`
+ * returns a single record whose `risques_detail` holds one entry per risk,
+ * with a hierarchical `num_risque` — "11" is the family (Inondation) and
+ * "112", "114", "116" its sub-types. The families are what a reader wants;
+ * the sub-types are returned too so a caller can detail one. */
+export interface RisqueCommune {
+  numero: string
+  libelle: string
+  /** True for a top-level family (two-digit code), false for a sub-type. */
+  famille: boolean
+}
+
+export async function fetchRisquesCommune(codeInsee: string): Promise<RisqueCommune[] | null> {
+  const payload = await getRaw('gaspar/risques', { code_insee: codeInsee })
+  if (payload === null) return null
+  const items = Array.isArray(payload.data) ? payload.data : []
+  const first = items[0] as Record<string, unknown> | undefined
+  const detail = Array.isArray(first?.risques_detail) ? (first!.risques_detail as Record<string, unknown>[]) : []
+  return detail
+    .map((entry) => ({
+      numero: str(entry.num_risque) ?? '',
+      libelle: str(entry.libelle_risque_long) ?? '',
+      famille: (str(entry.num_risque) ?? '').length <= 2,
+    }))
+    .filter((risque) => risque.libelle !== '')
+}
+
+// ---- Plans de prévention des risques (PPRN / PPRT) ------------------------
+
+/** PPR procedures affecting the commune. These two endpoints use a different
+ * shape and a different parameter from the rest of the Géorisques API —
+ * verified live: it is `codeInsee` (camelCase; `code_insee` is silently
+ * ignored and returns all 6 584 national records), and the payload paginates
+ * as `content` / `totalElements` rather than `data` / `results`. */
+export interface PprItem {
+  identifiant: string | null
+  libelle: string
+  typeProcedure: string | null
+  /** Zoning categories defined by the plan, when it has a regulatory map. */
+  zonages: string[]
+}
+
+async function fetchPpr(endpoint: 'pprn' | 'pprt', codeInsee: string): Promise<PprItem[] | null> {
+  const payload = await getRaw(`gaspar/${endpoint}`, { codeInsee, page: 0, size: 50 })
+  if (payload === null) return null
+  const content = Array.isArray(payload.content) ? payload.content : []
+  return content.map((entry) => {
+    const item = (entry ?? {}) as Record<string, unknown>
+    const zonage = item.zonageReglementaire as Record<string, unknown> | undefined
+    const types = Array.isArray(zonage?.listTypeReg) ? (zonage!.listTypeReg as Record<string, unknown>[]) : []
+    return {
+      identifiant: str(item.idGaspar),
+      libelle: str(item.libPpr) ?? 'Plan de prévention des risques',
+      typeProcedure: str(item.modeleProcedure),
+      zonages: [...new Set(types.map((type) => str(type.libelle)).filter((label): label is string => label !== null))],
+    }
+  })
+}
+
+export function fetchPprn(codeInsee: string): Promise<PprItem[] | null> {
+  return fetchPpr('pprn', codeInsee)
+}
+
+export function fetchPprt(codeInsee: string): Promise<PprItem[] | null> {
+  return fetchPpr('pprt', codeInsee)
 }
 
 /** General-purpose link to Géorisques' own address/commune risk lookup —

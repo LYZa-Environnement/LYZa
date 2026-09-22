@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { geocodeAddress } from '../api/client'
-import type { AddressResult } from '../types/sensitivity'
+import { geocodeAddress } from '../lib/geocode'
+import type { Site } from '../types/site'
 
 interface Props {
-  onSelect: (address: AddressResult) => void
+  onSelect: (site: Site) => void
 }
 
 export default function AddressSearch({ onSelect }: Props) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<AddressResult[]>([])
+  const [results, setResults] = useState<Site[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)

@@ -426,7 +426,8 @@
     <div class="section">
       <div class="section-title">Fond de carte</div>
       <div class="layer-group">
-        <label class="layer-row"><input type="radio" name="base" value="plan" checked><span class="lbl">Plan IGN</span></label>
+        <label class="layer-row"><input type="radio" name="base" value="scan25" checked><span class="lbl">Carte IGN 1:25 000</span></label>
+        <label class="layer-row"><input type="radio" name="base" value="plan"><span class="lbl">Plan IGN</span></label>
         <label class="layer-row"><input type="radio" name="base" value="photo"><span class="lbl">Photographies aériennes</span></label>
         <label class="layer-row"><input type="radio" name="base" value="osm"><span class="lbl">OpenStreetMap</span></label>
         <label class="layer-row"><input type="radio" name="base" value="histo"><span class="lbl">Photos aériennes historiques</span></label>
@@ -668,6 +669,21 @@
       tileOpts
     );
   }
+  // Carte IGN au 1:25 000 (SCAN 25®) — the default base map.
+  // SCAN 25 is NOT part of the open data.geopf.fr/wmts service: its
+  // GetCapabilities lists no SCAN 25 layer, and every candidate layer name
+  // 400s there (checked live). It is served by the keyed /private/wmts
+  // endpoint under the generic GEOGRAPHICALGRIDSYSTEMS.MAPS pyramid, with the
+  // public Géoportail "ign_scan_ws" key — verified live: genuine SCAN 25
+  // sheets (contour lines, spot heights, topographic symbology) from z0 to
+  // z18, 404 at z19, hence maxNativeZoom below.
+  var baseSCAN25 = L.tileLayer(
+    'https://data.geopf.fr/private/wmts?apikey=ign_scan_ws' +
+    '&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS&EXCEPTIONS=text/xml&FORMAT=image/jpeg' +
+    '&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&STYLE=normal' +
+    '&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    { attribution:'IGN-F/Géoplateforme — SCAN 25®', maxNativeZoom:18, maxZoom:19, minZoom:0, tileSize:256 }
+  );
   var baseIGN = geopfWMTS('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2');
   var basePhoto = geopfWMTS('ORTHOIMAGERY.ORTHOPHOTOS', { format:'image/jpeg' });
   var baseOSM = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -865,10 +881,10 @@
       : "Les clichés disponibles semblent identiques à cet endroit à ce niveau de zoom (pas de nouvelle prise de vue) : rien à comparer pour l'instant.";
     return comparable;
   }
-  var currentBase = baseIGN;
+  var currentBase = baseSCAN25;
   var histoYearRow = document.getElementById('histo-year-row');
   var histoNote = document.getElementById('histo-note');
-  baseIGN.addTo(map);
+  baseSCAN25.addTo(map);
   function setBase(layer){
     map.removeLayer(currentBase);
     currentBase = layer;
@@ -885,7 +901,7 @@
         refreshHistoAvailability();
         return;
       }
-      setBase({ plan: baseIGN, photo: basePhoto, osm: baseOSM }[r.value]);
+      setBase({ scan25: baseSCAN25, plan: baseIGN, photo: basePhoto, osm: baseOSM }[r.value]);
     });
   });
   histoSelect.addEventListener('change', function(){

@@ -1,5 +1,14 @@
 import { Link } from 'react-router-dom'
 
+const SOURCES = [
+  { label: 'Géorisques (BRGM)', href: 'https://www.georisques.gouv.fr/' },
+  { label: "Hub'Eau", href: 'https://hubeau.eaufrance.fr/' },
+  { label: 'IGN Géoplateforme', href: 'https://geoservices.ign.fr/' },
+  { label: 'INPN / MNHN', href: 'https://inpn.mnhn.fr/' },
+  { label: 'VigiEau', href: 'https://vigieau.gouv.fr/' },
+  { label: 'Copernicus / CAMS', href: 'https://atmosphere.copernicus.eu/' },
+]
+
 export default function Footer() {
   return (
     <footer style={{ borderTop: 'var(--border-w) solid var(--color-border)', marginTop: '3rem', background: 'var(--color-accent-deep)', color: 'var(--color-accent-ink)' }}>
@@ -7,38 +16,42 @@ export default function Footer() {
         <div>
           <strong style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem' }}>LYZa</strong>
           <p style={{ color: '#cfe0d8', marginTop: '0.5rem' }}>
-            Conseil stratégique en environnement, hydrogéologie et maîtrise des risques environnementaux.
+            Plateforme de consultation des données environnementales publiques, à l'échelle d'une adresse.
           </p>
         </div>
         <div>
-          <strong>Contact</strong>
-          <p style={{ color: '#cfe0d8', marginTop: '0.5rem' }}>
-            06 73 91 88 43
-            <br />
-            <a href="mailto:loyec@protonmail.com" style={{ color: 'var(--color-accent-ink)' }}>
-              loyec@protonmail.com
-            </a>
+          <strong>Principales sources</strong>
+          <p style={{ color: '#cfe0d8', marginTop: '0.5rem', fontSize: '0.88rem' }}>
+            {SOURCES.map((source, index) => (
+              <span key={source.href}>
+                <a href={source.href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent-ink)' }}>
+                  {source.label}
+                </a>
+                {index < SOURCES.length - 1 && ' · '}
+              </span>
+            ))}
           </p>
         </div>
         <div>
           <strong>Navigation</strong>
           <p style={{ marginTop: '0.5rem' }}>
-            <Link to="/carte" style={{ color: 'var(--color-accent-ink)' }}>
-              Évaluer un site
+            <Link to="/" style={{ color: 'var(--color-accent-ink)' }}>
+              Consulter une adresse
             </Link>
             <br />
-            <Link to="/accompagnement" style={{ color: 'var(--color-accent-ink)' }}>
-              Accompagnement
-            </Link>
+            <a href={`${import.meta.env.BASE_URL}lyza-cartes.html`} style={{ color: 'var(--color-accent-ink)' }}>
+              LYZa Cartes
+            </a>
             <br />
-            <Link to="/contact" style={{ color: 'var(--color-accent-ink)' }}>
-              Contact
+            <Link to="/sources" style={{ color: 'var(--color-accent-ink)' }}>
+              Méthode &amp; sources
             </Link>
           </p>
         </div>
       </div>
       <div className="container" style={{ paddingBottom: '1.5rem', fontSize: '0.8rem', color: '#a9c2b6' }}>
-        © {new Date().getFullYear()} LYZa — Léo Yecora-Zorzano, entrepreneur individuel.
+        © {new Date().getFullYear()} LYZa. Les données restituées appartiennent à leurs producteurs respectifs. Cette
+        plateforme fournit une lecture documentaire et ne remplace ni une étude réglementaire, ni un avis d'expert.
       </div>
     </footer>
   )

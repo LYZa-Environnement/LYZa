@@ -85,6 +85,48 @@ export function nearestPointOnSegment(
   }
 }
 
+// ---- Lambert 93 (EPSG:2154) ----------------------------------------------
+// Some Géoplateforme WFS layers (the GIS Sol soil maps among them) are only
+// queryable and only served in Lambert 93: a WGS84 BBOX against them returns
+// zero features, whatever the axis order. These two conversions let such a
+// layer be asked about a lat/lon point and drawn back on a WGS84 map.
+
+const L93 = { a: 6378137.0, e: 0.0818191910428158, n: 0.7256077650, c: 11754255.426, xs: 700000.0, ys: 12655612.0499, lon0: 3.0 }
+
+export function toLambert93(lat: number, lon: number): [number, number] {
+  const phi = (lat * Math.PI) / 180
+  const lambda = (lon * Math.PI) / 180
+  const esin = L93.e * Math.sin(phi)
+  const isometric = Math.log(Math.tan(Math.PI / 4 + phi / 2) * ((1 - esin) / (1 + esin)) ** (L93.e / 2))
+  const r = L93.c * Math.exp(-L93.n * isometric)
+  const gamma = L93.n * (lambda - (L93.lon0 * Math.PI) / 180)
+  return [L93.xs + r * Math.sin(gamma), L93.ys - r * Math.cos(gamma)]
+}
+
+export function fromLambert93(x: number, y: number): [number, number] {
+  const dx = x - L93.xs
+  const dy = y - L93.ys
+  const r = Math.hypot(dx, dy)
+  const gamma = Math.atan2(dx, -dy)
+  const lambda = gamma / L93.n + (L93.lon0 * Math.PI) / 180
+  const isometric = -Math.log(r / L93.c) / L93.n
+
+  // Iterative inversion of the isometric latitude — converges in a handful of
+  // rounds at this eccentricity.
+  let phi = 2 * Math.atan(Math.exp(isometric)) - Math.PI / 2
+  for (let i = 0; i < 8; i++) {
+    const esin = L93.e * Math.sin(phi)
+    phi = 2 * Math.atan(Math.exp(isometric) * ((1 + esin) / (1 - esin)) ** (L93.e / 2)) - Math.PI / 2
+  }
+  return [(lambda * 180) / Math.PI, (phi * 180) / Math.PI]
+}
+
+/** A Lambert 93 BBOX string around a point, ready for a WFS request. */
+export function lambert93Bbox(lat: number, lon: number, radiusM: number): string {
+  const [x, y] = toLambert93(lat, lon)
+  return `${Math.round(x - radiusM)},${Math.round(y - radiusM)},${Math.round(x + radiusM)},${Math.round(y + radiusM)}`
+}
+
 export function formatDistance(meters: number): string {
   if (meters >= 10000) return `${Math.round(meters / 1000)} km`
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`

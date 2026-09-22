@@ -2,16 +2,12 @@ import { NavLink } from 'react-router-dom'
 import logo from '../assets/lyza-logo.png'
 
 const links = [
-  { to: '/', label: 'Accueil', end: true },
-  { to: '/carte', label: 'Évaluer un site', highlight: true },
-  { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true, highlight: true },
-  { to: '/restrictions-eau', label: "Restrictions d'eau", highlight: true },
-  { to: '/icpe-emissions', label: 'ICPE & émissions', highlight: true },
-  { to: '/presentation', label: 'Présentation' },
-  { to: '/accompagnement', label: 'Accompagnement' },
-  { to: '/actualites', label: 'Actualités' },
-  { to: '/contact', label: 'Contact' },
+  { to: '/', label: 'Consulter une adresse', end: true },
+  { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true },
+  { to: '/sources', label: 'Méthode & sources' },
 ]
+
+const linkStyle = { textDecoration: 'none', fontSize: '0.92rem' } as const
 
 export default function Nav() {
   return (
@@ -20,22 +16,13 @@ export default function Nav() {
         <NavLink to="/" style={{ textDecoration: 'none', color: 'var(--color-ink)' }}>
           <img src={logo} alt="LYZa" style={{ display: 'block', height: '2.6rem', width: 'auto' }} />
           <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.04em', marginTop: '0.2rem' }}>
-            Environnement &amp; hydrogéologie
+            Consultation de données environnementales
           </span>
         </NavLink>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
           {links.map((link) =>
             link.external ? (
-              <a
-                key={link.to}
-                href={link.to}
-                style={{
-                  textDecoration: 'none',
-                  fontSize: '0.92rem',
-                  fontWeight: link.highlight ? 700 : 500,
-                  color: link.highlight ? 'var(--color-accent)' : 'var(--color-ink)',
-                }}
-              >
+              <a key={link.to} href={link.to} style={{ ...linkStyle, fontWeight: 700, color: 'var(--color-accent)' }}>
                 {link.label}
               </a>
             ) : (
@@ -43,12 +30,7 @@ export default function Nav() {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                style={({ isActive }) => ({
-                  textDecoration: 'none',
-                  fontSize: '0.92rem',
-                  fontWeight: isActive || link.highlight ? 700 : 500,
-                  color: isActive || link.highlight ? 'var(--color-accent)' : 'var(--color-ink)',
-                })}
+                style={({ isActive }) => ({ ...linkStyle, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-accent)' : 'var(--color-ink)' })}
               >
                 {link.label}
               </NavLink>

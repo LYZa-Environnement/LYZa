@@ -69,6 +69,8 @@ export interface NearestBathingSite {
   typeEau: string | null
   distanceM: number
   direction: string
+  lat: number
+  lon: number
 }
 
 export async function findNearestBathingSite(lat: number, lon: number): Promise<NearestBathingSite | null> {
@@ -88,6 +90,8 @@ export async function findNearestBathingSite(lat: number, lon: number): Promise<
         typeEau: site["Type d'eau"]?.trim() || null,
         distanceM,
         direction: cardinalDirection(bearingDegrees(lat, lon, siteLat, siteLon)),
+        lat: siteLat,
+        lon: siteLon,
       }
     }
   }

@@ -1,4 +1,4 @@
-import type { AddressResult } from '../types/sensitivity'
+import type { Site } from '../types/site'
 
 const BAN_SEARCH_URL = 'https://data.geopf.fr/geocodage/search'
 
@@ -7,7 +7,7 @@ const BAN_SEARCH_URL = 'https://data.geopf.fr/geocodage/search'
  * frontend/public/lyza-cartes.html). Returns [] on empty query or upstream
  * failure rather than throwing, so a flaky geocoder never breaks the
  * search-as-you-type UI. */
-export async function geocodeAddress(query: string, signal?: AbortSignal): Promise<AddressResult[]> {
+export async function geocodeAddress(query: string, signal?: AbortSignal): Promise<Site[]> {
   const q = query.trim()
   if (q.length < 3) return []
 
@@ -24,7 +24,7 @@ export async function geocodeAddress(query: string, signal?: AbortSignal): Promi
     return []
   }
 
-  const results: AddressResult[] = []
+  const results: Site[] = []
   for (const feature of payload.features ?? []) {
     if (!feature || typeof feature !== 'object') continue
     const f = feature as { properties?: Record<string, unknown>; geometry?: { coordinates?: unknown } }

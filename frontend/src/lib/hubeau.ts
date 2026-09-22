@@ -81,6 +81,8 @@ function nearestByCoordinates<T extends Record<string, unknown>>(
 
 export interface AdesReferencePoint {
   codeBss: string
+  lat: number
+  lon: number
   distanceM: number
   direction: string
   aquifere: string | null
@@ -102,6 +104,8 @@ export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 1
   if (!nearest) return null
   const codeBss = str(nearest.item.code_bss)
   if (!codeBss) return null
+  const coords = pointCoordinates(nearest.item)
+  if (!coords) return null
 
   let profondeurNappeM: number | null = null
   let dateMesure: string | null = null
@@ -113,6 +117,8 @@ export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 1
 
   return {
     codeBss,
+    lat: coords[1],
+    lon: coords[0],
     distanceM: nearest.distanceM,
     direction: nearest.direction,
     aquifere: meaningfulStr(nearest.item.nom_caracteristique_aquifere),
@@ -145,9 +151,108 @@ export async function findNearestRiver(lat: number, lon: number, radiusM = 15000
   return { nom: str(nearest.item.nom_cours_eau), commune: str(nearest.item.libelle_commune), distanceM: nearest.distanceM }
 }
 
+// ---- Station de suivi de la qualité des rivières + ses dernières analyses --
+
+export interface AnalyseRiviere {
+  parametre: string
+  groupe: string | null
+  resultat: number | null
+  unite: string | null
+  date: string | null
+}
+
+export interface StationRiviere {
+  code: string
+  libelle: string | null
+  nomCoursEau: string | null
+  lat: number
+  lon: number
+  distanceM: number
+  direction: string
+  analyses: AnalyseRiviere[]
+  /** Distinct parameters measured over the window queried. */
+  nombreParametres: number
+  derniereDate: string | null
+}
+
+/** The nearest water-quality station, with the physico-chemical parameters
+ * measured there over the last few years. `analyse_pc`'s `sort=desc` does NOT
+ * order by sampling date (verified live: it returned a 1981 record first), so
+ * the window is bounded with `date_debut_prelevement` and the rows are sorted
+ * here instead. */
+export async function findNearestStationRiviere(lat: number, lon: number, radiusM = 15000, anneesEnArriere = 4): Promise<StationRiviere | null> {
+  const stations = await getData('v2/qualite_rivieres/station_pc', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 100 })
+  if (!stations) return null
+  const nearest = nearestByCoordinates(lat, lon, stations, (item) => {
+    const longitude = num(item.longitude)
+    const latitude = num(item.latitude)
+    return longitude !== null && latitude !== null ? [longitude, latitude] : null
+  })
+  if (!nearest) return null
+  const code = str(nearest.item.code_station)
+  if (!code) return null
+
+  const since = new Date()
+  since.setFullYear(since.getFullYear() - anneesEnArriere)
+  const rows =
+    (await getData('v2/qualite_rivieres/analyse_pc', {
+      code_station: code,
+      date_debut_prelevement: since.toISOString().slice(0, 10),
+      size: 1000,
+    })) ?? []
+
+  const analyses: AnalyseRiviere[] = rows
+    .map((row) => ({
+      parametre: str(row.libelle_parametre) ?? 'Paramètre',
+      groupe: str(row.libelle_groupe_parametre),
+      resultat: num(row.resultat),
+      unite: str(row.symbole_unite),
+      date: str(row.date_prelevement),
+    }))
+    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+
+  return {
+    code,
+    libelle: str(nearest.item.libelle_station),
+    nomCoursEau: str(nearest.item.nom_cours_eau),
+    lat: num(nearest.item.latitude) ?? lat,
+    lon: num(nearest.item.longitude) ?? lon,
+    distanceM: nearest.distanceM,
+    direction: nearest.direction,
+    analyses,
+    nombreParametres: new Set(analyses.map((a) => a.parametre)).size,
+    derniereDate: analyses[0]?.date ?? null,
+  }
+}
+
 // ---- Ouvrages de prélèvement (usages sensibles des eaux souterraines) -----
 
-export async function countPrelevements(lat: number, lon: number, radiusM = 1000): Promise<number | null> {
+export interface OuvragePrelevement {
+  nom: string | null
+  usage: string | null
+  lat: number
+  lon: number
+  distanceM: number
+  direction: string
+}
+
+export async function fetchPrelevements(lat: number, lon: number, radiusM = 2000): Promise<OuvragePrelevement[] | null> {
   const items = await getData('v1/prelevements/referentiel/ouvrages', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 300 })
-  return items === null ? null : items.length
+  if (items === null) return null
+  const out: OuvragePrelevement[] = []
+  for (const item of items) {
+    const coords = pointCoordinates(item)
+    const itemLon = coords ? coords[0] : num(item.longitude)
+    const itemLat = coords ? coords[1] : num(item.latitude)
+    if (itemLon === null || itemLat === null) continue
+    out.push({
+      nom: str(item.nom_ouvrage),
+      usage: str(item.libelle_usage),
+      lat: itemLat,
+      lon: itemLon,
+      distanceM: haversineMeters(lat, lon, itemLat, itemLon),
+      direction: cardinalDirection(bearingDegrees(lat, lon, itemLat, itemLon)),
+    })
+  }
+  return out.sort((a, b) => a.distanceM - b.distanceM)
 }
