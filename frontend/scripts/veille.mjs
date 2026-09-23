@@ -190,7 +190,18 @@ function classe(article, source) {
   return meilleure
 }
 
+/** One retry, spaced out: these are public feeds behind ordinary web servers,
+ * and a single refused request is more often a hiccup than a policy. */
 async function collecte(source) {
+  for (let essai = 0; essai < 2; essai++) {
+    const resultat = await tente(source, essai)
+    if (resultat !== null) return resultat
+    if (essai === 0) await new Promise((r) => setTimeout(r, 1500))
+  }
+  return []
+}
+
+async function tente(source, essai) {
   const controller = new AbortController()
   const minuteur = setTimeout(() => controller.abort(), DELAI_MS)
   try {
@@ -224,6 +235,7 @@ async function collecte(source) {
     console.log(`  ${source.nom} : ${retenus.length} retenus sur ${bruts.length}`)
     return retenus
   } catch (error) {
+    if (essai === 0) return null
     console.warn(`  ${source.nom} : ignoré (${error.message})`)
     return []
   } finally {
@@ -253,9 +265,37 @@ const tous = lots
   })
   .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 
+/**
+ * Fills a category one article per source at a time, most recent first within
+ * each source. Taking the N most recent articles outright would hand every
+ * slot to whoever publishes most often: a feed posting six times a day buries
+ * a research institute that posts twice a month, and the category ends up
+ * being one publication rather than a panorama.
+ */
+function tourniquet(candidats, places) {
+  const parSource = new Map()
+  for (const article of candidats) {
+    if (!parSource.has(article.source)) parSource.set(article.source, [])
+    parSource.get(article.source).push(article)
+  }
+  const files = [...parSource.values()]
+  const retenus = []
+  while (retenus.length < places && files.some((file) => file.length > 0)) {
+    // Within a round, the source whose next article is the most recent goes
+    // first, so the head of the list stays genuinely fresh.
+    files
+      .filter((file) => file.length > 0)
+      .sort((a, b) => (b[0].date ?? '').localeCompare(a[0].date ?? ''))
+      .forEach((file) => {
+        if (retenus.length < places) retenus.push(file.shift())
+      })
+  }
+  return retenus
+}
+
 const articles = []
 for (const categorie of Object.keys(CATEGORIES)) {
-  articles.push(...tous.filter((article) => article.categorie === categorie).slice(0, PAR_CATEGORIE))
+  articles.push(...tourniquet(tous.filter((article) => article.categorie === categorie), PAR_CATEGORIE))
 }
 articles.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 
