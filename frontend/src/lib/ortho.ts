@@ -41,9 +41,16 @@ function layerName(periode: string): string {
 }
 
 /** A square aerial view centred exactly on the site, `coteM` metres across.
- * PNG with transparency rather than JPEG: outside a campaign's footprint the
- * WMS returns an empty image, and only a transparent one can be told apart
- * from a genuinely dark photograph. */
+ * PNG rather than JPEG: outside a campaign's footprint the WMS returns an
+ * empty image, and only PNG's alpha channel tells that apart from a genuinely
+ * dark photograph.
+ *
+ * `TRANSPARENT=TRUE` is deliberately NOT sent. It changes nothing — the
+ * response is byte-identical with and without it (47 198 B on the 1950-1965
+ * layer, checked) — but combined with the dotted historical layer names it
+ * makes the request fail outright in the browser ("Failed to fetch",
+ * ERR_TOO_MANY_RETRIES) while curl succeeds, which silently emptied the whole
+ * pre-2000 half of the timeline. */
 export function orthoImageUrl(lat: number, lon: number, periode: string, coteM = 250, pixels = 420): string {
   const dLat = coteM / 2 / 111320
   const dLon = coteM / 2 / (111320 * Math.cos((lat * Math.PI) / 180))
@@ -60,6 +67,5 @@ export function orthoImageUrl(lat: number, lon: number, periode: string, coteM =
     WIDTH: String(pixels),
     HEIGHT: String(pixels),
     FORMAT: 'image/png',
-    TRANSPARENT: 'TRUE',
   })}`
 }

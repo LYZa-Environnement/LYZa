@@ -21,7 +21,10 @@ type Couverture = 'inconnue' | 'couverte' | 'absente'
 async function sondeCouverture(url: string): Promise<Couverture> {
   try {
     const response = await fetch(url, { mode: 'cors' })
-    if (!response.ok) return 'absente'
+    // A server error says nothing about coverage — only a blank image that
+    // actually decoded does. Hiding a campaign on a 500 would quietly drop a
+    // decade that does have photographs.
+    if (!response.ok) return 'inconnue'
     const bitmap = await createImageBitmap(await response.blob())
     const canvas = document.createElement('canvas')
     canvas.width = bitmap.width
