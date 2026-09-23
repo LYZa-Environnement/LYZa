@@ -3,6 +3,7 @@ import AddressSearch from '../components/AddressSearch'
 import FriseAerienne from '../components/FriseAerienne'
 import RoseDesVents from '../components/RoseDesVents'
 import ThemeSection from '../components/ThemeSection'
+import Veille from '../components/Veille'
 import { RUBRIQUES } from '../themes'
 import type { Site } from '../types/site'
 
@@ -16,6 +17,21 @@ function loadSite(): Site | null {
     return null
   }
 }
+
+const PRINCIPES = [
+  {
+    titre: 'Interrogé en direct',
+    texte: "Chaque rubrique appelle les API publiques au moment où vous la consultez. Rien n'est stocké, rien n'est mis en cache.",
+  },
+  {
+    titre: 'Situé par rapport au site',
+    texte: "Distance et direction pour chaque élément, et position amont ou aval quand le sens d'écoulement du cours d'eau est connu.",
+  },
+  {
+    titre: 'Les manques affichés',
+    texte: "Chaque rubrique liste ce qu'elle ne couvre pas et pourquoi. Une donnée absente est une question ouverte, pas un feu vert.",
+  },
+]
 
 export default function Accueil() {
   const [site, setSite] = useState<Site | null>(loadSite)
@@ -41,9 +57,9 @@ export default function Accueil() {
           <p className="eyebrow">Plateforme de consultation de données</p>
           <h1 style={{ maxWidth: '20ch' }}>Ce que les données publiques disent d'une adresse</h1>
           <p className="lede">
-            Saisissez une adresse : LYZa interroge en direct les bases publiques françaises et européennes — Géorisques,
-            Hub'Eau, IGN, INPN, Copernicus — et restitue six lectures cartographiées de son environnement, avec les sources,
-            les distances et les limites de chaque donnée.
+            Saisissez une adresse : LYZa interroge les bases publiques françaises et européennes — Géorisques, Hub'Eau, IGN, INPN,
+            GIS Sol, Copernicus — et restitue six lectures cartographiées de son environnement, avec les sources, les distances et les
+            limites de chaque donnée.
           </p>
 
           <div style={{ maxWidth: '36rem', margin: '2rem 0 1rem' }}>
@@ -59,9 +75,14 @@ export default function Accueil() {
               </p>
             </div>
           ) : (
-            <p style={{ color: 'var(--color-muted)' }}>
-              Aucune adresse saisie. Les six rubriques ci-dessous s'afficheront une fois un site sélectionné.
-            </p>
+            <div className="grid grid--3" style={{ marginTop: '2.5rem' }}>
+              {PRINCIPES.map((principe) => (
+                <div key={principe.titre} className="card">
+                  <strong style={{ display: 'block', marginBottom: '0.35rem' }}>{principe.titre}</strong>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-muted)' }}>{principe.texte}</span>
+                </div>
+              ))}
+            </div>
           )}
 
           {site && (
@@ -80,6 +101,29 @@ export default function Accueil() {
           )}
         </div>
       </section>
+
+      {!site && (
+        <section className="section section--muted">
+          <div className="container">
+            <p className="eyebrow">Les six rubriques</p>
+            <h2 style={{ marginBottom: '0.3rem' }}>Ce qui est restitué pour chaque adresse</h2>
+            <p className="lede" style={{ marginBottom: '1.75rem' }}>
+              Chaque rubrique part d'une carte au 1:25 000, situe les données par rapport au site, et cite ses sources.
+            </p>
+            <div className="grid grid--3">
+              {RUBRIQUES.map((rubrique, index) => (
+                <div key={rubrique.id} className="card">
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--color-accent)' }}>
+                    RUBRIQUE {index + 1}
+                  </span>
+                  <h3 style={{ fontSize: '1.05rem', margin: '0.3rem 0 0.4rem' }}>{rubrique.titre}</h3>
+                  <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--color-muted)' }}>{rubrique.sousTitre}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {site &&
         RUBRIQUES.map((rubrique, index) => (
@@ -101,23 +145,22 @@ export default function Accueil() {
           </ThemeSection>
         ))}
 
-      {site && (
-        <section className="section section--deep">
-          <div className="container">
-            <h2>Comment lire ces données</h2>
-            <p>
-              Chaque rubrique interroge les sources publiques au moment où vous la consultez : rien n'est stocké, rien n'est
-              recalculé à partir d'un cache. Les distances et les directions sont mesurées depuis le point géocodé de
-              l'adresse, et les positions amont/aval s'appuient sur le sens d'écoulement renseigné dans la BD TOPO® de l'IGN.
-            </p>
-            <p>
-              Une donnée absente n'est pas une donnée rassurante : chaque rubrique liste explicitement ce qu'elle ne couvre
-              pas et pourquoi. Cette plateforme donne une lecture documentaire à distance — elle ne remplace ni une visite de
-              site, ni une étude réglementaire.
-            </p>
-          </div>
-        </section>
-      )}
+      <Veille />
+
+      <section className="section section--deep">
+        <div className="container">
+          <h2>Comment lire ces données</h2>
+          <p>
+            Les distances et les directions sont mesurées depuis le point géocodé de l'adresse, et les positions amont/aval s'appuient sur
+            le sens d'écoulement renseigné dans la BD TOPO® de l'IGN. L'échelle de chaque donnée est annoncée : une donnée communale ne
+            décrit pas une parcelle, un modèle à 11 km de maille ne décrit pas une rue.
+          </p>
+          <p>
+            Une donnée absente n'est pas une donnée rassurante : chaque rubrique liste explicitement ce qu'elle ne couvre pas et pourquoi.
+            Cette plateforme donne une lecture documentaire à distance — elle ne remplace ni une visite de site, ni une étude réglementaire.
+          </p>
+        </div>
+      </section>
     </>
   )
 }

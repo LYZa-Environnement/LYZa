@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # La veille environnementale est collectée au build (les flux RSS n'envoient
+  # pas d'en-têtes CORS, un site statique ne peut donc pas les lire côté
+  # navigateur). Ce redéploiement quotidien est ce qui la tient à jour.
+  schedule:
+    - cron: '17 5 * * *'
 
 permissions:
   contents: read

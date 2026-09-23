@@ -1,79 +1,74 @@
 /**
- * Air quality at a point, from Open-Meteo's Air Quality API (CAMS Europe
- * reanalysis/forecast, ~11 km grid). Verified live: no key, CORS-enabled,
- * returns the pollutant concentrations, the European AQI and its
- * per-pollutant sub-indices, plus pollen counts, in one call.
+ * Air quality at a point, from Open-Meteo's Air Quality API (CAMS Europe,
+ * ~11 km grid). Verified live: no key, CORS-enabled, and the hourly archive
+ * covers whole past years, so an *annual mean* can be computed rather than
+ * reporting whatever the concentration happens to be right now.
  *
- * This is a *model*, not a measuring station, and the UI says so. France's
- * actual reference measurements (Géod'Air / the AASQA network) are not
- * available through an open, key-free per-point API, so what this reports as
- * "distance à la mesure" is the distance to the centre of the model grid cell
- * that was actually evaluated — the API echoes it back in `latitude` and
- * `longitude`, which differ from the requested coordinates by up to half a
- * cell. Presenting that distance is the honest version of the question "how
- * far is this reading from my site".
+ * Annual means are what this reports, deliberately: a single hourly value
+ * swings with the weather and says almost nothing about a site, whereas the
+ * regulatory limits that matter for a location — and the WHO guidelines — are
+ * themselves annual. The current hour is still fetched, and clearly labelled
+ * as such, so the reader can tell a live reading from a yearly average.
+ *
+ * This is a *model*, not a measuring station. France's reference measurements
+ * (Géod'Air / the AASQA network) have no open, key-free per-point API, so what
+ * is reported as the distance "to the measurement" is the distance to the
+ * centre of the model grid cell actually evaluated — the API echoes it back in
+ * `latitude`/`longitude`, up to half a cell away from the requested point.
  */
 
 import { haversineMeters } from './geo'
 
 const BASE = 'https://air-quality-api.open-meteo.com/v1/air-quality'
 
-// Only parameters confirmed live against the API — an unknown name makes the
-// whole request fail, so this list is not extended without checking.
-const CURRENT_PARAMS = [
-  'pm10',
-  'pm2_5',
-  'nitrogen_dioxide',
-  'ozone',
-  'sulphur_dioxide',
-  'carbon_monoxide',
-  'ammonia',
-  'dust',
-  'european_aqi',
-  'european_aqi_pm2_5',
-  'european_aqi_no2',
-  'european_aqi_o3',
-  'grass_pollen',
-  'birch_pollen',
-  'alder_pollen',
-  'ragweed_pollen',
-] as const
+/** Pollutants with a meaningful annual reading, and the values it is read
+ * against. `limiteUe` is the binding annual limit value of directive
+ * 2008/50/CE where one exists; `oms` is the 2021 WHO guideline, stricter and
+ * not binding. Ozone has no annual limit value — it is regulated on 8-hour
+ * maxima — so it carries a guideline only and is never coloured red on an
+ * annual mean it was never meant to be judged by. */
+const POLLUANTS: Record<string, { libelle: string; limiteUe?: number; oms?: number; note?: string }> = {
+  pm10: { libelle: 'Particules PM10', limiteUe: 40, oms: 15, note: 'Valeur limite annuelle UE : 40 µg/m³ — ligne directrice OMS : 15 µg/m³' },
+  pm2_5: { libelle: 'Particules PM2,5', limiteUe: 25, oms: 5, note: 'Valeur limite annuelle UE : 25 µg/m³ — ligne directrice OMS : 5 µg/m³' },
+  nitrogen_dioxide: { libelle: 'Dioxyde d’azote (NO₂)', limiteUe: 40, oms: 10, note: 'Valeur limite annuelle UE : 40 µg/m³ — ligne directrice OMS : 10 µg/m³' },
+  sulphur_dioxide: { libelle: 'Dioxyde de soufre (SO₂)', oms: 20, note: 'Pas de valeur limite annuelle sanitaire ; 20 µg/m³ pour la protection des écosystèmes' },
+  ozone: { libelle: 'Ozone (O₃)', note: "Réglementé sur les maxima journaliers 8 h (seuil d'information 180 µg/m³), pas en moyenne annuelle" },
+  carbon_monoxide: { libelle: 'Monoxyde de carbone (CO)', note: 'Réglementé sur le maximum journalier 8 h (10 mg/m³)' },
+  ammonia: { libelle: 'Ammoniac (NH₃)', note: "Non réglementé dans l'air ambiant — marqueur d'activité agricole et d'élevage" },
+}
 
-export interface Polluant {
+const HOURLY_PARAMS = Object.keys(POLLUANTS)
+
+export type NiveauPolluant = 'favorable' | 'attention' | 'defavorable' | 'inconnu'
+
+export interface PolluantAnnuel {
   cle: string
   libelle: string
-  valeur: number
+  /** Mean over the whole reference year, µg/m³. */
+  moyenneAnnuelle: number
+  /** Highest hourly value of that year — the peak behind the average. */
+  maxHoraire: number
   unite: string
-  /** Reference value the reading is read against, when one applies. */
-  reference?: string
+  note?: string
+  niveau: NiveauPolluant
 }
 
 export interface AirQualite {
-  /** European AQI, 0-100+: <20 bon, <40 moyen, <60 dégradé, <80 mauvais. */
-  indiceEuropeen: number | null
-  polluants: Polluant[]
-  pollens: Polluant[]
+  /** Year the annual statistics describe. */
+  annee: number
+  polluants: PolluantAnnuel[]
+  /** European AQI right now, for the live reading alongside the annual ones. */
+  indiceActuel: number | null
+  heureActuelle: string | null
   /** Distance from the site to the centre of the evaluated model grid cell. */
   distanceMailleM: number
-  heure: string | null
 }
 
-const LIBELLES: Record<string, { libelle: string; reference?: string }> = {
-  pm10: { libelle: 'Particules PM10', reference: 'Valeur limite journalière UE : 45 µg/m³' },
-  pm2_5: { libelle: 'Particules PM2,5', reference: 'Valeur limite annuelle UE : 10 µg/m³' },
-  nitrogen_dioxide: { libelle: 'Dioxyde d’azote (NO₂)', reference: 'Valeur limite annuelle UE : 20 µg/m³' },
-  ozone: { libelle: 'Ozone (O₃)', reference: 'Seuil d’information : 180 µg/m³ (moyenne horaire)' },
-  sulphur_dioxide: { libelle: 'Dioxyde de soufre (SO₂)', reference: 'Valeur limite journalière UE : 50 µg/m³' },
-  carbon_monoxide: { libelle: 'Monoxyde de carbone (CO)' },
-  ammonia: { libelle: 'Ammoniac (NH₃)', reference: 'Marqueur d’activité agricole/élevage' },
-  dust: { libelle: 'Poussières désertiques' },
-}
-
-const POLLENS: Record<string, string> = {
-  grass_pollen: 'Pollens de graminées',
-  birch_pollen: 'Pollens de bouleau',
-  alder_pollen: 'Pollens d’aulne',
-  ragweed_pollen: 'Pollens d’ambroisie',
+function niveau(valeur: number, meta: { limiteUe?: number; oms?: number }): NiveauPolluant {
+  if (meta.limiteUe !== undefined && valeur > meta.limiteUe) return 'defavorable'
+  if (meta.oms !== undefined && valeur > meta.oms) return 'attention'
+  if (meta.oms === undefined && meta.limiteUe === undefined) return 'inconnu'
+  return 'favorable'
 }
 
 export function qualifieIndice(indice: number): string {
@@ -85,12 +80,24 @@ export function qualifieIndice(indice: number): string {
   return 'Extrêmement mauvais'
 }
 
+export function niveauIndice(indice: number): NiveauPolluant {
+  if (indice < 40) return 'favorable'
+  if (indice < 60) return 'attention'
+  return 'defavorable'
+}
+
 export async function fetchAirQualite(lat: number, lon: number): Promise<AirQualite | null> {
+  // The CAMS archive lags by a few days, so the last *complete* calendar year
+  // is the most recent one that can be averaged honestly.
+  const annee = new Date().getFullYear() - 1
   try {
     const url = `${BASE}?${new URLSearchParams({
       latitude: String(lat),
       longitude: String(lon),
-      current: CURRENT_PARAMS.join(','),
+      start_date: `${annee}-01-01`,
+      end_date: `${annee}-12-31`,
+      hourly: HOURLY_PARAMS.join(','),
+      current: 'european_aqi',
       timezone: 'Europe/Paris',
     })}`
     const response = await fetch(url)
@@ -98,41 +105,42 @@ export async function fetchAirQualite(lat: number, lon: number): Promise<AirQual
     const data = (await response.json()) as {
       latitude?: number
       longitude?: number
+      hourly?: Record<string, (number | null)[]>
+      hourly_units?: Record<string, string>
       current?: Record<string, number | string>
-      current_units?: Record<string, string>
     }
-    const current = data.current
-    if (!current) return null
-    const units = data.current_units ?? {}
+    const hourly = data.hourly
+    if (!hourly) return null
+    const units = data.hourly_units ?? {}
 
-    const read = (key: string): number | null => {
-      const value = current[key]
-      return typeof value === 'number' && Number.isFinite(value) ? value : null
+    const polluants: PolluantAnnuel[] = []
+    for (const [cle, meta] of Object.entries(POLLUANTS)) {
+      const serie = (hourly[cle] ?? []).filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+      if (serie.length === 0) continue
+      const moyenne = serie.reduce((a, b) => a + b, 0) / serie.length
+      polluants.push({
+        cle,
+        libelle: meta.libelle,
+        moyenneAnnuelle: moyenne,
+        maxHoraire: Math.max(...serie),
+        unite: units[cle] ?? 'µg/m³',
+        note: meta.note,
+        niveau: niveau(moyenne, meta),
+      })
     }
+    if (polluants.length === 0) return null
 
-    const polluants: Polluant[] = []
-    for (const [cle, meta] of Object.entries(LIBELLES)) {
-      const valeur = read(cle)
-      if (valeur === null) continue
-      polluants.push({ cle, libelle: meta.libelle, valeur, unite: units[cle] ?? 'µg/m³', reference: meta.reference })
-    }
-
-    const pollens: Polluant[] = []
-    for (const [cle, libelle] of Object.entries(POLLENS)) {
-      const valeur = read(cle)
-      if (valeur === null) continue
-      pollens.push({ cle, libelle, valeur, unite: units[cle] ?? 'grains/m³' })
-    }
-
+    const current = data.current ?? {}
+    const indice = typeof current.european_aqi === 'number' ? current.european_aqi : null
     const mailleLat = typeof data.latitude === 'number' ? data.latitude : lat
     const mailleLon = typeof data.longitude === 'number' ? data.longitude : lon
 
     return {
-      indiceEuropeen: read('european_aqi'),
+      annee,
       polluants,
-      pollens,
+      indiceActuel: indice,
+      heureActuelle: typeof current.time === 'string' ? current.time : null,
       distanceMailleM: haversineMeters(lat, lon, mailleLat, mailleLon),
-      heure: typeof current.time === 'string' ? current.time : null,
     }
   } catch {
     return null

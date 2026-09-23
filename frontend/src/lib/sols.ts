@@ -6,11 +6,13 @@
  *  - `sols_dominants_france_metropolitaine` — the dominant soil type of the
  *    mapping unit covering the point (FLUVIOSOL, COLLUVIOSOL…), with the
  *    pedological description of that unit.
- *  - `vibrisses_RMQS_*` — the regional *background* content of a trace
- *    element in agricultural topsoil, per grid cell. This is the reference a
+ *  - `vibrisses_RMQS` — the regional *background* contents of ten trace
+ *    elements in agricultural topsoil, per grid cell. This is the reference a
  *    measured concentration should be read against: above it means enriched
  *    relative to the natural/diffuse local background, not necessarily
- *    polluted.
+ *    polluted. The per-element layers published alongside cover cadmium only;
+ *    the base layer carries As, Cd, Co, Cr, Cu, Hg, Mo, Ni, Pb and Zn as
+ *    attributes, which is what is read here.
  *
  * Both layers are served in Lambert 93 only — verified live: an EPSG:4326
  * BBOX returns zero features whatever the axis order, while the same window
@@ -33,7 +35,7 @@ import { fromLambert93, lambert93Bbox } from './geo'
 const WFS_BASE = 'https://data.geopf.fr/wfs/ows'
 
 const TYPE_SOLS_DOMINANTS = 'etude_34015_gpkg_04-09-2026_wfs:sols_dominants_france_metropolitaine'
-const TYPE_FOND_CADMIUM = 'vibrisses_rmqs_gpkg_03-09-2026_wfs:vibrisses_RMQS_cd_0_30'
+const TYPE_FOND_TOUS_ELEMENTS = 'vibrisses_rmqs_gpkg_03-09-2026_wfs:vibrisses_RMQS'
 
 interface WfsFeature {
   geometry?: { type?: string; coordinates?: unknown } | null
@@ -95,19 +97,54 @@ export async function fetchTypeDeSol(lat: number, lon: number): Promise<TypeDeSo
   }
 }
 
-export interface FondPedoGeochimique {
-  element: string
+export interface ElementTrace {
+  symbole: string
+  nom: string
   valeur: number
   unite: string
-  profondeur: string
 }
 
-/** Local background cadmium content in topsoil — the one trace element whose
- * "vibrisses" grid is published as a queryable layer here. */
+export interface FondPedoGeochimique {
+  elements: ElementTrace[]
+  profondeur: string
+  /** Grid cell the values describe — they are not point measurements. */
+  cellule: number | null
+}
+
+// The attribute names on the full `vibrisses_RMQS` layer, verified live:
+// "<symbole>_0_30" for topsoil and "<symbole>_30_50" below it. Only the
+// topsoil horizon is reported — it is the one that matters for exposure and
+// the one that is populated nationally.
+const ELEMENTS: { cle: string; symbole: string; nom: string }[] = [
+  { cle: 'as_0_30', symbole: 'As', nom: 'Arsenic' },
+  { cle: 'cd_0_30', symbole: 'Cd', nom: 'Cadmium' },
+  { cle: 'co_0_30', symbole: 'Co', nom: 'Cobalt' },
+  { cle: 'cr_0_30', symbole: 'Cr', nom: 'Chrome' },
+  { cle: 'cu_0_30', symbole: 'Cu', nom: 'Cuivre' },
+  { cle: 'hg_0_30', symbole: 'Hg', nom: 'Mercure' },
+  { cle: 'mo_0_30', symbole: 'Mo', nom: 'Molybdène' },
+  { cle: 'ni_0_30', symbole: 'Ni', nom: 'Nickel' },
+  { cle: 'pb_0_30', symbole: 'Pb', nom: 'Plomb' },
+  { cle: 'zn_0_30', symbole: 'Zn', nom: 'Zinc' },
+]
+
+/** Local background contents of the trace elements the RMQS "vibrisses" grid
+ * publishes — ten of them, not just cadmium: the per-element layers only cover
+ * Cd, but the base layer carries every element as an attribute. */
 export async function fetchFondGeochimique(lat: number, lon: number): Promise<FondPedoGeochimique | null> {
-  const features = await queryWfs(TYPE_FOND_CADMIUM, lat, lon, 5000, 3)
+  const features = await queryWfs(TYPE_FOND_TOUS_ELEMENTS, lat, lon, 5000, 3)
   if (!features || features.length === 0) return null
-  const valeur = features[0].properties?.valeur
-  if (typeof valeur !== 'number') return null
-  return { element: 'Cadmium (Cd)', valeur, unite: 'mg/kg', profondeur: '0 – 30 cm' }
+  const props = features[0].properties ?? {}
+  const elements: ElementTrace[] = []
+  for (const { cle, symbole, nom } of ELEMENTS) {
+    const valeur = props[cle]
+    if (typeof valeur !== 'number' || !Number.isFinite(valeur)) continue
+    elements.push({ symbole, nom, valeur, unite: 'mg/kg' })
+  }
+  if (elements.length === 0) return null
+  return {
+    elements,
+    profondeur: '0 – 30 cm',
+    cellule: typeof props.no_cellule === 'number' ? props.no_cellule : null,
+  }
 }

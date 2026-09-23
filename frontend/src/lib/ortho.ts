@@ -40,8 +40,11 @@ function layerName(periode: string): string {
   return periode.startsWith('19') ? `ORTHOIMAGERY.ORTHOPHOTOS.${periode}` : `ORTHOIMAGERY.ORTHOPHOTOS${periode}`
 }
 
-/** A square aerial view centred exactly on the site, `cote` metres across. */
-export function orthoImageUrl(lat: number, lon: number, periode: string, coteM = 600, pixels = 420): string {
+/** A square aerial view centred exactly on the site, `coteM` metres across.
+ * PNG with transparency rather than JPEG: outside a campaign's footprint the
+ * WMS returns an empty image, and only a transparent one can be told apart
+ * from a genuinely dark photograph. */
+export function orthoImageUrl(lat: number, lon: number, periode: string, coteM = 250, pixels = 420): string {
   const dLat = coteM / 2 / 111320
   const dLon = coteM / 2 / (111320 * Math.cos((lat * Math.PI) / 180))
   // WMS 1.3.0 with EPSG:4326 takes the bbox in latitude,longitude order.
@@ -56,6 +59,7 @@ export function orthoImageUrl(lat: number, lon: number, periode: string, coteM =
     BBOX: bbox,
     WIDTH: String(pixels),
     HEIGHT: String(pixels),
-    FORMAT: 'image/jpeg',
+    FORMAT: 'image/png',
+    TRANSPARENT: 'TRUE',
   })}`
 }

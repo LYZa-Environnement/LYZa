@@ -133,8 +133,11 @@ export default function ThemeSection({ id, numero, titre, sousTitre, site, build
               <div className="card" style={{ marginTop: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>Données relevées</h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {report.indicateurs.map((indicator) => (
-                    <IndicatorRow key={indicator.label} indicator={indicator} />
+                  {/* Indexed keys: the detailed lists can legitimately repeat a
+                      label — two installations of the same company, two sites
+                      with the same name — so the label is not a unique key. */}
+                  {report.indicateurs.map((indicator, i) => (
+                    <IndicatorRow key={`${i}-${indicator.label}`} indicator={indicator} />
                   ))}
                 </ul>
               </div>

@@ -1,4 +1,5 @@
 import { cached, pointKey } from '../lib/cache'
+import { fetchCommuneErosion } from '../lib/erosion'
 import { ecart, fetchProjectionClimatique } from '../lib/climat'
 import { formatDistance } from '../lib/geo'
 import { fetchCatnatInondation, fetchRisquesCommune, inAzi, parseFrenchDate } from '../lib/georisques'
@@ -18,12 +19,13 @@ const MOTS_CLES = {
 
 export async function buildClimat(site: Site): Promise<ThemeReport> {
   const { lat, lon } = site
-  const [projection, risques, catnat, azi, reseau] = await Promise.all([
+  const [projection, risques, catnat, azi, reseau, erosion] = await Promise.all([
     safe(fetchProjectionClimatique(lat, lon)),
     safe(cached(`risques-commune:${site.citycode}`, () => fetchRisquesCommune(site.citycode))),
     safe(fetchCatnatInondation(site.citycode)),
     safe(inAzi(lat, lon, RAYON_M)),
     safe(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
+    safe(fetchCommuneErosion(site.citycode)),
   ])
 
   const commentaire: string[] = []
@@ -76,10 +78,10 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
         `(${deltaChaud > 0 ? '+' : ''}${deltaChaud.toFixed(0)} jours). ` +
         `Les deux périodes sont issues du même modèle, ce qui isole le signal climatique de l'écart entre produits de données.`,
     )
-  } else {
-    indicateurs.push({ label: 'Projection climatique 2050', value: 'Donnée indisponible', level: 'inconnu' })
-    lacunes.push("La projection climatique n'a pas pu être calculée (service de modélisation momentanément indisponible ou quota atteint).")
   }
+  // Rien n'est affiché quand la projection est indisponible : une ligne
+  // "donnée indisponible" pour quatre indicateurs climatiques n'apprend rien
+  // et occupe la place de ce qui, lui, est connu.
 
   // ---- Îlot de chaleur ----------------------------------------------------
 
@@ -118,8 +120,15 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
       label: 'Arrêtés de catastrophe naturelle — inondation',
       value: pluriel(catnat.length, 'arrêté'),
       situation: dernier ? `Le plus récent en ${dernier.getFullYear()}` : undefined,
-      detail: "Chaque arrêté atteste d'un épisode d'inondation ou de coulée de boue reconnu sur la commune.",
+      detail:
+        "Chaque arrêté atteste d'un épisode d'inondation ou de coulée de boue reconnu sur la commune. " +
+        `Références nationales : ${catnat
+          .map((arrete) => arrete.codeNational)
+          .filter(Boolean)
+          .slice(0, 6)
+          .join(', ')}.`,
       level: catnat.length > 5 ? 'defavorable' : 'attention',
+      href: 'https://www.georisques.gouv.fr/le-dispositif-dindemnisation-des-catastrophes-naturelles',
     })
     commentaire.push(
       `La commune a fait l'objet de ${pluriel(catnat.length, 'arrêté')} de catastrophe naturelle pour inondation ou coulée de boue` +
@@ -145,14 +154,25 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
 
   const risqueLittoral = risques?.some((risque) => MOTS_CLES.littoral.test(risque.libelle)) ?? null
   indicateurs.push({
-    label: 'Érosion du littoral / submersion marine',
-    value: risqueLittoral === null ? 'Donnée indisponible' : risqueLittoral ? 'Commune concernée' : 'Commune non concernée',
-    detail: risqueLittoral
-      ? "Le recul du trait de côte est suivi par le Cerema dans l'indicateur national de l'érosion côtière, avec des projections à 2050 et 2100."
-      : "Aucun risque de recul du trait de côte ou de submersion marine n'est recensé pour cette commune dans la base GASPAR.",
-    level: risqueLittoral === null ? 'inconnu' : risqueLittoral ? 'defavorable' : 'favorable',
-    href: risqueLittoral ? 'https://www.cerema.fr/fr/actualites/indicateur-national-erosion-cotiere' : undefined,
+    label: 'Recul du trait de côte (liste fixée par décret)',
+    value: erosion ? 'Commune inscrite au décret' : 'Commune non inscrite',
+    situation: erosion?.statut ?? undefined,
+    detail: erosion
+      ? "La commune figure sur la liste nationale des communes devant adapter leur urbanisme au recul du trait de côte : cartographie locale de l'aléa à 30 et 100 ans, et inscription au document d'urbanisme."
+      : "La commune ne figure pas sur la liste nationale des communes devant s'adapter au recul du trait de côte.",
+    level: erosion ? 'defavorable' : 'favorable',
+    href: erosion?.decret ?? undefined,
   })
+
+  if (risqueLittoral) {
+    indicateurs.push({
+      label: 'Submersion marine / érosion (GASPAR)',
+      value: 'Risque recensé sur la commune',
+      detail: "Recensement des risques majeurs de la commune. L'indicateur national d'érosion côtière du Cerema donne l'évolution mesurée du trait de côte.",
+      level: 'defavorable',
+      href: 'https://www.cerema.fr/fr/actualites/indicateur-national-erosion-cotiere',
+    })
+  }
 
   const risqueSecheresse = risques?.some((risque) => MOTS_CLES.secheresse.test(risque.libelle)) ?? null
   if (risqueSecheresse) {
@@ -166,7 +186,8 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
   }
 
   lacunes.push(
-    "Le recul du trait de côte n'est pas mesuré ici à l'adresse : l'indicateur national du Cerema est diffusé par linéaire côtier, sans service interrogeable par point.",
+    "Le recul du trait de côte n'est pas mesuré ici à l'adresse : l'indicateur national du Cerema est diffusé par linéaire côtier et son service ne peut pas être interrogé depuis un navigateur. Seule l'inscription de la commune au décret est vérifiée.",
+    "Les arrêtés de catastrophe naturelle sont identifiés par leur code national, mais aucun permalien public ne permet d'ouvrir directement le texte d'un arrêté donné : ils se retrouvent par ce code sur Géorisques ou au Journal officiel.",
     "L'aléa feu de forêt est restitué au niveau de la commune (base GASPAR), pas à l'échelle de la parcelle ni avec une projection 2050 : les cartes d'aléa projeté sont produites par massif, à l'échelle régionale.",
     "Les projections reposent sur un unique modèle climatique et un scénario d'émissions : elles décrivent un futur plausible, pas une prévision. Les portails DRIAS (Météo-France) permettent d'explorer l'éventail complet des modèles et scénarios.",
   )
@@ -181,7 +202,7 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
       { label: 'Open-Meteo Climate API — CMIP6 régionalisé', href: 'https://open-meteo.com/en/docs/climate-api', note: 'projections à 2050, corrigées sur ERA5' },
       { label: 'DRIAS — les futurs du climat (Météo-France)', href: 'https://www.drias-climat.fr/', note: 'référence française, tous modèles et scénarios' },
       { label: 'Géorisques — risques de la commune (GASPAR)', href: 'https://www.georisques.gouv.fr/', note: 'inondation, feu de forêt, littoral' },
-      { label: 'Géorisques — arrêtés de catastrophe naturelle', href: 'https://www.georisques.gouv.fr/risques/catastrophes-naturelles' },
+      { label: 'Géorisques — arrêtés de catastrophe naturelle', href: 'https://www.georisques.gouv.fr/le-dispositif-dindemnisation-des-catastrophes-naturelles' },
       { label: 'Cerema — indicateur national de l’érosion côtière', href: 'https://www.cerema.fr/fr/actualites/indicateur-national-erosion-cotiere' },
     ],
   }

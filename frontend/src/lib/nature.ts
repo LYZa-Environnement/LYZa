@@ -29,6 +29,17 @@ export interface ZonageNaturel {
   distanceM: number
   direction: string | null
   url: string | null
+  /** Area of the zone in hectares, as computed by the MNHN on its own
+   * geometry (`area_sig`) — the officially declared area (`surf_off`) is
+   * usually empty on these layers. */
+  surfaceHa: number | null
+  /** Date the zone was created or designated. */
+  dateCreation: string | null
+  /** Body responsible for the site, when named. */
+  gestionnaire: string | null
+  /** True for a marine zone — a terrestrial site next to one is a different
+   * proposition from one inside it. */
+  marin: boolean
   geometrie: PolygonGeometry
 }
 
@@ -86,6 +97,10 @@ export async function fetchZonagesNaturels(lat: number, lon: number, radiusM = 5
         distanceM: inclus ? 0 : minDistanceToGeometryBoundaryM(lat, lon, geometry),
         direction: inclus || !centroid ? null : cardinalDirection(bearingDegrees(lat, lon, centroid[1], centroid[0])),
         url: str(props.url),
+        surfaceHa: typeof props.area_sig === 'number' ? props.area_sig : typeof props.surf_off === 'number' ? props.surf_off : null,
+        dateCreation: str(props.date_crea),
+        gestionnaire: str(props.gest_site),
+        marin: String(props.marin ?? '').toUpperCase() === 'T',
         geometrie: geometry,
       })
     }

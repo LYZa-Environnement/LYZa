@@ -29,10 +29,23 @@ interface Troncon {
   flowKnown: boolean
 }
 
+/** A named watercourse found further out, when the nearest one carries no
+ * toponym in BD TOPO — an unnamed ditch 80 m away says less about a site than
+ * the river it drains into. */
+export interface CoursDEauNomme {
+  nom: string
+  distanceM: number
+  direction: string
+  path: [number, number][]
+}
+
 export interface ReseauHydro {
   /** Upstream-to-downstream ordered path, in [lat, lon] for Leaflet. */
   path: [number, number][]
   nom: string | null
+  /** Set only when `nom` is null: the closest watercourse that does have a
+   * name, so the reader still gets a recognisable receptor. */
+  premierNomme: CoursDEauNomme | null
   /** Shortest distance from the site to the watercourse, in metres. */
   distanceM: number
   direction: string
@@ -162,9 +175,32 @@ export async function findReseauHydro(lat: number, lon: number): Promise<ReseauH
     let longueurM = 0
     for (let i = 0; i < path.length - 1; i++) longueurM += haversineMeters(path[i][1], path[i][0], path[i + 1][1], path[i + 1][0])
 
+    const nom = nearest.troncon.nom ?? sameCourse.find((t) => t.nom)?.nom ?? null
+
+    // When the nearest watercourse has no toponym, look through the same
+    // result set for the closest one that does, so the reader is given a
+    // receptor they can actually recognise.
+    let premierNomme: CoursDEauNomme | null = null
+    if (!nom) {
+      for (const troncon of troncons) {
+        if (!troncon.nom) continue
+        const projection = projectOnPath(lat, lon, troncon.path)
+        if (!projection) continue
+        if (!premierNomme || projection.distanceM < premierNomme.distanceM) {
+          premierNomme = {
+            nom: troncon.nom,
+            distanceM: projection.distanceM,
+            direction: cardinalDirection(bearingDegrees(lat, lon, projection.lat, projection.lon)),
+            path: troncon.path.map(([plon, plat]) => [plat, plon] as [number, number]),
+          }
+        }
+      }
+    }
+
     return {
       path: path.map(([plon, plat]) => [plat, plon] as [number, number]),
-      nom: nearest.troncon.nom ?? sameCourse.find((t) => t.nom)?.nom ?? null,
+      nom,
+      premierNomme,
       distanceM: projection.distanceM,
       direction: cardinalDirection(bearingDegrees(lat, lon, projection.lat, projection.lon)),
       flowKnown: nearest.troncon.flowKnown,

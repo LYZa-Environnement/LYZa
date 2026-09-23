@@ -162,11 +162,81 @@ export interface ListResult<T> {
 
 // ---- ICPE (installations classées) ----------------------------------------
 
+// NAF divisions (first two digits of `codeNaf`) — only the ones that actually
+// turn up among classified installations, which is what makes "code NAF 38"
+// readable as "déchets". An unmapped code falls back to the raw code.
+const SECTEURS_NAF: Record<string, string> = {
+  '01': 'Agriculture et élevage',
+  '02': 'Sylviculture',
+  '05': 'Extraction de houille',
+  '06': "Extraction d'hydrocarbures",
+  '07': 'Extraction de minerais métalliques',
+  '08': 'Carrières et autres industries extractives',
+  '09': 'Services de soutien aux industries extractives',
+  '10': 'Industries alimentaires',
+  '11': 'Fabrication de boissons',
+  '13': 'Industrie textile',
+  '14': "Industrie de l'habillement",
+  '15': 'Cuir et chaussure',
+  '16': 'Travail du bois',
+  '17': 'Industrie du papier et du carton',
+  '18': 'Imprimerie et reproduction',
+  '19': 'Cokéfaction et raffinage',
+  '20': 'Industrie chimique',
+  '21': 'Industrie pharmaceutique',
+  '22': 'Produits en caoutchouc et en plastique',
+  '23': 'Autres produits minéraux non métalliques',
+  '24': 'Métallurgie',
+  '25': 'Fabrication de produits métalliques',
+  '26': 'Produits informatiques et électroniques',
+  '27': 'Fabrication d’équipements électriques',
+  '28': 'Fabrication de machines et équipements',
+  '29': 'Industrie automobile',
+  '30': 'Autres matériels de transport',
+  '31': 'Fabrication de meubles',
+  '32': 'Autres industries manufacturières',
+  '33': 'Réparation et installation de machines',
+  '35': "Production et distribution d'énergie",
+  '36': "Captage et distribution d'eau",
+  '37': 'Assainissement, eaux usées',
+  '38': 'Collecte et traitement des déchets',
+  '39': 'Dépollution et gestion des déchets',
+  '41': 'Construction de bâtiments',
+  '42': 'Génie civil',
+  '43': 'Travaux de construction spécialisés',
+  '45': 'Commerce et réparation automobile',
+  '46': 'Commerce de gros',
+  '47': 'Commerce de détail',
+  '49': 'Transports terrestres',
+  '50': 'Transports par eau',
+  '51': 'Transports aériens',
+  '52': 'Entreposage et services aux transports',
+  '55': 'Hébergement',
+  '56': 'Restauration',
+  '64': 'Activités financières',
+  '68': 'Activités immobilières',
+  '71': 'Ingénierie et analyses techniques',
+  '72': 'Recherche-développement scientifique',
+  '84': 'Administration publique',
+  '85': 'Enseignement',
+  '86': 'Activités pour la santé humaine',
+  '87': 'Hébergement médico-social',
+  '93': 'Sport et loisirs',
+  '96': 'Autres services personnels',
+}
+
 export interface IcpeItem {
   nom: string
   commune: string
+  adresse: string | null
   regime: string
   codeNaf: string | null
+  /** Plain-language sector from the NAF division (first two digits). */
+  secteur: string | null
+  /** "En exploitation avec titre", "Cessation d'activité déclarée"… —
+   * verified live. The API carries no creation or closure *date*, only this
+   * status, so that is what is reported. */
+  etatActivite: string | null
   seveso: string | null
   ficheUrl: string | null
   localisation: Localisation | null
@@ -192,12 +262,16 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
     const item = (entry ?? {}) as Record<string, unknown>
     const codeAIOT = str(item.codeAIOT)
     const regime = str(item.regime) ?? '—'
+    const codeNaf = str(item.codeNaf)
     return {
       nom: str(item.raisonSociale) ?? 'Établissement',
       commune: str(item.commune) ?? '',
+      adresse: [str(item.adresse1), str(item.codePostal)].filter(Boolean).join(', ') || null,
       regime,
       classee: !/^non icpe$/i.test(regime),
-      codeNaf: str(item.codeNaf),
+      codeNaf,
+      secteur: codeNaf ? (SECTEURS_NAF[codeNaf.slice(0, 2)] ?? null) : null,
+      etatActivite: str(item.etatActivite),
       seveso: str(item.statutSeveso),
       ficheUrl: codeAIOT ? `https://www.georisques.gouv.fr/risques/installations/donnees/details/${encodeURIComponent(codeAIOT)}` : null,
       // Flat latitude/longitude fields, not a geom object — verified against
@@ -214,10 +288,18 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
 
 export interface CasiasItem {
   identifiant: string | null
+  /** Street address of the former site — verified as the only human-readable
+   * descriptor the endpoint actually returns. `nom_etablissement` and
+   * `activite_principale` are documented but come back absent on every record
+   * checked, so they are not relied on. */
+  adresse: string | null
   nom: string
   commune: string
   activite: string | null
   statut: string | null
+  /** Last update of the inventory record — tells the reader how old the
+   * archival research behind it is. */
+  dateMaj: string | null
   ficheUrl: string | null
   localisation: Localisation | null
 }
@@ -300,12 +382,15 @@ export async function fetchSsp(lat: number, lon: number, rayon: number): Promise
 
   const casiasItems: CasiasItem[] = casiasAcc.map((entry) => {
     const item = (entry ?? {}) as Record<string, unknown>
+    const adresse = str(item.adresse)
     return {
       identifiant: identifiantOf(item, 'identifiant_casias', 'identifiant_ssp'),
-      nom: str(item.nom_etablissement) ?? 'Site industriel',
+      adresse,
+      nom: str(item.nom_etablissement) ?? adresse ?? 'Ancien site industriel',
       commune: str(item.nom_commune) ?? '',
-      activite: str(item.activite_principale),
+      activite: str(item.activite_principale) ?? str(item.activite),
       statut: str(item.statut),
+      dateMaj: str(item.date_maj),
       ficheUrl: str(item.fiche_risque),
       localisation: localise(lat, lon, item.geom),
     }
@@ -437,10 +522,22 @@ export async function zonageSismique(codeInsee: string): Promise<number | null> 
   return toInt(firstField(payload, 'zone_sismicite', 'code_zone'))
 }
 
-export async function argilesExposition(codeInsee: string): Promise<string | null> {
-  const payload = await getRaw('argiles', { code_insee: codeInsee })
-  const value = firstField(payload, 'expo', 'alea', 'exposition')
-  return value === null ? null : String(value)
+/** Exposure to clay shrink-swell (retrait-gonflement des argiles) at the point
+ * itself, not at commune level. Verified live: `/rga?latlon=lon,lat` answers
+ * with a flat `{codeExposition, exposition}` object — a different shape from
+ * every other endpoint here, and it takes coordinates rather than an INSEE
+ * code (the former `/argiles?code_insee=` route no longer exists). */
+export interface ExpositionArgiles {
+  code: number | null
+  libelle: string
+}
+
+export async function fetchExpositionArgiles(lat: number, lon: number): Promise<ExpositionArgiles | null> {
+  const payload = await getRaw('rga', { latlon: latlon(lat, lon) })
+  if (payload === null) return null
+  const libelle = str(payload.exposition)
+  if (!libelle) return null
+  return { code: toInt(payload.codeExposition), libelle }
 }
 
 export async function radonClasse(codeInsee: string): Promise<number | null> {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { BASE_LAYERS } from '../lib/basemap'
 import type { MapFeature, Site } from '../types/site'
@@ -14,16 +14,22 @@ function Frame({ site, rayonM }: { site: Site; rayonM: number }) {
   const map = useMap()
   // Fit the searched radius rather than a fixed zoom: a rubrique looking 10 km
   // out and one looking 500 m out need very different framings.
-  const bounds = useMemo(() => {
+  //
+  // In an effect, not in the render body: framing the map is a side effect, and
+  // running it on every render would snap the view back and undo the reader's
+  // own panning and wheel zoom.
+  useEffect(() => {
     const dLat = rayonM / 111320
     const dLon = rayonM / (111320 * Math.cos((site.lat * Math.PI) / 180))
-    return [
-      [site.lat - dLat, site.lon - dLon],
-      [site.lat + dLat, site.lon + dLon],
-    ] as [[number, number], [number, number]]
-  }, [site.lat, site.lon, rayonM])
+    map.fitBounds(
+      [
+        [site.lat - dLat, site.lon - dLon],
+        [site.lat + dLat, site.lon + dLon],
+      ],
+      { padding: [12, 12] },
+    )
+  }, [map, site.lat, site.lon, rayonM])
 
-  map.fitBounds(bounds, { padding: [12, 12] })
   return null
 }
 
@@ -40,7 +46,10 @@ export default function ThemeMap({ site, features, rayonM, height = '26rem' }: P
   return (
     <div>
       <div style={{ height, border: 'var(--border-w) solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-        <MapContainer center={[site.lat, site.lon]} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+        {/* Wheel zoom is enabled outright rather than gated behind a modifier
+            key: these maps are the point of each rubrique, not decoration in a
+            wall of text, so a reader hovering one means to zoom it. */}
+        <MapContainer center={[site.lat, site.lon]} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
           <TileLayer key={base.id} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} />
 
           <Circle center={[site.lat, site.lon]} radius={rayonM} pathOptions={{ color: '#1b2a1f', weight: 1, dashArray: '4 4', fillOpacity: 0.03 }} />

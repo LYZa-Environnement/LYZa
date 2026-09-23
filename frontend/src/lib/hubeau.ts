@@ -81,6 +81,14 @@ function nearestByCoordinates<T extends Record<string, unknown>>(
 
 export interface AdesReferencePoint {
   codeBss: string
+  /** Modern ADES identifier (BSS001GVLA…) — this is what the public fiche URL
+   * keys on; the historical `code_bss` ("04817X1698/PZ3") is shown as the
+   * reference a hydrogeologist will recognise. */
+  bssId: string | null
+  /** "Nom de l'entité hydrogéologique" as ADES/BDLISA names it — the aquifer
+   * the point actually taps. A station can reference several, so they are all
+   * kept and the caller shows the first. */
+  entitesHydrogeologiques: string[]
   lat: number
   lon: number
   distanceM: number
@@ -121,6 +129,10 @@ export async function findNearestAdesPoint(lat: number, lon: number, radiusM = 1
     lon: coords[0],
     distanceM: nearest.distanceM,
     direction: nearest.direction,
+    bssId: str(nearest.item.bss_id),
+    entitesHydrogeologiques: Array.isArray(nearest.item.noms_entite_hg_bdlisa)
+      ? (nearest.item.noms_entite_hg_bdlisa as unknown[]).map((n) => String(n)).filter((n) => n.trim() !== '')
+      : [],
     aquifere: meaningfulStr(nearest.item.nom_caracteristique_aquifere),
     nature: meaningfulStr(nearest.item.nom_nature_pe),
     profondeurNappeM,
@@ -222,6 +234,68 @@ export async function findNearestStationRiviere(lat: number, lon: number, radius
     analyses,
     nombreParametres: new Set(analyses.map((a) => a.parametre)).size,
     derniereDate: analyses[0]?.date ?? null,
+  }
+}
+
+// ---- État piscicole : quelles espèces vivent dans le cours d'eau ----------
+//
+// The closest thing to a national, open "fishing" dataset. It is a scientific
+// electrofishing network, not an inventory of fishing spots — no such national
+// inventory exists in open data — but the species actually caught at the
+// nearest station say more about the fishery interest of the watercourse than
+// any proxy, and migratory or demanding species (salmonids, eel, lamprey) are
+// themselves a sensitivity signal. Verified live: `etat_piscicole/stations`
+// filters by bbox and `etat_piscicole/observations` returns one row per taxon
+// per operation, with `nom_commun_taxon` in French.
+
+export interface StationPiscicole {
+  code: string
+  libelle: string | null
+  nomCoursEau: string | null
+  lat: number
+  lon: number
+  distanceM: number
+  direction: string
+  /** Distinct species recorded, most recently seen first. */
+  especes: string[]
+  dernierInventaire: string | null
+}
+
+export async function findNearestStationPiscicole(lat: number, lon: number, radiusM = 10000): Promise<StationPiscicole | null> {
+  const stations = await getData('v1/etat_piscicole/stations', { bbox: bboxParam(bboxAround(lat, lon, radiusM)), size: 200 })
+  if (!stations) return null
+  const nearest = nearestByCoordinates(lat, lon, stations, (item) => {
+    const coords = pointCoordinates(item)
+    if (coords) return coords
+    const longitude = num(item.longitude)
+    const latitude = num(item.latitude)
+    return longitude !== null && latitude !== null ? [longitude, latitude] : null
+  })
+  if (!nearest) return null
+  const code = str(nearest.item.code_station)
+  if (!code) return null
+
+  const rows = (await getData('v1/etat_piscicole/observations', { code_station: code, size: 500 })) ?? []
+  const parEspece = new Map<string, string>()
+  for (const row of rows) {
+    const nom = str(row.nom_commun_taxon) ?? str(row.nom_latin_taxon)
+    const date = str(row.date_operation) ?? ''
+    if (!nom) continue
+    const seen = parEspece.get(nom)
+    if (!seen || date > seen) parEspece.set(nom, date)
+  }
+  const especes = [...parEspece.entries()].sort((a, b) => b[1].localeCompare(a[1])).map(([nom]) => nom)
+
+  return {
+    code,
+    libelle: str(nearest.item.libelle_station),
+    nomCoursEau: str(nearest.item.libelle_cours_eau),
+    lat: nearest.item.latitude !== undefined ? (num(nearest.item.latitude) ?? lat) : lat,
+    lon: nearest.item.longitude !== undefined ? (num(nearest.item.longitude) ?? lon) : lon,
+    distanceM: nearest.distanceM,
+    direction: nearest.direction,
+    especes,
+    dernierInventaire: [...parEspece.values()].sort().pop() ?? null,
   }
 }
 
