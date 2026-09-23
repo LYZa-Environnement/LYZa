@@ -79,7 +79,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
     })
     if (familles.length > 0) {
       commentaire.push(
-        `La commune est concernée par ${pluriel(familles.length, 'risque majeur', 'risques majeurs')} recensé${familles.length > 1 ? 's' : ''} dans la base GASPAR : ` +
+        `La commune est concernée par ${pluriel(familles.length, 'risque majeur', 'risques majeurs')} recensé${familles.length > 1 ? 's' : ''} dans la base nationale GASPAR (gestion assistée des procédures administratives relatives aux risques) : ` +
           `${familles.map((risque) => risque.libelle.toLowerCase()).join(', ')}. ` +
           `Ce recensement vaut pour la commune entière : il indique quels risques ont été identifiés par les services de l'État, ` +
           `pas s'ils s'appliquent à cette parcelle.`,
