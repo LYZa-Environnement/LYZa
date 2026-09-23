@@ -39,7 +39,7 @@ export const RUBRIQUES: Rubrique[] = [
     id: 'nature',
     titre: 'Faune et flore',
     sousTitre:
-      'Périmètres Natura 2000, ZNIEFF, parcs naturels et réserves autour du site, et les espèces effectivement observées à proximité.',
+      'Périmètres Natura 2000, zones naturelles d’intérêt écologique (ZNIEFF), parcs naturels et réserves autour du site, et les espèces effectivement observées à proximité.',
     build: buildNature,
   },
   {

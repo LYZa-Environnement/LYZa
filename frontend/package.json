@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/veille.mjs && tsc -b && vite build",
+    "build": "npm run donnees && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "veille": "node scripts/veille.mjs"
+    "veille": "node scripts/veille.mjs",
+    "donnees": "node scripts/veille.mjs && node scripts/baignade.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",

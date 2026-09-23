@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 
 const SOURCES = [
-  { label: 'Géorisques (BRGM)', href: 'https://www.georisques.gouv.fr/' },
+  { label: 'Géorisques — Bureau de recherches géologiques et minières', href: 'https://www.georisques.gouv.fr/' },
   { label: "Hub'Eau", href: 'https://hubeau.eaufrance.fr/' },
-  { label: 'IGN Géoplateforme', href: 'https://geoservices.ign.fr/' },
-  { label: 'INPN / MNHN', href: 'https://inpn.mnhn.fr/' },
+  { label: 'Géoplateforme de l’Institut national de l’information géographique et forestière', href: 'https://geoservices.ign.fr/' },
+  { label: 'Inventaire national du patrimoine naturel — Muséum national d’histoire naturelle', href: 'https://inpn.mnhn.fr/' },
   { label: 'VigiEau', href: 'https://vigieau.gouv.fr/' },
   { label: 'Copernicus / CAMS', href: 'https://atmosphere.copernicus.eu/' },
 ]

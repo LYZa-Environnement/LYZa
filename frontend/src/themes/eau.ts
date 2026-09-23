@@ -1,4 +1,4 @@
-import { findNearestBathingSite } from '../lib/baignade'
+import { niveauQualiteBaignade, surveyBathingSites, type BathingSite } from '../lib/baignade'
 import { cached, pointKey } from '../lib/cache'
 import { fetchEauPotable, limitesRespectees } from '../lib/eauPotable'
 import { formatDistance } from '../lib/geo'
@@ -15,6 +15,8 @@ const RAYON_M = 3000
  * "nothing that close". These three are searched wider, and the radius is
  * always stated alongside the result. */
 const RAYON_USAGES_M = 10000
+/** How many bathing sites are detailed individually before the list is capped. */
+const MAX_BAIGNADES_DETAILLEES = 15
 const PPE_PERTINENT_M = 5000
 
 const COULEURS = {
@@ -34,6 +36,39 @@ function ficheStation(code: string): string {
   return `https://id.eaufrance.fr/StationMesureEauxSurface/${encodeURIComponent(code)}`
 }
 
+/** Amont/aval only means something when the bathing site is on the same
+ * watercourse as the study site. On a beach, a lake or an estuary the water
+ * does not flow from one to the other in any useful sense, so those get the
+ * distance and the direction alone. */
+function situationBaignade(site: BathingSite, reseau: Parameters<typeof situationHydro>[2]): string {
+  const enRiviere = /rivi[eè]re|cours d'eau/i.test(site.typeEau ?? '')
+  return enRiviere ? situationHydro(site.distanceM, site.direction, reseau, site.lat, site.lon) : situation(site.distanceM, site.direction)
+}
+
+/** What is known about a bathing site beyond its classification: where it is,
+ * when it is open, and what happened there during the last reported season. */
+function detailBaignade(site: BathingSite, saison: number | null): string {
+  const incidents: string[] = []
+  if (site.interdictions > 0) incidents.push(pluriel(site.interdictions, "épisode d'interdiction sanitaire", "épisodes d'interdiction sanitaire"))
+  if (site.cyanobacteries > 0) incidents.push(pluriel(site.cyanobacteries, 'épisode de prolifération de cyanobactéries', 'épisodes de prolifération de cyanobactéries'))
+  if (site.pollutions > 0) incidents.push(pluriel(site.pollutions, 'épisode de pollution à court terme', 'épisodes de pollution à court terme'))
+
+  return [
+    [site.commune, site.typeEau].filter(Boolean).join(' — ') || null,
+    site.saisonDebut && site.saisonFin ? `saison de baignade du ${site.saisonDebut} au ${site.saisonFin}` : null,
+    incidents.length > 0
+      ? `${incidents.join(', ')}${saison ? ` au cours de la saison ${saison}` : ''}`
+      : saison
+        ? `aucune fermeture ni prolifération signalée au cours de la saison ${saison}`
+        : null,
+    site.qualite
+      ? null
+      : "pas encore de classement : un site nouvellement identifié, ou trop peu d'analyses, n'est pas classé — ce n'est pas un mauvais résultat",
+  ]
+    .filter(Boolean)
+    .join('. ')
+}
+
 export async function buildEau(site: Site): Promise<ThemeReport> {
   const { lat, lon } = site
   const [reseau, potable, station, piscicole, baignade, restrictions, ppe, prelevements, ades] = await Promise.all([
@@ -41,7 +76,7 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
     safe(fetchEauPotable(site.citycode)),
     safe(findNearestStationRiviere(lat, lon, RAYON_USAGES_M)),
     safe(findNearestStationPiscicole(lat, lon, RAYON_USAGES_M)),
-    safe(findNearestBathingSite(lat, lon)),
+    safe(surveyBathingSites(lat, lon, RAYON_USAGES_M)),
     safe(fetchRestrictions(lat, lon)),
     safe(findNearestPpe(lat, lon)),
     safe(fetchPrelevements(lat, lon, RAYON_M)),
@@ -206,26 +241,67 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
 
   // ---- Baignade (eau douce et eau de mer) ---------------------------------
 
-  if (baignade && baignade.distanceM <= RAYON_USAGES_M) {
-    features.push({ kind: 'point', lat: baignade.lat, lon: baignade.lon, label: `Baignade — ${baignade.nom}`, color: COULEURS.baignade, group: 'Site de baignade' })
+  if (baignade && baignade.sites.length > 0) {
+    for (const site of baignade.sites.slice(0, 40)) {
+      features.push({ kind: 'point', lat: site.lat, lon: site.lon, label: `Baignade — ${site.nom}`, color: COULEURS.baignade, group: 'Site de baignade' })
+    }
+
+    const proche = baignade.sites[0]
+    const classes = baignade.sites.filter((site) => site.qualite !== null)
+    const insuffisants = baignade.sites.filter((site) => site.qualite === 'Insuffisante')
+
     indicateurs.push({
-      label: 'Site de baignade officiel le plus proche',
-      value: baignade.nom,
-      situation: situationHydro(baignade.distanceM, baignade.direction, reseau, baignade.lat, baignade.lon),
+      label: 'Sites de baignade officiels à proximité',
+      value: pluriel(baignade.sites.length, 'site recensé', 'sites recensés'),
+      situation: `Dans un rayon de ${formatDistance(RAYON_USAGES_M)}`,
       detail:
-        [baignade.commune, baignade.typeEau].filter(Boolean).join(' — ') +
-        ` — recensement national (eaux douces et eaux de mer), rayon de recherche ${formatDistance(RAYON_USAGES_M)}.`,
-      level: baignade.distanceM <= 1000 ? 'attention' : 'favorable',
+        `Le plus proche est ${proche.nom}, ${situationBaignade(proche, reseau)}. ` +
+        (classes.length === 0
+          ? "Aucun d'eux ne dispose encore d'un classement de la qualité de l'eau."
+          : (classes.length === baignade.sites.length
+              ? `Tous disposent d'un classement de la qualité de l'eau`
+              : `${classes.length} d'entre eux ${classes.length > 1 ? 'disposent' : 'dispose'} d'un classement de la qualité de l'eau`) +
+            `${baignade.saisonClassement ? ` pour la saison ${baignade.saisonClassement}` : ''}.` +
+            (baignade.sites.length > MAX_BAIGNADES_DETAILLEES ? ` Les ${MAX_BAIGNADES_DETAILLEES} plus proches sont détaillés ci-dessous.` : '')),
+      level: insuffisants.length > 0 ? 'defavorable' : proche.distanceM <= 1000 ? 'attention' : 'favorable',
       href: 'https://baignades.sante.gouv.fr/baignades/editorial/fr/accueil.html',
     })
+
+    // One line per site: the quality classification is what a reader actually
+    // wants from a bathing site, and a closure or a cyanobacteria bloom during
+    // the season says more than the classification alone.
+    for (const site of baignade.sites.slice(0, MAX_BAIGNADES_DETAILLEES)) {
+      indicateurs.push({
+        pliable: 'Détail des sites de baignade',
+        label: site.nom,
+        value: site.qualite ? `Qualité de l'eau ${site.qualite.toLowerCase()}` : 'Qualité non classée',
+        situation: situationBaignade(site, reseau),
+        detail: detailBaignade(site, baignade.saisonClassement),
+        level: niveauQualiteBaignade(site.qualite),
+      })
+    }
+
+    commentaire.push(
+      `${pluriel(baignade.sites.length, 'site de baignade officiel', 'sites de baignade officiels')} ` +
+        `${baignade.sites.length > 1 ? 'sont recensés' : 'est recensé'} dans un rayon de ${formatDistance(RAYON_USAGES_M)}, ` +
+        `le plus proche (${proche.nom}) ${situationBaignade(proche, reseau)}. ` +
+        `Le classement de la qualité de l'eau est établi sur les quatre saisons précédentes, à partir des analyses bactériologiques ` +
+        `du contrôle sanitaire : il décrit une tendance, pas l'état de l'eau un jour donné.` +
+        (insuffisants.length > 0
+          ? ` ${pluriel(insuffisants.length, 'site', 'sites')} ${insuffisants.length > 1 ? 'sont classés' : 'est classé'} en qualité insuffisante, ` +
+            `ce qui oblige la commune à identifier les sources de pollution et à en informer les baigneurs.`
+          : ''),
+    )
   } else {
     indicateurs.push({
-      label: 'Site de baignade officiel',
+      label: 'Sites de baignade officiels à proximité',
       value: 'Aucun recensé',
       situation: `Recherche dans un rayon de ${formatDistance(RAYON_USAGES_M)}`,
       detail:
-        'Le recensement couvre les baignades en eau douce comme en eau de mer' +
-        (baignade ? `. Le plus proche se situe à ${formatDistance(baignade.distanceM)}, au-delà du rayon de recherche.` : '.'),
+        'Le recensement national du ministère de la Santé couvre les baignades en eau douce comme en eau de mer' +
+        (baignade?.plusProche
+          ? `. Le plus proche, ${baignade.plusProche.nom}${baignade.plusProche.commune ? ` (${baignade.plusProche.commune})` : ''}, se situe à ${formatDistance(baignade.plusProche.distanceM)} — au-delà du rayon de recherche.`
+          : '.'),
       level: 'favorable',
       href: 'https://baignades.sante.gouv.fr/baignades/editorial/fr/accueil.html',
     })
@@ -278,7 +354,7 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
       // so the ADES fiche it used to point at never resolved. The reference is
       // given as text instead, which is what a préfecture or ARS will ask for.
       detail: pertinent
-        ? [ppe.captageRef ? `Référence captage ARS ${ppe.captageRef}` : null, ppe.etatProcedure].filter(Boolean).join(' — ') || undefined
+        ? [ppe.captageRef ? `Référence du captage à l'agence régionale de santé : ${ppe.captageRef}` : null, ppe.etatProcedure].filter(Boolean).join(' — ') || undefined
         : undefined,
       level: ppe.inside ? 'defavorable' : ppe.distanceM < 500 ? 'attention' : 'favorable',
     })
@@ -319,17 +395,17 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
   }
 
   if (ades) {
-    features.push({ kind: 'point', lat: ades.lat, lon: ades.lon, label: `Point ADES ${ades.codeBss}`, color: COULEURS.captage, group: 'Point de suivi des nappes' })
+    features.push({ kind: 'point', lat: ades.lat, lon: ades.lon, label: `Point de suivi des eaux souterraines ${ades.codeBss}`, color: COULEURS.captage, group: 'Point de suivi des nappes' })
     const entite = ades.entitesHydrogeologiques[0] ?? null
     indicateurs.push({
-      label: 'Nappe souterraine (point ADES le plus proche)',
+      label: 'Nappe souterraine (point de suivi le plus proche)',
       value: entite ?? ades.aquifere ?? 'Entité hydrogéologique non précisée',
       situation: situation(ades.distanceM, ades.direction),
       detail:
         [
           ades.profondeurNappeM !== null ? `Profondeur de nappe mesurée : ${ades.profondeurNappeM.toFixed(1)} m` : 'Profondeur de nappe non mesurée',
           ades.nature,
-          `réf. BSS ${ades.codeBss}`,
+          `réf. banque du sous-sol ${ades.codeBss}`,
         ]
           .filter(Boolean)
           .join(' — '),
@@ -359,14 +435,18 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
     lacunes,
     rayonM: RAYON_USAGES_M,
     sources: [
-      { label: "Hub'Eau — Qualité de l'eau potable (ARS)", href: 'https://hubeau.eaufrance.fr/page/api-qualite-eau-potable', note: 'contrôle sanitaire, par commune' },
+      { label: "Hub'Eau — Qualité de l'eau potable", href: 'https://hubeau.eaufrance.fr/page/api-qualite-eau-potable', note: 'contrôle sanitaire des agences régionales de santé (ARS), par commune' },
       { label: "Hub'Eau — Qualité des cours d'eau", href: 'https://hubeau.eaufrance.fr/page/api-qualite-cours-deau', note: 'stations et analyses physico-chimiques' },
-      { label: "Hub'Eau — Poisson (état piscicole)", href: 'https://hubeau.eaufrance.fr/page/api-poisson', note: 'inventaires par pêche électrique' },
+      { label: "Hub'Eau — état piscicole", href: 'https://hubeau.eaufrance.fr/page/api-poisson', note: 'inventaires par pêche scientifique à l’électricité' },
       { label: "Hub'Eau — Prélèvements en eau", href: 'https://hubeau.eaufrance.fr/page/api-prelevements-eau' },
-      { label: 'ADES / BDLISA — eaux souterraines', href: 'https://ades.eaufrance.fr/', note: 'niveau, qualité et entité hydrogéologique' },
+      { label: 'ADES — portail national d’accès aux données sur les eaux souterraines', href: 'https://ades.eaufrance.fr/', note: 'niveau, qualité et entité hydrogéologique (référentiel BDLISA)' },
       { label: 'VigiEau — restrictions en vigueur', href: 'https://vigieau.gouv.fr/', note: "arrêtés sécheresse applicables à l'adresse" },
-      { label: 'Baignades — Ministère de la Santé', href: 'https://baignades.sante.gouv.fr/', note: 'eaux douces et eaux de mer' },
-      { label: 'IGN BD TOPO® — réseau hydrographique', href: 'https://geoservices.ign.fr/bdtopo', note: "tracé et sens d'écoulement des cours d'eau" },
+      {
+        label: 'Ministère de la Santé — rapportage de la saison balnéaire',
+        href: 'https://baignades.sante.gouv.fr/',
+        note: 'liste nationale des sites, classement de la qualité de l’eau et journal de la saison, eaux douces et eaux de mer',
+      },
+      { label: 'Institut national de l’information géographique et forestière (IGN), base de données BD TOPO® — réseau hydrographique', href: 'https://geoservices.ign.fr/bdtopo', note: "tracé et sens d'écoulement des cours d'eau" },
     ],
   }
 }

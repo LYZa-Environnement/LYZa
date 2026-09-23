@@ -166,7 +166,7 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
 
   if (risqueLittoral) {
     indicateurs.push({
-      label: 'Submersion marine / érosion (GASPAR)',
+      label: 'Submersion marine et érosion recensées sur la commune',
       value: 'Risque recensé sur la commune',
       detail: "Recensement des risques majeurs de la commune. L'indicateur national d'érosion côtière du Cerema donne l'évolution mesurée du trait de côte.",
       level: 'defavorable',
@@ -188,8 +188,8 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
   lacunes.push(
     "Le recul du trait de côte n'est pas mesuré ici à l'adresse : l'indicateur national du Cerema est diffusé par linéaire côtier et son service ne peut pas être interrogé depuis un navigateur. Seule l'inscription de la commune au décret est vérifiée.",
     "Les arrêtés de catastrophe naturelle sont identifiés par leur code national, mais aucun permalien public ne permet d'ouvrir directement le texte d'un arrêté donné : ils se retrouvent par ce code sur Géorisques ou au Journal officiel.",
-    "L'aléa feu de forêt est restitué au niveau de la commune (base GASPAR), pas à l'échelle de la parcelle ni avec une projection 2050 : les cartes d'aléa projeté sont produites par massif, à l'échelle régionale.",
-    "Les projections reposent sur un unique modèle climatique et un scénario d'émissions : elles décrivent un futur plausible, pas une prévision. Les portails DRIAS (Météo-France) permettent d'explorer l'éventail complet des modèles et scénarios.",
+    "L'aléa feu de forêt est restitué au niveau de la commune (base nationale GASPAR, gestion assistée des procédures administratives relatives aux risques), pas à l'échelle de la parcelle ni avec une projection 2050 : les cartes d'aléa projeté sont produites par massif, à l'échelle régionale.",
+    "Les projections reposent sur un unique modèle climatique et un scénario d'émissions : elles décrivent un futur plausible, pas une prévision. Le portail DRIAS — les futurs du climat (Météo-France) permet d'explorer l'éventail complet des modèles et scénarios.",
   )
 
   return {
@@ -199,9 +199,9 @@ export async function buildClimat(site: Site): Promise<ThemeReport> {
     lacunes,
     rayonM: RAYON_M,
     sources: [
-      { label: 'Open-Meteo Climate API — CMIP6 régionalisé', href: 'https://open-meteo.com/en/docs/climate-api', note: 'projections à 2050, corrigées sur ERA5' },
-      { label: 'DRIAS — les futurs du climat (Météo-France)', href: 'https://www.drias-climat.fr/', note: 'référence française, tous modèles et scénarios' },
-      { label: 'Géorisques — risques de la commune (GASPAR)', href: 'https://www.georisques.gouv.fr/', note: 'inondation, feu de forêt, littoral' },
+      { label: 'Open-Meteo — projections climatiques régionalisées du programme international CMIP6', href: 'https://open-meteo.com/en/docs/climate-api', note: 'projections à 2050, corrigées sur la réanalyse météorologique ERA5' },
+      { label: 'DRIAS, les futurs du climat (Météo-France)', href: 'https://www.drias-climat.fr/', note: 'référence française, tous modèles et scénarios' },
+      { label: 'Géorisques — risques recensés sur la commune (base GASPAR)', href: 'https://www.georisques.gouv.fr/', note: 'inondation, feu de forêt, littoral' },
       { label: 'Géorisques — arrêtés de catastrophe naturelle', href: 'https://www.georisques.gouv.fr/le-dispositif-dindemnisation-des-catastrophes-naturelles' },
       { label: 'Cerema — indicateur national de l’érosion côtière', href: 'https://www.cerema.fr/fr/actualites/indicateur-national-erosion-cotiere' },
     ],

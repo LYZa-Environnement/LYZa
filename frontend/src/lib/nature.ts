@@ -46,8 +46,8 @@ export interface ZonageNaturel {
 const MODULES: { endpoint: string; categorie: string }[] = [
   { endpoint: 'natura-habitat', categorie: 'Natura 2000 — Directive Habitats' },
   { endpoint: 'natura-oiseaux', categorie: 'Natura 2000 — Directive Oiseaux' },
-  { endpoint: 'znieff1', categorie: 'ZNIEFF de type I' },
-  { endpoint: 'znieff2', categorie: 'ZNIEFF de type II' },
+  { endpoint: 'znieff1', categorie: 'Zone naturelle d’intérêt écologique (ZNIEFF) de type I' },
+  { endpoint: 'znieff2', categorie: 'Zone naturelle d’intérêt écologique (ZNIEFF) de type II' },
   { endpoint: 'pn', categorie: 'Parc national' },
   { endpoint: 'pnr', categorie: 'Parc naturel régional' },
   { endpoint: 'rnn', categorie: 'Réserve naturelle nationale' },

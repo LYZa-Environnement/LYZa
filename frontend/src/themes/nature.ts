@@ -11,8 +11,8 @@ const MAX_ZONES_DETAILLEES = 14
 const COULEURS: Record<string, string> = {
   'Natura 2000 — Directive Habitats': '#1f6b45',
   'Natura 2000 — Directive Oiseaux': '#2a9d8f',
-  'ZNIEFF de type I': '#a3671a',
-  'ZNIEFF de type II': '#c9a227',
+  'Zone naturelle d’intérêt écologique (ZNIEFF) de type I': '#a3671a',
+  'Zone naturelle d’intérêt écologique (ZNIEFF) de type II': '#c9a227',
   'Parc national': '#0f4c81',
   'Parc naturel régional': '#1f6bbf',
   'Réserve naturelle nationale': '#7a4bbf',
@@ -25,8 +25,8 @@ const COULEURS: Record<string, string> = {
 const PORTEE: Record<string, string> = {
   'Natura 2000 — Directive Habitats': 'Protection européenne : évaluation des incidences obligatoire pour tout projet susceptible d’affecter le site.',
   'Natura 2000 — Directive Oiseaux': 'Protection européenne : évaluation des incidences obligatoire pour tout projet susceptible d’affecter le site.',
-  'ZNIEFF de type I': 'Inventaire scientifique, sans portée réglementaire directe — secteur de forte valeur biologique, opposable via l’erreur manifeste d’appréciation.',
-  'ZNIEFF de type II': 'Inventaire scientifique, sans portée réglementaire directe — grand ensemble naturel cohérent.',
+  'Zone naturelle d’intérêt écologique (ZNIEFF) de type I': 'Inventaire scientifique de la faune et de la flore, sans portée réglementaire directe — secteur de forte valeur biologique, opposable via l’erreur manifeste d’appréciation.',
+  'Zone naturelle d’intérêt écologique (ZNIEFF) de type II': 'Inventaire scientifique de la faune et de la flore, sans portée réglementaire directe — grand ensemble naturel cohérent.',
   'Parc national': 'Réglementation propre, très contraignante en cœur de parc.',
   'Parc naturel régional': 'Charte opposable aux documents d’urbanisme.',
   'Réserve naturelle nationale': 'Réglementation stricte fixée par décret.',
@@ -77,8 +77,20 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
     // One line per zone, nearest first, rather than one line per category:
     // a reader needs to know which zone, how big, since when, and what the
     // designation obliges — not just that "a ZNIEFF exists somewhere".
+    indicateurs.push({
+      label: "Périmètres d'inventaire et de protection de la nature",
+      value: pluriel(zonages.length, 'périmètre'),
+      situation: `Dans un rayon de ${formatDistance(RAYON_M)}`,
+      detail:
+        inclus.length > 0
+          ? `Le site est inclus dans ${inclus.length === 1 ? "l'un d'eux" : `${inclus.length} d'entre eux`}.`
+          : `Le site n'est inclus dans aucun d'eux ; le plus proche est ${zonages[0].nom}.`,
+      level: inclus.length > 0 ? 'defavorable' : zonages[0].distanceM < 1000 ? 'attention' : 'favorable',
+    })
+
     for (const zonage of zonages.slice(0, MAX_ZONES_DETAILLEES)) {
       indicateurs.push({
+        pliable: 'Détail des périmètres',
         label: zonage.nom,
         value: zonage.categorie,
         situation: zonage.inclus ? 'Le site est inclus dans ce périmètre' : situation(zonage.distanceM, zonage.direction),
@@ -93,7 +105,7 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
         `Le site est situé à l'intérieur de ${pluriel(inclus.length, 'périmètre')} d'inventaire ou de protection : ` +
           `${inclus.map((z) => `${z.nom} (${z.categorie.toLowerCase()})`).join(', ')}. ` +
           `Une inclusion dans un site Natura 2000 ou une réserve entraîne des obligations réglementaires — évaluation des incidences, ` +
-          `régime d'autorisation spécifique — tandis qu'une ZNIEFF est un inventaire scientifique sans portée réglementaire directe, ` +
+          `régime d'autorisation spécifique — tandis qu'une zone naturelle d'intérêt écologique (ZNIEFF) est un inventaire scientifique sans portée réglementaire directe, ` +
           `mais qui fonde l'appréciation d'un enjeu écologique.`,
       )
     } else {
@@ -106,7 +118,7 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
     }
   } else if (zonages) {
     commentaire.push(
-      `Aucun périmètre d'inventaire ou de protection de la nature (Natura 2000, ZNIEFF, parc, réserve) n'est recensé dans un rayon de ` +
+      `Aucun périmètre d'inventaire ou de protection de la nature (Natura 2000, zone naturelle d'intérêt écologique, parc, réserve) n'est recensé dans un rayon de ` +
         `${formatDistance(RAYON_M)} autour du site.`,
     )
     indicateurs.push({
@@ -122,7 +134,7 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
       label: 'Observations naturalistes géolocalisées',
       value: especes.total.toLocaleString('fr-FR'),
       situation: `Dans un rayon de ${formatDistance(especes.rayonM)}`,
-      detail: 'Toutes dates et tous groupes confondus, agrégées par le GBIF (dont les flux français SINP/INPN).',
+      detail: 'Toutes dates et tous groupes confondus, agrégées par le système mondial d’information sur la biodiversité (GBIF), dont les observations françaises.',
       level: 'favorable',
     })
 
@@ -130,7 +142,8 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
     // and how many times it has been recorded.
     for (const espece of especes.especes) {
       indicateurs.push({
-        label: `↳ ${espece.nomFrancais ?? espece.nom}`,
+        pliable: 'Détail des espèces les plus observées',
+        label: espece.nomFrancais ?? espece.nom,
         value: `${espece.occurrences.toLocaleString('fr-FR')} observations`,
         situation: espece.groupe ?? undefined,
         detail: espece.nomFrancais ? espece.nom : undefined,
@@ -156,8 +169,8 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
   }
 
   lacunes.push(
-    "Les espèces listées sont celles le plus souvent observées aux alentours, pas les espèces déterminantes des zonages : la liste des espèces ayant justifié le classement d'une ZNIEFF ou d'un site Natura 2000 n'est pas exposée par une API ouverte et se consulte sur la fiche INPN du site.",
-    "Le statut de protection des espèces (liste rouge UICN, espèces protégées nationales) n'est pas croisé ici : la détermination d'un enjeu réglementaire espèce par espèce relève d'un inventaire de terrain mené par un écologue.",
+    "Les espèces listées sont celles le plus souvent observées aux alentours, pas les espèces déterminantes des zonages : la liste des espèces ayant justifié le classement d'une zone naturelle d'intérêt écologique ou d'un site Natura 2000 n'est pas exposée par une API ouverte et se consulte sur la fiche de l’Inventaire national du patrimoine naturel (INPN) du site.",
+    "Le statut de protection des espèces (liste rouge de l’Union internationale pour la conservation de la nature, espèces protégées nationales) n'est pas croisé ici : la détermination d'un enjeu réglementaire espèce par espèce relève d'un inventaire de terrain mené par un écologue.",
     "Les zones humides, les continuités écologiques (trame verte et bleue) et les arrêtés de protection de biotope ne disposent pas d'un service national interrogeable par adresse.",
     'Les observations naturalistes sont opportunistes : leur répartition dépend de la fréquentation par les observateurs et ne constitue pas un inventaire exhaustif.',
   )
@@ -169,9 +182,9 @@ export async function buildNature(site: Site): Promise<ThemeReport> {
     lacunes,
     rayonM: RAYON_M,
     sources: [
-      { label: 'INPN — Inventaire national du patrimoine naturel', href: 'https://inpn.mnhn.fr/', note: 'ZNIEFF, Natura 2000, parcs et réserves' },
-      { label: 'IGN API Carto — module nature', href: 'https://apicarto.ign.fr/api/doc/nature', note: 'périmètres interrogés à l’adresse' },
-      { label: 'GBIF — occurrences d’espèces', href: 'https://www.gbif.org/', note: 'agrège les flux SINP/INPN français' },
+      { label: 'Inventaire national du patrimoine naturel (Muséum national d’histoire naturelle)', href: 'https://inpn.mnhn.fr/', note: 'zones naturelles d’intérêt écologique, Natura 2000, parcs et réserves' },
+      { label: 'API Carto de l’Institut national de l’information géographique et forestière (IGN) — module nature', href: 'https://apicarto.ign.fr/api/doc/nature', note: 'périmètres interrogés à l’adresse' },
+      { label: 'GBIF — système mondial d’information sur la biodiversité', href: 'https://www.gbif.org/', note: 'agrège notamment les observations françaises du système d’information sur la nature et les paysages' },
     ],
   }
 }

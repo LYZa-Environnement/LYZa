@@ -43,6 +43,60 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
   )
 }
 
+/** Splits the indicator list into runs: plain rows, and consecutive rows
+ * sharing a `pliable` label, which become one collapsible block. */
+function enBlocs(indicateurs: Indicator[]): ({ type: 'simple'; indicateur: Indicator } | { type: 'pliable'; titre: string; indicateurs: Indicator[] })[] {
+  const blocs: ({ type: 'simple'; indicateur: Indicator } | { type: 'pliable'; titre: string; indicateurs: Indicator[] })[] = []
+  for (const indicateur of indicateurs) {
+    const dernier = blocs[blocs.length - 1]
+    if (indicateur.pliable) {
+      if (dernier && dernier.type === 'pliable' && dernier.titre === indicateur.pliable) dernier.indicateurs.push(indicateur)
+      else blocs.push({ type: 'pliable', titre: indicateur.pliable, indicateurs: [indicateur] })
+    } else {
+      blocs.push({ type: 'simple', indicateur })
+    }
+  }
+  return blocs
+}
+
+function BlocPliable({ titre, indicateurs }: { titre: string; indicateurs: Indicator[] }) {
+  const [ouvert, setOuvert] = useState(false)
+  return (
+    <li style={{ padding: '0.7rem 0', borderTop: '1px solid rgba(27, 42, 31, 0.14)' }}>
+      <button
+        type="button"
+        onClick={() => setOuvert((precedent) => !precedent)}
+        aria-expanded={ouvert}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.3rem 0.8rem',
+          borderRadius: '999px',
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          fontWeight: 700,
+          border: '1.5px solid var(--color-border)',
+          background: ouvert ? 'var(--color-accent)' : 'var(--color-surface)',
+          color: ouvert ? 'var(--color-accent-ink)' : 'var(--color-ink)',
+        }}
+      >
+        <span aria-hidden style={{ display: 'inline-block', transform: ouvert ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+          ▸
+        </span>
+        {titre} ({indicateurs.length})
+      </button>
+      {ouvert && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0.4rem 0 0' }}>
+          {indicateurs.map((indicateur, i) => (
+            <IndicatorRow key={`${i}-${indicateur.label}`} indicator={indicateur} />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
 interface Props {
   id: string
   numero: number
@@ -136,9 +190,13 @@ export default function ThemeSection({ id, numero, titre, sousTitre, site, build
                   {/* Indexed keys: the detailed lists can legitimately repeat a
                       label — two installations of the same company, two sites
                       with the same name — so the label is not a unique key. */}
-                  {report.indicateurs.map((indicator, i) => (
-                    <IndicatorRow key={`${i}-${indicator.label}`} indicator={indicator} />
-                  ))}
+                  {enBlocs(report.indicateurs).map((bloc, i) =>
+                    bloc.type === 'pliable' ? (
+                      <BlocPliable key={`b${i}-${bloc.titre}`} titre={bloc.titre} indicateurs={bloc.indicateurs} />
+                    ) : (
+                      <IndicatorRow key={`${i}-${bloc.indicateur.label}`} indicator={bloc.indicateur} />
+                    ),
+                  )}
                 </ul>
               </div>
             )}

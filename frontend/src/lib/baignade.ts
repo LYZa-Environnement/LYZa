@@ -1,69 +1,62 @@
 /**
- * Nearest official bathing site ("site de baignade" au sens de la directive
- * 2006/7/CE) to a point — the one genuinely national, direct signal found
- * for "usage sensible d'un cours d'eau" (see hydroNote.ts). Searched for
- * an equivalent for recreational fishing and nautical-activity centres too:
- * neither exists as open national data — Hub'Eau's "État piscicole" API
- * covers *scientific* electrofishing survey stations (ecological
- * monitoring), not recreational fishing zones, so it isn't used here as a
- * stand-in; using it as a "sensibilité pêche" proxy would overstate what
- * it actually says. Fishing-lot boundaries and nautical bases only turned
- * up as scattered département-level open-data sets, not a national API.
+ * Official bathing sites — in the sense of directive 2006/7/CE, so both inland
+ * waters (lakes, rivers) and sea water.
  *
- * Source: "Données de rapportage de la saison balnéaire" (Ministère de la
- * Santé), queried through data.gouv.fr's public Tabular API rather than
- * downloading the raw CSV. Schema confirmed live: Nom du site de baignade,
- * Nom de la commune, Type d'eau (Lac/Rivière/Mer...), Longitude/Latitude
- * (ETRS89 — close enough to WGS84 for this purpose, within a few cm).
+ * Source: the Ministry of Health's bathing-season reporting, refreshed on every
+ * build by `scripts/baignade.mjs` and shipped as a static file. It used to be
+ * read live from data.gouv's Tabular API, which was unreliable for two reasons:
+ * the seasonal export changes resource id every year — a stale id returns
+ * nothing at all — and paginated reads capped how many sites were loaded, so a
+ * site simply missing from the fetched pages looked like "no bathing site
+ * nearby". Shipping the whole list removes both failure modes.
+ *
+ * The build joins three of the dataset's files: the list of sites open for the
+ * coming season, the classification of the last reported season, and that
+ * season's log of closures and blooms. Naming one site and nothing else was
+ * thin: what a reader wants to know about a bathing site is the quality of its
+ * water and whether it had to close, not only that it exists.
+ *
+ * Searched for an equivalent for recreational fishing and nautical centres too:
+ * neither exists as open national data. Fishing lots and nautical bases only
+ * turn up as scattered département-level sets; the fish-survey network is used
+ * instead to describe the watercourse's fishery interest (see hubeau.ts).
  */
 
 import { bearingDegrees, cardinalDirection, haversineMeters } from './geo'
 
-const TABULAR_API_BASE = 'https://tabular-api.data.gouv.fr/api/resources/'
-// 2026 bathing-season site list — this dataset republishes under a *new*
-// resource id each season, so this needs a yearly refresh (fails safe:
-// a stale id just makes findNearestBathingSite() return null, same as any
-// other unavailable indicator).
-const RESOURCE_ID = 'e659289d-fdc2-46c2-a025-d7e1264e4197'
-const PAGE_SIZE = 1000
-const MAX_PAGES = 6
-
-interface BathingSiteRow {
-  'Nom du site de baignade'?: string
-  'Nom de la commune'?: string
-  'Type d\'eau'?: string
-  'Longitude (ETRS 89)'?: number | string
-  'Latitude (ETRS 89)'?: number | string
+interface SiteBrut {
+  nom?: string
+  commune?: string | null
+  type?: string | null
+  lat?: number
+  lon?: number
+  qualite?: string | null
+  saisonDebut?: string | null
+  saisonFin?: string | null
+  interdictions?: number
+  cyanobacteries?: number
+  pollutions?: number
 }
 
-let sitesPromise: Promise<BathingSiteRow[] | null> | null = null
+interface FichierBaignade {
+  source?: string
+  saisonClassement?: number | null
+  collecteLe?: string
+  sites?: SiteBrut[]
+}
 
-async function loadAllSites(): Promise<BathingSiteRow[] | null> {
-  if (!sitesPromise) {
-    sitesPromise = (async () => {
-      try {
-        const acc: BathingSiteRow[] = []
-        for (let page = 1; page <= MAX_PAGES; page++) {
-          const url = new URL(RESOURCE_ID + '/data/', TABULAR_API_BASE)
-          url.searchParams.set('page', String(page))
-          url.searchParams.set('page_size', String(PAGE_SIZE))
-          const response = await fetch(url.toString())
-          if (!response.ok) return acc.length ? acc : null
-          const json = (await response.json()) as { data?: BathingSiteRow[] }
-          const rows = Array.isArray(json.data) ? json.data : []
-          acc.push(...rows)
-          if (rows.length < PAGE_SIZE) break
-        }
-        return acc
-      } catch {
-        return null
-      }
-    })()
+let chargement: Promise<FichierBaignade | null> | null = null
+
+function charger(): Promise<FichierBaignade | null> {
+  if (!chargement) {
+    chargement = fetch(`${import.meta.env.BASE_URL}data/baignade.json`)
+      .then((response) => (response.ok ? (response.json() as Promise<FichierBaignade>) : null))
+      .catch(() => null)
   }
-  return sitesPromise
+  return chargement
 }
 
-export interface NearestBathingSite {
+export interface BathingSite {
   nom: string
   commune: string | null
   typeEau: string | null
@@ -71,29 +64,80 @@ export interface NearestBathingSite {
   direction: string
   lat: number
   lon: number
+  /** Classification of the last reported season: excellente, bonne,
+   * suffisante, insuffisante — or null when the site has none yet. */
+  qualite: string | null
+  saisonDebut: string | null
+  saisonFin: string | null
+  /** Health closures recorded during the last reported season. */
+  interdictions: number
+  /** Cyanobacteria blooms recorded during the last reported season. */
+  cyanobacteries: number
+  /** Short-term pollution episodes recorded during the last reported season. */
+  pollutions: number
 }
 
-export async function findNearestBathingSite(lat: number, lon: number): Promise<NearestBathingSite | null> {
-  const sites = await loadAllSites()
-  if (!sites) return null
+export interface BathingSurvey {
+  /** Every site within the search radius, nearest first. */
+  sites: BathingSite[]
+  /** Nearest site overall, even beyond the radius — so the rubrique can say
+   * how far the nearest one actually is instead of just "none". */
+  plusProche: BathingSite | null
+  /** Season the published list of sites describes. */
+  source: string | null
+  /** Season the classifications describe, which is the previous one. */
+  saisonClassement: number | null
+}
 
-  let best: NearestBathingSite | null = null
-  for (const site of sites) {
-    const siteLon = Number(site['Longitude (ETRS 89)'])
-    const siteLat = Number(site['Latitude (ETRS 89)'])
-    if (!Number.isFinite(siteLon) || !Number.isFinite(siteLat)) continue
-    const distanceM = haversineMeters(lat, lon, siteLat, siteLon)
-    if (!best || distanceM < best.distanceM) {
-      best = {
-        nom: site['Nom du site de baignade']?.trim() || 'Site de baignade',
-        commune: site['Nom de la commune']?.trim() || null,
-        typeEau: site["Type d'eau"]?.trim() || null,
-        distanceM,
-        direction: cardinalDirection(bearingDegrees(lat, lon, siteLat, siteLon)),
-        lat: siteLat,
-        lon: siteLon,
-      }
+export async function surveyBathingSites(lat: number, lon: number, rayonM: number): Promise<BathingSurvey> {
+  const fichier = await charger()
+  if (!fichier?.sites) throw new Error('liste des sites de baignade indisponible')
+
+  const proches: BathingSite[] = []
+  let plusProche: BathingSite | null = null
+
+  for (const brut of fichier.sites) {
+    if (typeof brut.lat !== 'number' || typeof brut.lon !== 'number') continue
+    const distanceM = haversineMeters(lat, lon, brut.lat, brut.lon)
+    if (distanceM > rayonM && plusProche && distanceM >= plusProche.distanceM) continue
+
+    const site: BathingSite = {
+      nom: brut.nom?.trim() || 'Site de baignade',
+      commune: brut.commune?.trim() || null,
+      typeEau: brut.type?.trim() || null,
+      distanceM,
+      direction: cardinalDirection(bearingDegrees(lat, lon, brut.lat, brut.lon)),
+      lat: brut.lat,
+      lon: brut.lon,
+      qualite: brut.qualite ?? null,
+      saisonDebut: brut.saisonDebut ?? null,
+      saisonFin: brut.saisonFin ?? null,
+      interdictions: brut.interdictions ?? 0,
+      cyanobacteries: brut.cyanobacteries ?? 0,
+      pollutions: brut.pollutions ?? 0,
     }
+    if (!plusProche || distanceM < plusProche.distanceM) plusProche = site
+    if (distanceM <= rayonM) proches.push(site)
   }
-  return best
+
+  proches.sort((a, b) => a.distanceM - b.distanceM)
+  return { sites: proches, plusProche, source: fichier.source ?? null, saisonClassement: fichier.saisonClassement ?? null }
+}
+
+/** Reading of the classification: "excellente" is the top of a four-step scale
+ * set by the directive, "insuffisante" the step that obliges the commune to
+ * act. A site with no classification yet is left uncoloured rather than being
+ * treated as a bad one. */
+export function niveauQualiteBaignade(qualite: string | null): 'favorable' | 'attention' | 'defavorable' | 'inconnu' {
+  switch (qualite) {
+    case 'Excellente':
+    case 'Bonne':
+      return 'favorable'
+    case 'Suffisante':
+      return 'attention'
+    case 'Insuffisante':
+      return 'defavorable'
+    default:
+      return 'inconnu'
+  }
 }

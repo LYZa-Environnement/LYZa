@@ -43,8 +43,12 @@ export interface BaseLayerOption {
   maxNativeZoom: number
 }
 
+/** Aerial imagery first: it is the base on which a reader recognises the
+ * actual site — buildings, yards, hedges — before anything is plotted on it.
+ * The 1:25 000 topographic map stays one click away for relief, toponyms and
+ * the administrative reading. */
 export const BASE_LAYERS: BaseLayerOption[] = [
-  { id: 'scan25', label: 'Carte IGN 1:25 000', url: SCAN25_URL, attribution: `${IGN_ATTRIBUTION} — SCAN 25®`, maxNativeZoom: SCAN25_MAX_NATIVE_ZOOM },
   { id: 'ortho', label: 'Photo aérienne', url: ORTHO_URL, attribution: IGN_ATTRIBUTION, maxNativeZoom: 19 },
+  { id: 'scan25', label: 'Carte IGN 1:25 000', url: SCAN25_URL, attribution: `${IGN_ATTRIBUTION} — SCAN 25®`, maxNativeZoom: SCAN25_MAX_NATIVE_ZOOM },
   { id: 'plan', label: 'Plan IGN', url: PLAN_IGN_URL, attribution: IGN_ATTRIBUTION, maxNativeZoom: 19 },
 ]

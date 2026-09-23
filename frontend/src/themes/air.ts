@@ -78,15 +78,16 @@ export async function buildAir(site: Site): Promise<ThemeReport> {
     const auDessusOms = air.polluants.filter((p) => p.niveau === 'attention')
     commentaire.push(
       `Les concentrations ci-dessous sont des moyennes sur l'année ${air.annee} entière, calculées à partir des 8 760 valeurs horaires du modèle ` +
-        `européen CAMS, dont la maille la plus proche est à ${formatDistance(air.distanceMailleM)} du site. Une moyenne annuelle est ce à quoi ` +
+        `européen CAMS (service européen de surveillance de l'atmosphère du programme Copernicus), dont la maille la plus proche est à ` +
+        `${formatDistance(air.distanceMailleM)} du site. Une moyenne annuelle est ce à quoi ` +
         `les valeurs limites réglementaires se rapportent, et elle caractérise un lieu — contrairement à une valeur instantanée, qui dépend surtout du temps qu'il fait.`,
     )
     commentaire.push(
       depassements.length > 0
         ? `${depassements.map((p) => p.libelle).join(', ')} dépasse${depassements.length > 1 ? 'nt' : ''} la valeur limite annuelle européenne.`
         : auDessusOms.length > 0
-          ? `Aucune valeur limite européenne n'est dépassée. ${auDessusOms.map((p) => p.libelle).join(', ')} ${auDessusOms.length > 1 ? 'dépassent' : 'dépasse'} en revanche la ligne directrice de l'OMS, plus stricte et non contraignante.`
-          : `Aucune valeur limite européenne ni ligne directrice de l'OMS n'est dépassée en moyenne annuelle.`,
+          ? `Aucune valeur limite européenne n'est dépassée. ${auDessusOms.map((p) => p.libelle).join(', ')} ${auDessusOms.length > 1 ? 'dépassent' : 'dépasse'} en revanche la ligne directrice de l'Organisation mondiale de la santé (OMS), plus stricte et non contraignante.`
+          : `Aucune valeur limite européenne ni ligne directrice de l'Organisation mondiale de la santé (OMS) n'est dépassée en moyenne annuelle.`,
     )
     commentaire.push(
       `Il s'agit d'une modélisation à environ 11 km de résolution, et non d'une mesure : elle décrit un fond régional et ne capte ni le surcroît lié ` +
@@ -106,7 +107,7 @@ export async function buildAir(site: Site): Promise<ThemeReport> {
         lon: bruit.aerodrome.lon,
         label: `Aérodrome — ${bruit.aerodrome.nom}`,
         color: COULEURS.aerodrome,
-        group: 'Aérodrome avec PEB',
+        group: 'Aérodrome avec plan d’exposition au bruit',
       })
       const proche = bruit.aerodrome.distanceM < 10000
       indicateurs.push({
@@ -114,8 +115,8 @@ export async function buildAir(site: Site): Promise<ThemeReport> {
         value: proche ? bruit.aerodrome.nom : 'Aucun aérodrome à moins de 10 km',
         situation: situation(bruit.aerodrome.distanceM, bruit.aerodrome.direction),
         detail: proche
-          ? "Un PEB est opposable : il restreint la constructibilité dans ses zones. Vérifier si la parcelle tombe dans l'une d'elles sur l'arrêté."
-          : `L'aérodrome doté d'un PEB le plus proche est ${bruit.aerodrome.nom}.`,
+          ? "Un plan d'exposition au bruit est opposable : il restreint la constructibilité dans ses zones. Vérifier si la parcelle tombe dans l'une d'elles sur l'arrêté."
+          : `L'aérodrome doté d'un plan d'exposition au bruit le plus proche est ${bruit.aerodrome.nom}.`,
         level: bruit.aerodrome.distanceM < 3000 ? 'defavorable' : proche ? 'attention' : 'favorable',
         href: bruit.aerodrome.arreteUrl ?? undefined,
       })
@@ -191,9 +192,9 @@ export async function buildAir(site: Site): Promise<ThemeReport> {
   }
 
   lacunes.push(
-    "Aucune mesure de terrain : les concentrations proviennent du modèle CAMS (maille ~11 km), pas d'une station de mesure. Les données de référence françaises (Géod'Air, réseau des AASQA) ne sont pas accessibles par une API ouverte sans compte.",
-    "Les niveaux sonores routiers et ferroviaires ne sont pas modélisés : les cartes de bruit stratégiques et le classement sonore des infrastructures sont publiés département par département, sans service national interrogeable. Seuls le PEB des aérodromes — qui est national et opposable — et la distance aux infrastructures sont donnés ici.",
-    "L'exposition aux pesticides est approchée par la proximité de parcelles cultivées (RPG) croisée avec les vents dominants : ni les produits épandus, ni les dates de traitement, ni la certification biologique ne sont accessibles en données ouvertes.",
+    "Aucune mesure de terrain : les concentrations proviennent du modèle européen CAMS (maille ~11 km), pas d'une station de mesure. Les données de référence françaises (Géod'Air, réseau des associations agréées de surveillance de la qualité de l'air) ne sont pas accessibles par une interface de programmation ouverte sans compte.",
+    "Les niveaux sonores routiers et ferroviaires ne sont pas modélisés : les cartes de bruit stratégiques et le classement sonore des infrastructures sont publiés département par département, sans service national interrogeable. Seuls les plans d'exposition au bruit des aérodromes — nationaux et opposables — et la distance aux infrastructures sont donnés ici.",
+    "L'exposition aux pesticides est approchée par la proximité de parcelles cultivées déclarées au registre parcellaire graphique, croisée avec les vents dominants : ni les produits épandus, ni les dates de traitement, ni la certification biologique ne sont accessibles en données ouvertes.",
   )
 
   return {
@@ -204,16 +205,16 @@ export async function buildAir(site: Site): Promise<ThemeReport> {
     rayonM: RAYON_M,
     sources: [
       {
-        label: 'Open-Meteo / CAMS Europe — qualité de l’air',
+        label: 'Open-Meteo / CAMS Europe — qualité de l’air (service de surveillance de l’atmosphère du programme européen Copernicus)',
         href: 'https://open-meteo.com/en/docs/air-quality-api',
         note: 'modèle européen, maille ~11 km, moyennes annuelles recalculées ici',
       },
       { label: 'Directive 2008/50/CE — valeurs limites', href: 'https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX%3A32008L0050', note: 'seuils réglementaires annuels' },
-      { label: 'OMS — lignes directrices qualité de l’air 2021', href: 'https://www.who.int/publications/i/item/9789240034228' },
-      { label: 'DGAC — plans d’exposition au bruit des aérodromes', href: 'https://www.geoportail.gouv.fr/donnees/plan-dexposition-au-bruit-peb', note: 'couche nationale, arrêtés en ligne' },
-      { label: 'IGN BD TOPO® — routes et voies ferrées', href: 'https://geoservices.ign.fr/bdtopo' },
-      { label: 'IGN RPG — registre parcellaire graphique', href: 'https://geoservices.ign.fr/rpg', note: 'cultures déclarées à la PAC' },
-      { label: 'Open-Meteo — archive ERA5 (rose des vents)', href: 'https://open-meteo.com/en/docs/historical-weather-api' },
+      { label: 'Organisation mondiale de la santé (OMS) — lignes directrices qualité de l’air 2021', href: 'https://www.who.int/publications/i/item/9789240034228' },
+      { label: 'Direction générale de l’aviation civile (DGAC) — plans d’exposition au bruit des aérodromes', href: 'https://www.geoportail.gouv.fr/donnees/plan-dexposition-au-bruit-peb', note: 'couche nationale, arrêtés en ligne' },
+      { label: 'Institut national de l’information géographique et forestière (IGN) — base de données BD TOPO®', href: 'https://geoservices.ign.fr/bdtopo', note: 'routes et voies ferrées' },
+      { label: 'Registre parcellaire graphique (RPG), Institut national de l’information géographique et forestière', href: 'https://geoservices.ign.fr/rpg', note: 'cultures déclarées au titre de la politique agricole commune' },
+      { label: 'Open-Meteo — réanalyse météorologique ERA5 (rose des vents)', href: 'https://open-meteo.com/en/docs/historical-weather-api' },
     ],
   }
 }

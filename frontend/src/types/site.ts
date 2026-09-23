@@ -24,6 +24,12 @@ export interface Indicator {
   detail?: string
   level?: Level
   href?: string
+  /** Groups this row into a collapsible block with the rows around it that
+   * carry the same label. Long enumerations — ten trace elements, fifteen
+   * installations, a dozen protected areas — are the substance of a rubrique
+   * but they bury the handful of readings that matter, so they fold away
+   * behind a summary line and open on demand. */
+  pliable?: string
 }
 
 export interface Source {

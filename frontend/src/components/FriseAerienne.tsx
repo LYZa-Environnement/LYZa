@@ -86,7 +86,7 @@ export default function FriseAerienne({ site, coteM = 250 }: { site: Site; coteM
       <h3 style={{ fontSize: '1.05rem', marginBottom: '0.2rem' }}>Frise des photographies aériennes</h3>
       <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
         Vues de {coteM} m de côté centrées sur le site (croix rouge). Les campagnes sans couverture à cet endroit ne sont pas affichées :
-        l'absence d'une décennie signifie que l'IGN n'a pas de cliché exploitable ici, pas qu'il ne s'y passait rien.
+        l'absence d'une décennie signifie que l'Institut national de l'information géographique et forestière n'a pas de cliché exploitable ici, pas qu'il ne s'y passait rien.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: '1rem' }}>
         {visibles.map((periode) => (
@@ -127,7 +127,7 @@ export default function FriseAerienne({ site, coteM = 250 }: { site: Site; coteM
         ))}
       </div>
       <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', margin: '0.8rem 0 0' }}>
-        Source : IGN — photographies aériennes historiques (
+        Source : Institut national de l'information géographique et forestière (IGN) — photographies aériennes historiques (
         <a href="https://remonterletemps.ign.fr/" target="_blank" rel="noopener noreferrer">
           Remonter le temps
         </a>

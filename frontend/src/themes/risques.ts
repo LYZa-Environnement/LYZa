@@ -92,7 +92,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
   if (pprt && pprt.length > 0) {
     for (const plan of pprt) {
       indicateurs.push({
-        label: `PPRT — ${plan.libelle}`,
+        label: `Plan de prévention des risques technologiques — ${plan.libelle}`,
         value: plan.typeProcedure ?? 'Plan de prévention des risques technologiques',
         situation: plan.identifiant ? `Procédure ${plan.identifiant}` : undefined,
         detail:
@@ -103,7 +103,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
     }
     commentaire.push(
       `La commune est couverte par ${pluriel(pprt.length, 'plan de prévention des risques technologiques', 'plans de prévention des risques technologiques')} ` +
-        `(${pprt.map((item) => item.libelle).join(', ')}). Un PPRT délimite des zones où la constructibilité et l'usage des bâtiments sont restreints ` +
+        `(${pprt.map((item) => item.libelle).join(', ')}). Un tel plan délimite des zones où la constructibilité et l'usage des bâtiments sont restreints ` +
         `autour d'un site industriel à risque : la position exacte de la parcelle dans le zonage réglementaire est déterminante.`,
     )
   } else {
@@ -117,7 +117,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
   if (pprn && pprn.length > 0) {
     for (const plan of pprn) {
       indicateurs.push({
-        label: `PPRN — ${plan.libelle}`,
+        label: `Plan de prévention des risques naturels — ${plan.libelle}`,
         value: plan.typeProcedure ?? 'Plan de prévention des risques naturels',
         situation: plan.identifiant ? `Procédure ${plan.identifiant}` : undefined,
         detail: plan.zonages.length > 0 ? `Zonage réglementaire : ${plan.zonages.join(', ').toLowerCase()}.` : undefined,
@@ -147,12 +147,12 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
         lon: item.localisation!.lon,
         label: `${item.nom} — ${item.regime}${isSeveso ? ` (${item.seveso})` : ''}`,
         color: isSeveso ? COULEURS.seveso : COULEURS.icpe,
-        group: isSeveso ? 'Établissement SEVESO' : 'ICPE',
+        group: isSeveso ? 'Établissement SEVESO' : 'Installation classée',
       })
     }
 
     indicateurs.push({
-      label: 'Installations classées (ICPE)',
+      label: 'Installations classées pour la protection de l’environnement',
       value: triees.length === 0 ? 'Aucune' : pluriel(triees.length, 'installation'),
       situation: `Dans un rayon de ${formatDistance(RAYON_M)}`,
       detail:
@@ -168,14 +168,15 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
     for (const item of detaillees) {
       const isSeveso = estSeveso(item)
       indicateurs.push({
-        label: `↳ ${item.nom}`,
+        pliable: 'Détail des installations classées',
+        label: item.nom,
         value: item.secteur ?? item.regime,
         situation: situation(item.localisation!.distanceM, item.localisation!.direction),
         detail: [
           `Régime ${item.regime}`,
           isSeveso ? `statut ${item.seveso}` : null,
           item.etatActivite,
-          item.codeNaf ? `NAF ${item.codeNaf}` : null,
+          item.codeNaf ? `code d'activité ${item.codeNaf}` : null,
           item.adresse,
         ]
           .filter(Boolean)
@@ -190,8 +191,9 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
       commentaire.push(
         `${pluriel(seveso.length, 'établissement SEVESO', 'établissements SEVESO')} ${seveso.length > 1 ? 'sont recensés' : 'est recensé'} ` +
           `dans un rayon de ${formatDistance(RAYON_M)}, le plus proche (${proche.nom}) ${situation(proche.localisation!.distanceM, proche.localisation!.direction)}. ` +
-          `Le classement SEVESO traduit la présence de substances dangereuses en quantité : il déclenche un plan particulier d'intervention ` +
-          `et, pour le seuil haut, un PPRT.`,
+          `Le classement SEVESO — du nom de la directive européenne adoptée après l'accident de Seveso — traduit la présence de substances ` +
+          `dangereuses en quantité : il déclenche un plan particulier d'intervention et, pour le seuil haut, un plan de prévention des ` +
+          `risques technologiques.`,
       )
     }
   }
@@ -258,7 +260,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
   })
 
   indicateurs.push({
-    label: 'Retrait-gonflement des argiles (RGA)',
+    label: 'Retrait-gonflement des argiles',
     value: argiles ? argiles.libelle : 'Donnée indisponible',
     situation: argiles ? 'Exposition évaluée au droit du point, pas à la commune' : undefined,
     detail: argiles
@@ -298,8 +300,8 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
         inb.commune ? `commune de ${inb.commune}` : null,
         inb.rayonPpiM !== null
           ? inb.dansPpi
-            ? `Le site est dans le plan particulier d'intervention (rayon ${formatDistance(inb.rayonPpiM)})`
-            : `Hors plan particulier d'intervention (rayon ${formatDistance(inb.rayonPpiM)})`
+            ? `Le site est dans le plan particulier d’intervention — le périmètre d’alerte autour de l’installation — (rayon ${formatDistance(inb.rayonPpiM)})`
+            : `Hors plan particulier d’intervention — le périmètre d’alerte autour de l’installation — (rayon ${formatDistance(inb.rayonPpiM)})`
           : "Pas de plan particulier d'intervention pour cette installation",
         inb.risqueIode && inb.rayonPpiM !== null ? 'distribution de comprimés d’iode autour du site' : null,
       ]
@@ -320,7 +322,7 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
 
   lacunes.push(
     "Les installations militaires ne font l'objet d'aucune publication en données ouvertes, pour des raisons de sécurité nationale : leur présence à proximité ne peut pas être vérifiée par cet outil.",
-    "Le zonage réglementaire des PPRT et PPRN est restitué par ses catégories, pas par sa géométrie, et aucun permalien public ne donne accès au plan lui-même : savoir dans quelle zone tombe précisément une parcelle suppose de consulter le plan opposable en mairie ou en préfecture.",
+    "Le zonage réglementaire des plans de prévention des risques technologiques et naturels est restitué par ses catégories, pas par sa géométrie, et aucun permalien public ne donne accès au plan lui-même : savoir dans quelle zone tombe précisément une parcelle suppose de consulter le plan opposable en mairie ou en préfecture.",
     "La base des installations classées ne publie ni date de création ni date de cessation : seul l'état administratif de l'établissement est repris ici.",
     "Les risques GASPAR, les PPR, la sismicité et le radon sont recensés à l'échelle de la commune : ils décrivent un contexte communal, pas la situation exacte de la parcelle. Seul le retrait-gonflement des argiles est évalué au point.",
   )
@@ -332,12 +334,12 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
     lacunes,
     rayonM: RAYON_M,
     sources: [
-      { label: 'Géorisques — portail des risques (BRGM)', href: 'https://www.georisques.gouv.fr/', note: 'GASPAR, PPR, ICPE, cavités, mouvements de terrain' },
-      { label: 'Géorisques — installations classées et SEVESO', href: 'https://www.georisques.gouv.fr/risques/installations' },
+      { label: 'Géorisques — portail des risques, Bureau de recherches géologiques et minières (BRGM)', href: 'https://www.georisques.gouv.fr/', note: 'risques communaux, plans de prévention, installations classées, cavités, mouvements de terrain' },
+      { label: 'Géorisques — installations classées et établissements Seveso', href: 'https://www.georisques.gouv.fr/risques/installations' },
       { label: 'Géorisques — retrait-gonflement des argiles', href: 'https://www.georisques.gouv.fr/minformer-sur-un-risque/retrait-gonflement-des-argiles', note: 'exposition au point' },
       { label: 'Géorisques — zonage sismique', href: 'https://www.georisques.gouv.fr/minformer-sur-un-risque/seisme' },
-      { label: 'ASNR — Autorité de sûreté nucléaire et de radioprotection', href: 'https://www.asnr.fr/', note: 'installations nucléaires de base' },
-      { label: 'ERRIAL — état des risques à l’adresse', href: 'https://errial.georisques.gouv.fr/', note: 'outil officiel, à renseigner avec l’adresse' },
+      { label: 'Autorité de sûreté nucléaire et de radioprotection', href: 'https://www.asnr.fr/', note: 'installations nucléaires de base' },
+      { label: 'ERRIAL — état des risques et pollutions à l’adresse', href: 'https://errial.georisques.gouv.fr/', note: 'outil officiel, à renseigner avec l’adresse' },
     ],
   }
 }
