@@ -360,6 +360,15 @@
   .popup dt{ color:var(--ink-dim); font-size:11.3px; }
   .popup dd{ margin:0; font-size:11.8px; }
   .popup .mono{ font-family:Verdana, Geneva, sans-serif; font-size:11px; }
+  /* Volumes prélevés : un histogramme annuel vaut mieux qu'une liste de
+     chiffres — une tendance se lit d'un coup d'œil, une série de nombres non. */
+  .vol-chart{ display:flex; align-items:flex-end; gap:2px; height:34px; margin:7px 0 2px; }
+  .vol-col{ flex:1 1 0; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+  .vol-bar{ width:100%; background:var(--c-prelev); border-radius:1px 1px 0 0; min-height:1px; }
+  .vol-bar.vide{ background:repeating-linear-gradient(45deg, #0000000f, #0000000f 2px, transparent 2px, transparent 4px); height:100% !important; border-radius:1px; }
+  .vol-axis{ display:flex; gap:2px; font-size:9px; color:var(--ink-dim); }
+  .vol-axis span{ flex:1 1 0; text-align:center; }
+  .vol-fort{ font-weight:700; }
   .popup a.fiche{
     display:inline-block; margin-top:8px; font-size:11.5px; font-weight:600; color:var(--accent);
   }
@@ -512,7 +521,7 @@
       <div class="layer-group">
         <label class="layer-row"><input type="checkbox" id="lyr-piezo" checked><span class="swatch" style="background:var(--c-piezo)"></span><span class="lbl">Piézométrie (niveaux des nappes)</span><span class="count" id="cnt-piezo">–</span></label>
         <label class="layer-row"><input type="checkbox" id="lyr-qualnappe" checked><span class="swatch" style="background:var(--c-qualnappe)"></span><span class="lbl">Qualité des nappes (ADES)</span><span class="count" id="cnt-qualnappe">–</span></label>
-        <label class="layer-row"><input type="checkbox" id="lyr-prelev" checked><span class="swatch" style="background:var(--c-prelev)"></span><span class="lbl">Ouvrages de prélèvement</span><span class="count" id="cnt-prelev">–</span></label>
+        <label class="layer-row"><input type="checkbox" id="lyr-prelev" checked><span class="swatch" style="background:var(--c-prelev)"></span><span class="lbl">Ouvrages de prélèvement (volumes)</span><span class="count" id="cnt-prelev">–</span></label>
       </div>
       <div class="legend-note">Recherche eau potable par commune : utilisez la barre d'adresse ci-dessus, un résultat du dernier contrôle sanitaire s'affiche s'il y en a un.</div>
     </div>
@@ -558,7 +567,7 @@
     </div>
 
     <div class="foot">
-      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, prélèvements, eau potable, qualité des cours d'eau), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
+      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, eau potable, qualité des cours d'eau), <a href="https://bnpe.eaufrance.fr" target="_blank" rel="noopener">BNPE</a> — banque nationale des prélèvements quantitatifs en eau, volumes annuels déclarés par ouvrage (<a href="https://www.sandre.eaufrance.fr/atlas/srv/fre/catalog.search#/metadata/2a6fdd18-39ef-4d8a-8e84-84ef86e4a159" target="_blank" rel="noopener">fiche Sandre</a>), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
     </div>
   </aside>
 
@@ -1598,11 +1607,34 @@
   function prelevMarker(item){
     var color = getCss('--c-prelev');
     if (!item.geometry || item.geometry.type !== 'Point') return null;
+    var vol = prelevVolumes[item.code_ouvrage] || null;
+    var dernier = vol && vol.derniereAnnee !== null ? vol.parAnnee[vol.derniereAnnee] : null;
     var m = L.marker([item.geometry.coordinates[1], item.geometry.coordinates[0]], {
-      icon: shapeIcon('triangle-down', color), pane:'pane-prelev'
+      icon: shapeIcon('triangle-down', color, taillePrelev(dernier)), pane:'pane-prelev'
     });
+
+    var usages = vol ? Object.keys(vol.usages).sort(function(a, b){ return vol.usages[b] - vol.usages[a]; }) : [];
+    var blocVolumes;
+    if (dernier != null) {
+      blocVolumes =
+        '<dl>' +
+          '<dt>Volume prélevé</dt><dd class="vol-fort">' + formatVolume(dernier) + ' en ' + vol.derniereAnnee + '</dd>' +
+          (usages.length ? '<dt>Usage</dt><dd>' + escapeHtml(usages[0]) +
+            (usages.length > 1 ? ' (et ' + (usages.length - 1) + ' autre' + (usages.length > 2 ? 's' : '') + ')' : '') + '</dd>' : '') +
+          '<dt>Cumul</dt><dd>' + formatVolume(vol.total) + ' sur ' + Object.keys(vol.parAnnee).length + ' année' +
+            (Object.keys(vol.parAnnee).length > 1 ? 's' : '') + ' renseignée' + (Object.keys(vol.parAnnee).length > 1 ? 's' : '') + '</dd>' +
+        '</dl>' +
+        histogrammeVolumes(vol);
+    } else {
+      // L'absence de chronique n'est pas une absence de prélèvement : un
+      // ouvrage peut être à l'arrêt, dispensé de déclaration, ou simplement
+      // pas encore rapporté pour les années demandées.
+      blocVolumes = '<dl><dt>Volume prélevé</dt><dd>aucun volume déclaré sur les ' + ANNEES_VOLUMES + ' dernières années</dd></dl>';
+    }
+
     var html = '<div class="popup"><span class="tag" style="background:'+color+'">Ouvrage de prélèvement</span>' +
       '<h3>'+escapeHtml(item.nom_ouvrage || 'Ouvrage')+'</h3>' +
+      blocVolumes +
       '<dl>' +
         (item.nom_commune ? '<dt>Commune</dt><dd>'+escapeHtml(item.nom_commune)+'</dd>' : '') +
         (item.libelle_type_milieu ? '<dt>Milieu</dt><dd>'+escapeHtml(item.libelle_type_milieu)+'</dd>' : '') +
@@ -1611,7 +1643,7 @@
       '</dl>' +
       (item.uri_ouvrage ? '<a class="fiche" target="_blank" rel="noopener" href="'+item.uri_ouvrage+'">Fiche Sandre (en savoir plus) →</a>' : '') +
       '</div>';
-    m.bindPopup(html);
+    m.bindPopup(html, { maxWidth:280 });
     return m;
   }
 
@@ -1750,6 +1782,122 @@
   function fetchPiezoStations(bounds){ return fetchHubeau('niveaux_nappes/stations', 'lyr-piezo', bounds); }
   function fetchQualNappesStations(bounds){ return fetchHubeau('qualite_nappes/stations', 'lyr-qualnappe', bounds); }
   function fetchPrelevOuvrages(bounds){ return fetchHubeau('prelevements/referentiel/ouvrages', 'lyr-prelev', bounds); }
+
+  // ---- Volumes prélevés par ouvrage (BNPE, banque nationale des
+  // prélèvements quantitatifs en eau — jeu Sandre diffusé via Hub'Eau) ----
+  //
+  // Le référentiel dit où sont les ouvrages ; il ne dit pas ce qu'on y
+  // prélève. Les chroniques donnent le volume déclaré année par année, ce qui
+  // est la seule façon de distinguer un forage domestique à l'arrêt d'un
+  // captage industriel de plusieurs millions de mètres cubes.
+  //
+  // La requête est bornée à ANNEES_VOLUMES années et aux seuls champs utiles :
+  // sans cela une emprise dense renvoie plusieurs milliers de lignes portant
+  // chacune sa géométrie, et l'appel devient trop lent pour une carte.
+  var ANNEES_VOLUMES = 12;
+  var prelevVolumes = {};
+
+  // La BNPE écrit ses usages en capitales et sans accents
+  // ("INDUSTRIE et ACTIVITES ECONOMIQUES") : les cinq codes existants sont
+  // traduits ici, le libellé brut servant de repli si un code apparaît.
+  var USAGES_PRELEV = {
+    AEP: 'eau potable',
+    IRR: 'irrigation',
+    IND: 'industrie et activités économiques',
+    CAN: 'alimentation de canaux',
+    ENE: 'production d’énergie',
+    TUR: 'turbinage'
+  };
+
+  function libelleUsage(code, brut){
+    if (USAGES_PRELEV[code]) return USAGES_PRELEV[code];
+    if (!brut) return null;
+    // Un libellé tout en capitales se lit mal en pleine phrase.
+    return brut === brut.toUpperCase() ? brut.charAt(0) + brut.slice(1).toLowerCase() : brut;
+  }
+
+  function anneesRecentes(){
+    var courante = new Date().getFullYear(), liste = [];
+    for (var i = 0; i < ANNEES_VOLUMES; i++) liste.push(courante - i);
+    return liste;
+  }
+
+  function fetchPrelevVolumes(bounds){
+    if (!document.getElementById('lyr-prelev').checked) return Promise.resolve({ skipped:true, data:[] });
+    var bbox = bounds.getWest() + ',' + bounds.getSouth() + ',' + bounds.getEast() + ',' + bounds.getNorth();
+    var url = 'https://hubeau.eaufrance.fr/api/v1/prelevements/chroniques?bbox=' + bbox +
+      '&annee=' + anneesRecentes().join(',') +
+      '&fields=code_ouvrage,annee,volume,code_usage,libelle_usage' +
+      '&size=20000';
+    return fetchWithTimeout(url, {}, 20000).then(function(r){
+      if (!r.ok && r.status !== 206) return { error:true, data:[] };
+      return r.json().then(function(j){ return { data: j.data || [], partiel: r.status === 206 }; });
+    }).catch(function(){ return { error:true, data:[] }; });
+  }
+
+  /** Regroupe les chroniques par ouvrage : volume par année, usages déclarés,
+   *  dernière année renseignée et cumul sur la période. */
+  function indexeVolumes(rows){
+    var index = {};
+    rows.forEach(function(row){
+      if (!row.code_ouvrage || row.volume == null) return;
+      var e = index[row.code_ouvrage];
+      if (!e) { e = index[row.code_ouvrage] = { parAnnee:{}, usages:{}, total:0, derniereAnnee:null }; }
+      e.parAnnee[row.annee] = (e.parAnnee[row.annee] || 0) + row.volume;
+      var usage = libelleUsage(row.code_usage, row.libelle_usage);
+      if (usage) e.usages[usage] = (e.usages[usage] || 0) + row.volume;
+      e.total += row.volume;
+      if (e.derniereAnnee === null || row.annee > e.derniereAnnee) e.derniereAnnee = row.annee;
+    });
+    return index;
+  }
+
+  /** Les volumes couvrent six ordres de grandeur : un formatage unique rendrait
+   *  illisibles soit les petits forages, soit les gros captages. */
+  function formatVolume(m3){
+    if (m3 >= 1e9) return (m3/1e9).toLocaleString('fr-FR', { maximumFractionDigits:2 }) + ' milliards de m³';
+    if (m3 >= 1e6) return (m3/1e6).toLocaleString('fr-FR', { maximumFractionDigits:2 }) + ' millions de m³';
+    if (m3 >= 1e4) return Math.round(m3/1000).toLocaleString('fr-FR') + ' milliers de m³';
+    return Math.round(m3).toLocaleString('fr-FR') + ' m³';
+  }
+
+  /** Taille du repère selon le dernier volume connu, pour que l'emprise d'un
+   *  prélèvement se voie sur la carte et pas seulement dans son infobulle. */
+  function taillePrelev(volume){
+    if (volume == null) return 13;
+    if (volume >= 1e7) return 27;
+    if (volume >= 1e6) return 23;
+    if (volume >= 1e5) return 19;
+    if (volume >= 1e4) return 16;
+    return 13;
+  }
+
+  function histogrammeVolumes(entree){
+    var declarees = Object.keys(entree.parAnnee).map(Number);
+    var premiere = Math.min.apply(null, declarees);
+    // L'histogramme est borné aux années réellement déclarées. Le prolonger
+    // jusqu'aux bords de la fenêtre dessinerait des colonnes vides là où
+    // l'ouvrage n'existait pas encore, ou là où le rapportage n'est pas
+    // encore publié : dans les deux cas on lirait un arrêt du prélèvement
+    // qui n'a pas eu lieu.
+    var annees = anneesRecentes().slice().reverse().filter(function(a){
+      return a >= premiere && a <= entree.derniereAnnee;
+    });
+    if (annees.length === 0) return '';
+    var max = Math.max.apply(null, annees.map(function(a){ return entree.parAnnee[a] || 0; }));
+    if (max <= 0) return '';
+    var barres = annees.map(function(a){
+      var v = entree.parAnnee[a];
+      if (v == null) return '<span class="vol-col" title="' + a + ' : non renseigné"><span class="vol-bar vide"></span></span>';
+      return '<span class="vol-col" title="' + a + ' : ' + Math.round(v).toLocaleString('fr-FR') + ' m³">' +
+        '<span class="vol-bar" style="height:' + Math.max(4, Math.round(v / max * 100)) + '%"></span></span>';
+    }).join('');
+    var etiquettes = annees.map(function(a, i){
+      var afficher = i === 0 || i === annees.length - 1;
+      return '<span>' + (afficher ? String(a).slice(2) : '') + '</span>';
+    }).join('');
+    return '<div class="vol-chart">' + barres + '</div><div class="vol-axis">' + etiquettes + '</div>';
+  }
 
   function fetchRiverQuality(bounds){
     if (!document.getElementById('lyr-riverquality').checked) return Promise.resolve({ skipped:true, data:[] });
@@ -1935,6 +2083,7 @@
     piezoLayer.clearLayers();
     qualnappeLayer.clearLayers();
     prelevLayer.clearLayers();
+    prelevVolumes = {};
     riverQualityLayer.clearLayers();
     natura2000ZscLayer.clearLayers();
     natura2000ZpsLayer.clearLayers();
@@ -1956,7 +2105,8 @@
       fetchNaturaZsc(bounds),
       fetchNaturaZps(bounds),
       fetchEtabScolaire(c.lat.toFixed(5), c.lng.toFixed(5), rayon),
-      fetchEtabSante(c.lat.toFixed(5), c.lng.toFixed(5), rayon)
+      fetchEtabSante(c.lat.toFixed(5), c.lng.toFixed(5), rayon),
+      fetchPrelevVolumes(bounds)
     ]).then(function(results){
       var icpeItems = results[0];
       var ssp = results[1];
@@ -1969,6 +2119,11 @@
       var naturaZpsResult = results[8];
       var etabScolaireResult = results[9];
       var etabSanteResult = results[10];
+      var prelevVolumesResult = results[11];
+
+      // Les volumes doivent être indexés avant que les repères ne soient
+      // créés : c'est le dernier volume connu qui donne sa taille au repère.
+      prelevVolumes = prelevVolumesResult.error || prelevVolumesResult.skipped ? {} : indexeVolumes(prelevVolumesResult.data);
 
       var counts = { Autorisation:0, Enregistrement:0, 'Déclaration':0, other:0 };
       icpeItems.forEach(function(item){
@@ -2028,6 +2183,15 @@
       var piezoNote = fillHubeauLayer(piezoResult, 'lyr-piezo', 'cnt-piezo', piezoLayer, piezoMarker, 'piézomètres');
       var qualnappeNote = fillHubeauLayer(qualnappeResult, 'lyr-qualnappe', 'cnt-qualnappe', qualnappeLayer, qualnappeMarker, 'stations qualité nappes');
       var prelevNote = fillHubeauLayer(prelevResult, 'lyr-prelev', 'cnt-prelev', prelevLayer, prelevMarker, 'ouvrages de prélèvement');
+      if (prelevNote && !prelevResult.skipped && !prelevResult.error) {
+        // Dire que les volumes manquent, plutôt que de laisser croire que les
+        // ouvrages affichés ne prélèvent rien.
+        if (prelevVolumesResult.error) prelevNote += ' (volumes indisponibles)';
+        else {
+          var avecVolume = prelevResult.data.filter(function(o){ return prelevVolumes[o.code_ouvrage]; }).length;
+          if (avecVolume > 0) prelevNote += ' dont ' + avecVolume + ' avec volumes';
+        }
+      }
       var riverNote = fillHubeauLayer(riverResult, 'lyr-riverquality', 'cnt-river', riverQualityLayer, riverQualityMarker, 'stations qualité cours d\'eau');
 
       function fillNaturaLayer(result, countId, layer, kind, label){
