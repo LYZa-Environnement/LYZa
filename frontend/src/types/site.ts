@@ -1,4 +1,13 @@
-/** A geocoded study site — the single input the whole platform works from. */
+import type { ParcelleCadastrale } from '../lib/cadastre'
+import type { PolygonGeometry } from '../lib/geo'
+
+/** The study site — the single input the whole platform works from.
+ *
+ * It starts as a geocoded address and becomes a surface once the reader has
+ * picked the cadastral parcels: `lat`/`lon` then point at the centre of the
+ * merged footprint rather than wherever the geocoder dropped the address, so
+ * every distance, every map framing and every aerial frame downstream follows
+ * the land under study instead of a point on a façade. */
 export interface Site {
   label: string
   citycode: string
@@ -7,6 +16,16 @@ export interface Site {
   lat: number
   lon: number
   score: number
+  /** Parcels the reader selected, in the order they picked them. */
+  parcelles?: ParcelleCadastrale[]
+  /** Those parcels merged into one outline — what is drawn on every map. */
+  emprise?: PolygonGeometry
+  /** Total cadastral area of the selection, m². */
+  surfaceM2?: number
+  /** Where the geocoder put the address, kept so the map can still show it
+   * once the site has become a footprint. */
+  adresseLat?: number
+  adresseLon?: number
 }
 
 /** How a reading should be read at a glance. `inconnu` is a first-class

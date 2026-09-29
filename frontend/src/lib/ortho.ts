@@ -51,11 +51,26 @@ function layerName(periode: string): string {
  * makes the request fail outright in the browser ("Failed to fetch",
  * ERR_TOO_MANY_RETRIES) while curl succeeds, which silently emptied the whole
  * pre-2000 half of the timeline. */
-export function orthoImageUrl(lat: number, lon: number, periode: string, coteM = 250, pixels = 420): string {
+export interface CadreAerien {
+  sud: number
+  ouest: number
+  nord: number
+  est: number
+}
+
+/** The exact box a frame covers. Exported so an overlay — the site's footprint
+ * drawn on the photograph — is projected onto the very box the image was
+ * requested for, instead of a recomputed one that would drift from it. */
+export function cadreAerien(lat: number, lon: number, coteM = 250): CadreAerien {
   const dLat = coteM / 2 / 111320
   const dLon = coteM / 2 / (111320 * Math.cos((lat * Math.PI) / 180))
+  return { sud: lat - dLat, ouest: lon - dLon, nord: lat + dLat, est: lon + dLon }
+}
+
+export function orthoImageUrl(lat: number, lon: number, periode: string, coteM = 250, pixels = 420): string {
+  const cadre = cadreAerien(lat, lon, coteM)
   // WMS 1.3.0 with EPSG:4326 takes the bbox in latitude,longitude order.
-  const bbox = [lat - dLat, lon - dLon, lat + dLat, lon + dLon].join(',')
+  const bbox = [cadre.sud, cadre.ouest, cadre.nord, cadre.est].join(',')
   return `${WMS_BASE}?${new URLSearchParams({
     SERVICE: 'WMS',
     VERSION: '1.3.0',

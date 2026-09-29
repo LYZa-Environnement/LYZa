@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import logo from '../assets/lyza-logo.png'
 
 const links = [
-  { to: '/', label: 'Consulter une adresse', end: true },
+  { to: '/', label: 'Étudier un site', end: true },
   { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true },
   { to: '/sources', label: 'Méthode & sources' },
 ]

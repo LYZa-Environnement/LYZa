@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { BASE_LAYERS } from '../lib/basemap'
+import { formatSurface } from '../lib/cadastre'
 import type { MapFeature, Site } from '../types/site'
 
 interface Props {
@@ -85,10 +86,25 @@ export default function ThemeMap({ site, features, rayonM, height = '26rem' }: P
             )
           })}
 
-          {/* Drawn last so the site marker always sits above the data layers. */}
-          <CircleMarker center={[site.lat, site.lon]} radius={8} pathOptions={{ color: '#fffdf7', weight: 3, fillColor: '#c34a35', fillOpacity: 1 }}>
+          {/* Drawn last so the site always sits above the data layers. When
+              the reader has delimited the plot, the footprint is the site:
+              the marker alone would put a point back where a surface belongs. */}
+          {site.emprise && (
+            <GeoJSON
+              key={`emprise-${site.lat}-${site.lon}`}
+              data={{ type: 'Feature', geometry: site.emprise, properties: {} } as never}
+              style={{ color: '#c34a35', weight: 3, fillColor: '#c34a35', fillOpacity: 0.18 }}
+            >
+              <Tooltip sticky>Site étudié{site.surfaceM2 ? ` — ${formatSurface(site.surfaceM2)}` : ''}</Tooltip>
+            </GeoJSON>
+          )}
+          <CircleMarker
+            center={[site.lat, site.lon]}
+            radius={site.emprise ? 5 : 8}
+            pathOptions={{ color: '#fffdf7', weight: site.emprise ? 2 : 3, fillColor: '#c34a35', fillOpacity: 1 }}
+          >
             <Tooltip permanent direction="top" offset={[0, -8]}>
-              Site étudié
+              {site.emprise ? 'Centre du site' : 'Site étudié'}
             </Tooltip>
           </CircleMarker>
 

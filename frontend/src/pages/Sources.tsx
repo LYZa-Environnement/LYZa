@@ -45,10 +45,9 @@ export default function Sources() {
 
         <h2 style={{ marginTop: '3rem' }}>Les six rubriques</h2>
         <div className="grid grid--2">
-          {RUBRIQUES.map((rubrique, index) => (
+          {RUBRIQUES.map((rubrique) => (
             <div key={rubrique.id} className="card">
-              <p className="eyebrow">Rubrique {index + 1}</p>
-              <h3 style={{ fontSize: '1.1rem' }}>{rubrique.titre}</h3>
+              <h3 style={{ fontSize: '1.1rem', marginTop: 0 }}>{rubrique.titre}</h3>
               <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--color-muted)' }}>{rubrique.sousTitre}</p>
             </div>
           ))}

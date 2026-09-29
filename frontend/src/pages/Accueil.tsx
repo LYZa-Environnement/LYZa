@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import AddressSearch from '../components/AddressSearch'
 import FriseAerienne from '../components/FriseAerienne'
 import RoseDesVents from '../components/RoseDesVents'
+import SelecteurParcelles from '../components/SelecteurParcelles'
 import ThemeSection from '../components/ThemeSection'
 import Veille from '../components/Veille'
+import { formatSurface, libelleParcelle } from '../lib/cadastre'
 import { RUBRIQUES } from '../themes'
 import type { Site } from '../types/site'
 
@@ -35,6 +37,11 @@ const PRINCIPES = [
 
 export default function Accueil() {
   const [site, setSite] = useState<Site | null>(loadSite)
+  // The site goes through two steps: an address, then the parcels that give it
+  // a surface. Keeping them apart means the reader can come back and redraw
+  // the footprint without losing the address, and that a restored session
+  // lands on the readings rather than back in the selector.
+  const [etape, setEtape] = useState<'adresse' | 'parcelles' | 'lecture'>(() => (loadSite() ? 'lecture' : 'adresse'))
 
   useEffect(() => {
     try {
@@ -47,7 +54,18 @@ export default function Accueil() {
   }, [site])
 
   const handleSelect = useCallback((selected: Site) => {
-    setSite(selected)
+    setSite({ ...selected, adresseLat: selected.lat, adresseLon: selected.lon })
+    setEtape('parcelles')
+  }, [])
+
+  const handleValider = useCallback((valide: Site) => {
+    setSite(valide)
+    setEtape('lecture')
+  }, [])
+
+  const handleAnnuler = useCallback(() => {
+    setSite(null)
+    setEtape('adresse')
   }, [])
 
   return (
@@ -71,8 +89,28 @@ export default function Accueil() {
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-muted)' }}>Site étudié</p>
               <strong style={{ fontSize: '1.05rem' }}>{site.label}</strong>
               <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-                {site.lat.toFixed(5)}, {site.lon.toFixed(5)} — commune {site.city} ({site.citycode})
+                {site.parcelles && site.parcelles.length > 0 ? (
+                  <>
+                    {site.parcelles.length > 1 ? `${site.parcelles.length} parcelles` : 'Parcelle'}{' '}
+                    {site.parcelles.map(libelleParcelle).join(', ')} — {formatSurface(site.surfaceM2 ?? 0)} — commune {site.city} (
+                    {site.citycode})
+                  </>
+                ) : (
+                  <>
+                    Point d'adresse : {site.lat.toFixed(5)}, {site.lon.toFixed(5)} — commune {site.city} ({site.citycode})
+                  </>
+                )}
               </p>
+              {etape === 'lecture' && (
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  style={{ marginTop: '0.9rem' }}
+                  onClick={() => setEtape('parcelles')}
+                >
+                  Modifier l'emprise
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid--3" style={{ marginTop: '2.5rem' }}>
@@ -85,16 +123,16 @@ export default function Accueil() {
             </div>
           )}
 
-          {site && (
+          {site && etape === 'lecture' && (
             <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '1.5rem' }}>
-              {RUBRIQUES.map((rubrique, index) => (
+              {RUBRIQUES.map((rubrique) => (
                 <a
                   key={rubrique.id}
                   href={`#${rubrique.id}`}
                   className="badge"
                   style={{ textDecoration: 'none', color: 'var(--color-accent)', background: 'var(--color-accent-soft)' }}
                 >
-                  {index + 1}. {rubrique.titre}
+                  {rubrique.titre}
                 </a>
               ))}
             </nav>
@@ -111,12 +149,9 @@ export default function Accueil() {
               Chaque rubrique part d'une carte au 1:25 000, situe les données par rapport au site, et cite ses sources.
             </p>
             <div className="grid grid--3">
-              {RUBRIQUES.map((rubrique, index) => (
+              {RUBRIQUES.map((rubrique) => (
                 <div key={rubrique.id} className="card">
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--color-accent)' }}>
-                    RUBRIQUE {index + 1}
-                  </span>
-                  <h3 style={{ fontSize: '1.05rem', margin: '0.3rem 0 0.4rem' }}>{rubrique.titre}</h3>
+                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 0.4rem' }}>{rubrique.titre}</h3>
                   <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--color-muted)' }}>{rubrique.sousTitre}</p>
                 </div>
               ))}
@@ -125,12 +160,14 @@ export default function Accueil() {
         </section>
       )}
 
+      {site && etape === 'parcelles' && <SelecteurParcelles site={site} onValider={handleValider} onAnnuler={handleAnnuler} />}
+
       {site &&
-        RUBRIQUES.map((rubrique, index) => (
+        etape === 'lecture' &&
+        RUBRIQUES.map((rubrique) => (
           <ThemeSection
             key={rubrique.id}
             id={rubrique.id}
-            numero={index + 1}
             titre={rubrique.titre}
             sousTitre={rubrique.sousTitre}
             site={site}

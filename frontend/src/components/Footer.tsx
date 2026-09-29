@@ -36,7 +36,7 @@ export default function Footer() {
           <strong>Navigation</strong>
           <p style={{ marginTop: '0.5rem' }}>
             <Link to="/" style={{ color: 'var(--color-accent-ink)' }}>
-              Consulter une adresse
+              Étudier un site
             </Link>
             <br />
             <a href={`${import.meta.env.BASE_URL}lyza-cartes.html`} style={{ color: 'var(--color-accent-ink)' }}>

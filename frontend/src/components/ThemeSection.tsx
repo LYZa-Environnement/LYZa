@@ -99,7 +99,6 @@ function BlocPliable({ titre, indicateurs }: { titre: string; indicateurs: Indic
 
 interface Props {
   id: string
-  numero: number
   titre: string
   sousTitre: string
   site: Site
@@ -109,7 +108,7 @@ interface Props {
   children?: (report: ThemeReport) => ReactNode
 }
 
-export default function ThemeSection({ id, numero, titre, sousTitre, site, build, children }: Props) {
+export default function ThemeSection({ id, titre, sousTitre, site, build, children }: Props) {
   const [report, setReport] = useState<ThemeReport | null>(null)
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
   const containerRef = useRef<HTMLElement | null>(null)
@@ -159,7 +158,6 @@ export default function ThemeSection({ id, numero, titre, sousTitre, site, build
   return (
     <section ref={containerRef} id={id} className="section" style={{ borderTop: 'var(--border-w) solid var(--color-border)', scrollMarginTop: '1rem' }}>
       <div className="container">
-        <p className="eyebrow">Rubrique {numero}</p>
         <h2 style={{ marginBottom: '0.3rem' }}>{titre}</h2>
         <p className="lede" style={{ marginBottom: '1.75rem' }}>{sousTitre}</p>
 
