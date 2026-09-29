@@ -98,15 +98,16 @@ export default function ThemeMap({ site, features, rayonM, height = '26rem' }: P
               <Tooltip sticky>Site étudié{site.surfaceM2 ? ` — ${formatSurface(site.surfaceM2)}` : ''}</Tooltip>
             </GeoJSON>
           )}
-          <CircleMarker
-            center={[site.lat, site.lon]}
-            radius={site.emprise ? 5 : 8}
-            pathOptions={{ color: '#fffdf7', weight: site.emprise ? 2 : 3, fillColor: '#c34a35', fillOpacity: 1 }}
-          >
-            <Tooltip permanent direction="top" offset={[0, -8]}>
-              {site.emprise ? 'Centre du site' : 'Site étudié'}
-            </Tooltip>
-          </CircleMarker>
+          {/* No marker once the plot is drawn: the outline already says where
+              the site is, and a dot labelled over it only hides the ground the
+              reader came to look at. */}
+          {!site.emprise && (
+            <CircleMarker center={[site.lat, site.lon]} radius={8} pathOptions={{ color: '#fffdf7', weight: 3, fillColor: '#c34a35', fillOpacity: 1 }}>
+              <Tooltip permanent direction="top" offset={[0, -8]}>
+                Site étudié
+              </Tooltip>
+            </CircleMarker>
+          )}
 
           <Frame site={site} rayonM={rayonM} />
         </MapContainer>

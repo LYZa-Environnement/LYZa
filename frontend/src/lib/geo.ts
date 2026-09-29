@@ -167,6 +167,23 @@ export function cardinalLabelFr(direction: string): string {
   return CARDINAL_LABELS_FR[direction] ?? direction
 }
 
+const CARDINAL_VERS_FR: Record<string, string> = {
+  N: 'vers le nord',
+  NE: 'vers le nord-est',
+  E: "vers l'est",
+  SE: 'vers le sud-est',
+  S: 'vers le sud',
+  SO: 'vers le sud-ouest',
+  O: "vers l'ouest",
+  NO: 'vers le nord-ouest',
+}
+
+/** "vers le nord", "vers l'est" — the elided form matters, "vers le est" is
+ * not French, and a slope direction reads in a sentence. */
+export function cardinalVersFr(direction: string): string {
+  return CARDINAL_VERS_FR[direction] ?? `vers le ${cardinalLabelFr(direction)}`
+}
+
 const CARDINAL_PHRASES_FR: Record<string, string> = {
   N: 'au nord',
   NE: 'au nord-est',

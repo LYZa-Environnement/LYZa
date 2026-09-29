@@ -1,5 +1,5 @@
 import { cached, pointKey } from '../lib/cache'
-import { formatDistance } from '../lib/geo'
+import { cardinalLabelFr, formatDistance } from '../lib/geo'
 import {
   estSeveso,
   fetchCavites,
@@ -169,6 +169,15 @@ export async function buildRisques(site: Site): Promise<ThemeReport> {
       const isSeveso = estSeveso(item)
       indicateurs.push({
         pliable: 'Détail des installations classées',
+        tableau: {
+          reference: item.identifiant ?? '',
+          nom: item.nom,
+          activites: [item.secteur, item.regime, isSeveso ? item.seveso : null, item.etatActivite, item.codeNaf ? `code d'activité ${item.codeNaf}` : null]
+            .filter(Boolean)
+            .join(' — '),
+          distanceM: item.localisation!.distanceM,
+          direction: cardinalLabelFr(item.localisation!.direction),
+        },
         label: item.nom,
         value: item.secteur ?? item.regime,
         situation: situation(item.localisation!.distanceM, item.localisation!.direction),

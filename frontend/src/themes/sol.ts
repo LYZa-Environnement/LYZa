@@ -1,6 +1,6 @@
 import { niveauAspitet, situerDansAspitet } from '../lib/aspitet'
 import { cached, pointKey } from '../lib/cache'
-import { formatDistance } from '../lib/geo'
+import { cardinalLabelFr, formatDistance } from '../lib/geo'
 import { fetchSsp, type CasiasItem, type SisItem } from '../lib/georisques'
 import { surveyNearbyParcels } from '../lib/parcelles'
 import { fetchFondGeochimique, fetchTypeDeSol } from '../lib/sols'
@@ -154,6 +154,13 @@ export async function buildSol(site: Site): Promise<ThemeReport> {
     for (const item of casias.slice(0, MAX_SITES_DETAILLES)) {
       indicateurs.push({
         pliable: 'Détail des anciens sites industriels',
+        tableau: {
+          reference: item.identifiant ?? '',
+          nom: item.nom,
+          activites: [item.activite, item.statut, item.adresse].filter(Boolean).join(' — '),
+          distanceM: item.localisation.distanceM,
+          direction: cardinalLabelFr(item.localisation.direction),
+        },
         label: item.nom,
         value: item.activite ?? item.statut ?? 'Ancien site industriel',
         situation: situation(item.localisation.distanceM, item.localisation.direction),
@@ -183,6 +190,15 @@ export async function buildSol(site: Site): Promise<ThemeReport> {
     for (const item of sis.slice(0, MAX_SITES_DETAILLES)) {
       indicateurs.push({
         pliable: "Détail des secteurs d'information sur les sols",
+        tableau: {
+          reference: item.identifiant ?? '',
+          nom: item.nom,
+          activites: ["Secteur d'information sur les sols", item.superficieM2 !== null ? `${Math.round(item.superficieM2).toLocaleString('fr-FR')} m²` : null, item.commune]
+            .filter(Boolean)
+            .join(' — '),
+          distanceM: item.localisation.distanceM,
+          direction: cardinalLabelFr(item.localisation.direction),
+        },
         label: item.nom,
         value: item.superficieM2 !== null ? `${Math.round(item.superficieM2).toLocaleString('fr-FR')} m²` : 'Secteur d’information sur les sols',
         situation: situation(item.localisation.distanceM, item.localisation.direction),

@@ -226,6 +226,9 @@ const SECTEURS_NAF: Record<string, string> = {
 }
 
 export interface IcpeItem {
+  /** National AIOT reference — the number an inspectorate file is filed under,
+   * and the only stable key between this list and a report. */
+  identifiant: string | null
   nom: string
   commune: string
   adresse: string | null
@@ -267,6 +270,7 @@ export async function fetchIcpe(lat: number, lon: number, rayon: number): Promis
       nom: str(item.raisonSociale) ?? 'Établissement',
       commune: str(item.commune) ?? '',
       adresse: [str(item.adresse1), str(item.codePostal)].filter(Boolean).join(', ') || null,
+      identifiant: codeAIOT ?? null,
       regime,
       classee: !/^non icpe$/i.test(regime),
       codeNaf,

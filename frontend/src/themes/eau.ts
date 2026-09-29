@@ -1,10 +1,11 @@
 import { niveauQualiteBaignade, surveyBathingSites, type BathingSite } from '../lib/baignade'
 import { cached, pointKey } from '../lib/cache'
 import { fetchEauPotable, limitesRespectees } from '../lib/eauPotable'
-import { formatDistance } from '../lib/geo'
+import { cardinalVersFr, formatDistance } from '../lib/geo'
 import { fetchPrelevements, findNearestAdesPoint, findNearestStationPiscicole, findNearestStationRiviere } from '../lib/hubeau'
 import { findNearestPpe } from '../lib/ppe'
 import { findReseauHydro } from '../lib/reseauHydro'
+import { fetchTopographie, qualifiePente } from '../lib/topographie'
 import { fetchRestrictions, GRAVITE_LABEL, sortBySeverityDesc, TYPE_LABEL } from '../lib/vigieau'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
 import { pluriel, safe, situation, situationHydro } from './common'
@@ -71,7 +72,7 @@ function detailBaignade(site: BathingSite, saison: number | null): string {
 
 export async function buildEau(site: Site): Promise<ThemeReport> {
   const { lat, lon } = site
-  const [reseau, potable, station, piscicole, baignade, restrictions, ppe, prelevements, ades] = await Promise.all([
+  const [reseau, potable, station, piscicole, baignade, restrictions, ppe, prelevements, ades, topo] = await Promise.all([
     safe(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
     safe(fetchEauPotable(site.citycode)),
     safe(findNearestStationRiviere(lat, lon, RAYON_USAGES_M)),
@@ -81,12 +82,57 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
     safe(findNearestPpe(lat, lon)),
     safe(fetchPrelevements(lat, lon, RAYON_M)),
     safe(findNearestAdesPoint(lat, lon)),
+    safe(cached(pointKey('topographie', lat, lon), () => fetchTopographie(lat, lon, site.emprise))),
   ])
 
   const commentaire: string[] = []
   const indicateurs: Indicator[] = []
   const features: MapFeature[] = []
   const lacunes: string[] = []
+
+  // ---- Topographie : ce qui décide où va le ruissellement -----------------
+  //
+  // Placée avant le réseau hydrographique parce qu'elle l'explique : savoir
+  // qu'un fossé passe à 80 m au nord ne dit rien tant qu'on ignore si le
+  // terrain descend vers lui ou s'en éloigne.
+
+  if (topo) {
+    const denivele = topo.altitudeMax - topo.altitudeMin
+    indicateurs.push({
+      label: 'Altitude du site',
+      value: `${topo.altitudeCentre.toFixed(1)} m NGF`,
+      situation: `Maximum ${topo.altitudeMax.toFixed(1)} m, minimum ${topo.altitudeMin.toFixed(1)} m sur ${topo.coteM} m de côté`,
+      detail:
+        `Altitudes du modèle national RGE ALTI® (résolution 1 à 5 m), relevées sur une grille de 81 points` +
+        `${site.emprise ? " couvrant l'emprise retenue" : ' centrée sur le point d’adresse'}. NGF : nivellement général de la France, ` +
+        `le zéro altimétrique national.`,
+      level: 'favorable',
+    })
+    indicateurs.push({
+      label: 'Pente générale au droit du site',
+      value: `${topo.pentePourcent.toFixed(1)} % ${cardinalVersFr(topo.penteDirection)}`,
+      situation: qualifiePente(topo.pentePourcent),
+      detail:
+        `Pente moyenne ajustée sur les 81 altitudes. ` +
+        (topo.planarite < 0.5
+          ? `Le terrain se résume mal à un seul plan ici (${Math.round(topo.planarite * 100)} % de la variation d'altitude expliquée) : ` +
+            `talweg, terrasse ou remblai le structurent, et la pente moyenne en masque le détail.`
+          : `Le terrain suit bien un plan unique (${Math.round(topo.planarite * 100)} % de la variation d'altitude expliquée).`),
+      level: topo.pentePourcent >= 8 ? 'attention' : 'favorable',
+    })
+
+    commentaire.push(
+      `Le site se tient autour de ${topo.altitudeCentre.toFixed(0)} m NGF, entre ${topo.altitudeMin.toFixed(1)} et ` +
+        `${topo.altitudeMax.toFixed(1)} m sur les ${topo.coteM} m de côté examinés, soit ${denivele.toFixed(1)} m de dénivelé. ` +
+        `Le terrain y présente une ${qualifiePente(topo.pentePourcent)} de ${topo.pentePourcent.toFixed(1)} %, orientée ` +
+        `${cardinalVersFr(topo.penteDirection)} : c'est la direction que suit le ruissellement de surface, et avec lui ce qui ` +
+        `pourrait être entraîné depuis le site.` +
+        (topo.planarite < 0.5
+          ? ` Cette pente moyenne reste une simplification : le relief local n'est pas un plan (${Math.round(topo.planarite * 100)} % ` +
+            `de la variation d'altitude seulement en est expliquée), ce qui trahit un talweg, une terrasse ou un remblai.`
+          : ''),
+    )
+  }
 
   // ---- Réseau hydrographique : le cadre de lecture amont/aval -------------
 
@@ -110,6 +156,27 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
       level: reseau.distanceM < 150 ? 'attention' : 'favorable',
     })
 
+    if (reseau.exutoire) {
+      features.push({
+        kind: 'point',
+        lat: reseau.exutoire.lat,
+        lon: reseau.exutoire.lon,
+        label: `Confluence avec ${reseau.exutoire.nom}`,
+        color: COULEURS.coursDEauNomme,
+        group: 'Exutoire',
+      })
+      indicateurs.push({
+        label: 'Exutoire',
+        value: reseau.exutoire.nom,
+        situation: `Confluence ${situation(reseau.exutoire.distanceM, reseau.exutoire.direction)}`,
+        detail:
+          `Le cours d'eau qui longe le site s'y jette après ${formatDistance(reseau.exutoire.cheminM)} de parcours` +
+          `${reseau.exutoire.relais > 0 ? `, via ${pluriel(reseau.exutoire.relais, 'écoulement intermédiaire', 'écoulements intermédiaires')} sans toponyme` : ''}. ` +
+          `Distance mesurée le long du réseau, pas à vol d'oiseau.`,
+        level: 'favorable',
+      })
+    }
+
     if (reseau.premierNomme) {
       indicateurs.push({
         label: "Cours d'eau nommé le plus proche",
@@ -125,6 +192,11 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
       : "Le cours d'eau le plus proche ne porte pas de toponyme dans la BD TOPO®. Il"
     commentaire.push(
       `${nomPhrase} s'écoule ${situation(reseau.distanceM, reseau.direction)}.` +
+        (reseau.exutoire
+          ? ` En le suivant vers l'aval, il rejoint ${reseau.exutoire.nom} après ${formatDistance(reseau.exutoire.cheminM)} de parcours` +
+            `${reseau.exutoire.relais > 0 ? `, par ${pluriel(reseau.exutoire.relais, 'écoulement intermédiaire', 'écoulements intermédiaires')} sans toponyme` : ''} : ` +
+            `c'est cet exutoire qui reçoit, in fine, ce qui quitte le site par voie superficielle.`
+          : '') +
         (reseau.premierNomme
           ? ` Le premier cours d'eau nommé est ${reseau.premierNomme.nom}, ${situation(reseau.premierNomme.distanceM, reseau.premierNomme.direction)}.`
           : '') +
@@ -445,6 +517,11 @@ export async function buildEau(site: Site): Promise<ThemeReport> {
         label: 'Ministère de la Santé — rapportage de la saison balnéaire',
         href: 'https://baignades.sante.gouv.fr/',
         note: 'liste nationale des sites, classement de la qualité de l’eau et journal de la saison, eaux douces et eaux de mer',
+      },
+      {
+        label: 'IGN RGE ALTI® — modèle numérique de terrain',
+        href: 'https://geoservices.ign.fr/rgealti',
+        note: 'altitudes et pente au droit du site, résolution 1 à 5 m',
       },
       { label: 'Institut national de l’information géographique et forestière (IGN), base de données BD TOPO® — réseau hydrographique', href: 'https://geoservices.ign.fr/bdtopo', note: "tracé et sens d'écoulement des cours d'eau" },
     ],

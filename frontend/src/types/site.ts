@@ -33,6 +33,18 @@ export interface Site {
  * "not available" instead of inventing a verdict. */
 export type Level = 'favorable' | 'attention' | 'defavorable' | 'inconnu'
 
+/** One line of an extractable table — the columns are fixed so several
+ * inventories (installations classées, anciens sites industriels, secteurs
+ * d'information sur les sols) land in the same sheet. */
+export interface LigneTableau {
+  /** National reference of the record in its own inventory. */
+  reference: string
+  nom: string
+  activites: string
+  distanceM: number | null
+  direction: string | null
+}
+
 export interface Indicator {
   label: string
   /** The reading itself, already formatted for display. */
@@ -43,6 +55,10 @@ export interface Indicator {
   detail?: string
   level?: Level
   href?: string
+  /** The row's data as a table line. A block whose rows carry one can be
+   * extracted as a spreadsheet: a reader who has to carry these sites into a
+   * report should not have to retype fifteen lines from the screen. */
+  tableau?: LigneTableau
   /** Groups this row into a collapsible block with the rows around it that
    * carry the same label. Long enumerations — ten trace elements, fifteen
    * installations, a dozen protected areas — are the substance of a rubrique

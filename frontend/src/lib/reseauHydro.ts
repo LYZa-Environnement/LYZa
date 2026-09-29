@@ -18,7 +18,16 @@ import { bboxAround, bboxToPolygon, bearingDegrees, cardinalDirection, haversine
 
 const WFS_SEARCH_URL = 'https://apicarto.ign.fr/api/wfs-geoportail/search'
 const SOURCE = 'BDTOPO_V3:troncon_hydrographique'
+/** Named watercourses. The tronçon layer carries the flow direction but its
+ * own `toponyme` is empty on every reach sampled — the name lives here, keyed
+ * by the identifier the tronçons point at. */
+const SOURCE_COURS = 'BDTOPO_V3:cours_d_eau'
 const SEARCH_RADII_M = [500, 2000, 6000]
+/** How far downstream the outlet is looked for, and in how many hops. A ditch
+ * usually reaches a named river within a kilometre or two; past that the
+ * answer stops being about this site. */
+const EXUTOIRE_HOPS = 5
+const EXUTOIRE_RAYON_M = 400
 
 type Position = [number, number]
 
@@ -39,6 +48,25 @@ export interface CoursDEauNomme {
   path: [number, number][]
 }
 
+/** The named watercourse the site's reach eventually flows into.
+ *
+ * A ditch 80 m from a plot matters — it is the first thing that carries runoff
+ * away — but on its own it names nothing a reader recognises. Following it
+ * downstream to the river it joins turns "un fossé au nord" into "un fossé qui
+ * rejoint la Loire 1,6 km en aval". */
+export interface Exutoire {
+  nom: string
+  /** Distance along the network from the site's reach to the confluence. */
+  cheminM: number
+  /** Straight-line distance and direction from the site to the confluence. */
+  distanceM: number
+  direction: string
+  lat: number
+  lon: number
+  /** How many watercourses are crossed before reaching the named one. */
+  relais: number
+}
+
 export interface ReseauHydro {
   /** Upstream-to-downstream ordered path, in [lat, lon] for Leaflet. */
   path: [number, number][]
@@ -56,6 +84,9 @@ export interface ReseauHydro {
   siteOffsetM: number
   /** Total length of the assembled path. */
   longueurM: number
+  /** The named watercourse this reach drains into, when it is not itself
+   * named and one can be reached downstream. */
+  exutoire: Exutoire | null
 }
 
 function reverse(path: Position[]): Position[] {
@@ -98,6 +129,43 @@ async function queryTroncons(lat: number, lon: number, radiusM: number): Promise
   } catch {
     return null
   }
+}
+
+/** Names of the watercourses around a point, keyed by the identifier the
+ * tronçons carry in `liens_vers_cours_d_eau`. */
+async function fetchNomsCoursDEau(lat: number, lon: number, radiusM: number): Promise<Map<string, string>> {
+  const noms = new Map<string, string>()
+  try {
+    const url = new URL(WFS_SEARCH_URL)
+    url.searchParams.set('source', SOURCE_COURS)
+    url.searchParams.set('geom', JSON.stringify(bboxToPolygon(bboxAround(lat, lon, radiusM))))
+    url.searchParams.set('_limit', '150')
+    const response = await fetch(url.toString())
+    if (!response.ok) return noms
+    const json = (await response.json()) as { features?: { properties?: Record<string, unknown> }[] }
+    for (const feature of json.features ?? []) {
+      const props = feature.properties ?? {}
+      const id = typeof props.cleabs === 'string' ? props.cleabs : null
+      const nom = typeof props.toponyme === 'string' && props.toponyme.trim() ? props.toponyme.trim() : null
+      if (id && nom) noms.set(id, nom)
+    }
+  } catch {
+    // An unnamed watercourse is a lesser answer, never a reason to drop the
+    // whole hydrographic reading.
+  }
+  return noms
+}
+
+/** `liens_vers_cours_d_eau` can hold several identifiers separated by a
+ * slash where a reach belongs to more than one course — the first one that
+ * resolves to a name is the one to show. */
+function nomDe(lien: string | null, noms: Map<string, string>): string | null {
+  if (!lien) return null
+  for (const id of lien.split('/')) {
+    const nom = noms.get(id.trim())
+    if (nom) return nom
+  }
+  return null
 }
 
 function projectOnPath(lat: number, lon: number, path: Position[]): { distanceM: number; offsetM: number; lat: number; lon: number } | null {
@@ -148,6 +216,84 @@ function chain(troncons: Troncon[]): Position[] {
   return path
 }
 
+/**
+ * Walks the network downstream from the end of a reach until it reaches a
+ * named watercourse.
+ *
+ * At each step the tronçons around the current downstream end are fetched, and
+ * the nearest one belonging to a *different* course is taken as the receiving
+ * watercourse. Verified live: an unnamed channel south of Nantes resolves to
+ * la Loire in one hop (1,6 km), an unnamed ditch in the Vendée bocage to la
+ * Mozée in two (1,5 km).
+ *
+ * Returns null rather than a guess when the walk runs out of hops, leaves the
+ * search radius, or hits a reach with no downstream neighbour — a site whose
+ * runoff disappears into a closed depression is a real case, and inventing a
+ * receptor for it would be worse than saying nothing.
+ */
+async function findExutoire(
+  lat: number,
+  lon: number,
+  depart: Position[],
+  coursDepart: string | null,
+  noms: Map<string, string>,
+): Promise<Exutoire | null> {
+  let path = depart
+  let courant = coursDepart
+  let cheminM = 0
+  for (let i = 0; i < path.length - 1; i++) cheminM += haversineMeters(path[i][1], path[i][0], path[i + 1][1], path[i + 1][0])
+
+  const nomsConnus = new Map(noms)
+
+  for (let relais = 0; relais < EXUTOIRE_HOPS; relais++) {
+    const queue = path[path.length - 1]
+    const voisins = await queryTroncons(queue[1], queue[0], EXUTOIRE_RAYON_M)
+    if (!voisins || voisins.length === 0) return null
+
+    // Measured against the receiving watercourse's *segments*, not its
+    // vertices. A confluence falls wherever the two lines meet, which is
+    // almost never on a digitised vertex: measuring vertex-to-vertex reported
+    // 128 m for a junction that is physically a junction — verified on an
+    // unnamed ditch in the Vendée bocage, where it lost la Mozée entirely.
+    let recepteur: Troncon | null = null
+    let ecart = Infinity
+    let confluence: Position = queue
+    for (const troncon of voisins) {
+      if (troncon.coursDEau === courant) continue
+      const projection = projectOnPath(queue[1], queue[0], troncon.path)
+      if (projection && projection.distanceM < ecart) {
+        ecart = projection.distanceM
+        recepteur = troncon
+        confluence = [projection.lon, projection.lat]
+      }
+    }
+    // Past this the "receiving" watercourse is simply another one in the
+    // neighbourhood, not one this reach flows into.
+    if (!recepteur || ecart > 120) return null
+
+    for (const [id, nom] of await fetchNomsCoursDEau(queue[1], queue[0], 3000)) nomsConnus.set(id, nom)
+    const nom = recepteur.nom ?? nomDe(recepteur.coursDEau, nomsConnus)
+    if (nom) {
+      return {
+        nom,
+        cheminM,
+        distanceM: haversineMeters(lat, lon, confluence[1], confluence[0]),
+        direction: cardinalDirection(bearingDegrees(lat, lon, confluence[1], confluence[0])),
+        lat: confluence[1],
+        lon: confluence[0],
+        relais,
+      }
+    }
+
+    courant = recepteur.coursDEau
+    const suite = chain([recepteur, ...voisins.filter((t) => t !== recepteur && t.coursDEau === recepteur!.coursDEau)])
+    if (suite.length < 2) return null
+    for (let i = 0; i < suite.length - 1; i++) cheminM += haversineMeters(suite[i][1], suite[i][0], suite[i + 1][1], suite[i + 1][0])
+    path = suite
+  }
+  return null
+}
+
 export async function findReseauHydro(lat: number, lon: number): Promise<ReseauHydro | null> {
   for (const radius of SEARCH_RADII_M) {
     const troncons = await queryTroncons(lat, lon, radius)
@@ -162,9 +308,15 @@ export async function findReseauHydro(lat: number, lon: number): Promise<ReseauH
     }
     if (!nearest) continue
 
+    // A reach with no `liens_vers_cours_d_eau` — most ditches — cannot be
+    // grouped by identifier, so it is grouped with the other unidentified
+    // reaches and let `chain` follow the physical continuation. Keeping it
+    // alone left the assembled path ending mid-ditch, a hundred metres short
+    // of the stream it runs into, which is why no outlet was ever found for
+    // exactly the sites that need one most.
     const sameCourse = nearest.troncon.coursDEau
       ? troncons.filter((t) => t.coursDEau === nearest!.troncon.coursDEau)
-      : [nearest.troncon]
+      : troncons.filter((t) => t.coursDEau === null)
     // Start the chain from the tronçon carrying the site, so the assembled
     // path runs through the site's own reach rather than a parallel branch.
     const ordered = [nearest.troncon, ...sameCourse.filter((t) => t !== nearest!.troncon)]
@@ -175,7 +327,15 @@ export async function findReseauHydro(lat: number, lon: number): Promise<ReseauH
     let longueurM = 0
     for (let i = 0; i < path.length - 1; i++) longueurM += haversineMeters(path[i][1], path[i][0], path[i + 1][1], path[i + 1][0])
 
-    const nom = nearest.troncon.nom ?? sameCourse.find((t) => t.nom)?.nom ?? null
+    // Names come from the cours_d_eau layer: the tronçon layer carries the
+    // flow direction but leaves `toponyme` empty on every reach sampled, so
+    // relying on it alone left almost every watercourse anonymous.
+    const noms = await fetchNomsCoursDEau(lat, lon, Math.max(radius, 3000))
+    const nom =
+      nearest.troncon.nom ??
+      sameCourse.find((t) => t.nom)?.nom ??
+      nomDe(nearest.troncon.coursDEau, noms) ??
+      null
 
     // When the nearest watercourse has no toponym, look through the same
     // result set for the closest one that does, so the reader is given a
@@ -197,10 +357,15 @@ export async function findReseauHydro(lat: number, lon: number): Promise<ReseauH
       }
     }
 
+    // Only when the reach itself has no name: naming the outlet of a river
+    // the reader can already identify adds nothing.
+    const exutoire = nom ? null : await findExutoire(lat, lon, path, nearest.troncon.coursDEau, noms)
+
     return {
       path: path.map(([plon, plat]) => [plat, plon] as [number, number]),
       nom,
       premierNomme,
+      exutoire,
       distanceM: projection.distanceM,
       direction: cardinalDirection(bearingDegrees(lat, lon, projection.lat, projection.lon)),
       flowKnown: nearest.troncon.flowKnown,

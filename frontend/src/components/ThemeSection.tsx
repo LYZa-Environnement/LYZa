@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { enFile } from '../lib/queue'
 import ThemeMap from './ThemeMap'
-import type { Indicator, Level, Site, ThemeReport } from '../types/site'
+import { nomFichier, telechargerCsv } from '../lib/tableau'
+import type { Indicator, LigneTableau, Level, Site, ThemeReport } from '../types/site'
 
 const LEVEL_STYLE: Record<Level, { color: string; background: string }> = {
   favorable: { color: 'var(--level-faible)', background: 'var(--level-faible-bg)' },
@@ -59,10 +60,12 @@ function enBlocs(indicateurs: Indicator[]): ({ type: 'simple'; indicateur: Indic
   return blocs
 }
 
-function BlocPliable({ titre, indicateurs }: { titre: string; indicateurs: Indicator[] }) {
+function BlocPliable({ titre, indicateurs, site }: { titre: string; indicateurs: Indicator[]; site: Site }) {
   const [ouvert, setOuvert] = useState(false)
+  const lignes = indicateurs.map((indicateur) => indicateur.tableau).filter((ligne): ligne is LigneTableau => ligne !== undefined)
   return (
     <li style={{ padding: '0.7rem 0', borderTop: '1px solid rgba(27, 42, 31, 0.14)' }}>
+      <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
       <button
         type="button"
         onClick={() => setOuvert((precedent) => !precedent)}
@@ -86,6 +89,26 @@ function BlocPliable({ titre, indicateurs }: { titre: string; indicateurs: Indic
         </span>
         {titre} ({indicateurs.length})
       </button>
+      {lignes.length > 0 && (
+        <button
+          type="button"
+          onClick={() => telechargerCsv(lignes, nomFichier(titre, site.citycode || 'site'))}
+          title="Télécharger la liste au format tableur (CSV)"
+          style={{
+            padding: '0.3rem 0.8rem',
+            borderRadius: '999px',
+            cursor: 'pointer',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            border: '1.5px solid var(--color-border)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-ink)',
+          }}
+        >
+          ⭳ Extraire en tableau
+        </button>
+      )}
+      </span>
       {ouvert && (
         <ul style={{ listStyle: 'none', padding: 0, margin: '0.4rem 0 0' }}>
           {indicateurs.map((indicateur, i) => (
@@ -190,7 +213,7 @@ export default function ThemeSection({ id, titre, sousTitre, site, build, childr
                       with the same name — so the label is not a unique key. */}
                   {enBlocs(report.indicateurs).map((bloc, i) =>
                     bloc.type === 'pliable' ? (
-                      <BlocPliable key={`b${i}-${bloc.titre}`} titre={bloc.titre} indicateurs={bloc.indicateurs} />
+                      <BlocPliable key={`b${i}-${bloc.titre}`} titre={bloc.titre} indicateurs={bloc.indicateurs} site={site} />
                     ) : (
                       <IndicatorRow key={`${i}-${bloc.indicateur.label}`} indicator={bloc.indicateur} />
                     ),
