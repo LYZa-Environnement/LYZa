@@ -23,6 +23,70 @@ export interface PeriodeAerienne {
   decennie: string
 }
 
+/**
+ * Whether the service publishes the acquisition date for a period.
+ *
+ * The ranges in the labels are collection names, not the date of the frame a
+ * reader is looking at: "1980 – 1995" over Nantes is a flight of 26 June 1993.
+ * That date lives in the mosaicking graph behind each layer, reachable by
+ * GetFeatureInfo — but only five of the nine layers are declared queryable in
+ * the service's capabilities (checked against GetCapabilities), and even a
+ * queryable one answers "no features were found" where its graph has no
+ * coverage. So the exact date is shown when the service gives it and the range
+ * is kept, labelled as a range, when it does not.
+ */
+const INTERROGEABLES = new Set(['1965-1980', '1980-1995', '2006-2010', '2021-2023', 'actuel'])
+
+export interface PriseDeVue {
+  /** Full flight date when published, e.g. "1993-06-26". */
+  date: string | null
+  /** Campaign year — coarser than `date` but published more often. */
+  annee: number | null
+}
+
+/** Acquisition date of the frame actually served at this point, or null when
+ * the service does not publish one here. */
+export async function fetchPriseDeVue(lat: number, lon: number, periode: string, coteM = 250): Promise<PriseDeVue | null> {
+  if (!INTERROGEABLES.has(periode)) return null
+  const cadre = cadreAerien(lat, lon, coteM)
+  const url = `${WMS_BASE}?${new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.3.0',
+    REQUEST: 'GetFeatureInfo',
+    LAYERS: layerName(periode),
+    QUERY_LAYERS: layerName(periode),
+    STYLES: '',
+    CRS: 'EPSG:4326',
+    BBOX: [cadre.sud, cadre.ouest, cadre.nord, cadre.est].join(','),
+    WIDTH: '101',
+    HEIGHT: '101',
+    I: '50',
+    J: '50',
+    FORMAT: 'image/png',
+    INFO_FORMAT: 'text/plain',
+  })}`
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(12000) })
+    if (!response.ok) return null
+    const texte = await response.text()
+    const date = texte.match(/^\s*date_vol\s*=\s*(\d{4}-\d{2}-\d{2})/m)?.[1] ?? null
+    const annee = texte.match(/^\s*pva\s*=\s*(\d{4})/m)?.[1] ?? null
+    if (!date && !annee) return null
+    return { date, annee: annee ? Number(annee) : date ? Number(date.slice(0, 4)) : null }
+  } catch {
+    return null
+  }
+}
+
+/** "26 juin 1993" — the plain date a reader can quote in a report. */
+export function formatPriseDeVue(prise: PriseDeVue): string | null {
+  if (prise.date) {
+    const date = new Date(`${prise.date}T00:00:00Z`)
+    if (!Number.isNaN(date.getTime())) return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  }
+  return prise.annee ? String(prise.annee) : null
+}
+
 export const PERIODES: PeriodeAerienne[] = [
   { id: '1950-1965', label: '1950 – 1965', decennie: '1950' },
   { id: '1965-1980', label: '1965 – 1980', decennie: '1970' },

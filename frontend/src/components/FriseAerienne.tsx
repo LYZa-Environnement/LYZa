@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { diagonaleM } from '../lib/cadastre'
 import { ringsOfGeometry, type PolygonGeometry } from '../lib/geo'
-import { cadreAerien, orthoImageUrl, PERIODES, type CadreAerien, type PeriodeAerienne } from '../lib/ortho'
+import {
+  cadreAerien,
+  fetchPriseDeVue,
+  formatPriseDeVue,
+  orthoImageUrl,
+  PERIODES,
+  type CadreAerien,
+  type PeriodeAerienne,
+  type PriseDeVue,
+} from '../lib/ortho'
 import type { Site } from '../types/site'
 
 type Couverture = 'inconnue' | 'couverte' | 'absente'
@@ -22,7 +31,10 @@ type Couverture = 'inconnue' | 'couverte' | 'absente'
  */
 async function sondeCouverture(url: string): Promise<Couverture> {
   try {
-    const response = await fetch(url, { mode: 'cors' })
+    // With a deadline: without one, a single stalled request holds the whole
+    // sequential probe — and everything queued behind it — for as long as the
+    // browser is willing to wait, which is minutes.
+    const response = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(12000) })
     // A server error says nothing about coverage — only a blank image that
     // actually decoded does. Hiding a campaign on a 500 would quietly drop a
     // decade that does have photographs.
@@ -112,6 +124,15 @@ function RepereSite({ site, cadre }: { site: Site; cadre: CadreAerien }) {
   )
 }
 
+/** What to write under a frame: the flight date when the service gives one,
+ * the collection's range otherwise — and the range is then named as such, so
+ * "1950 – 1965" is not read as the date of the photograph. */
+function legende(periode: PeriodeAerienne, prise: PriseDeVue | undefined): string {
+  const date = prise ? formatPriseDeVue(prise) : null
+  if (date) return date
+  return periode.id === 'actuel' ? periode.label : `Campagne ${periode.label}`
+}
+
 /** Pixel width requested from the WMS for an enlarged frame. The service
  * serves up to 2048, but that is a 3 MB plate for a picture nobody zooms into
  * pixel by pixel; 1400 shows the detail a 250 m frame actually holds. */
@@ -130,6 +151,7 @@ function Loupe({
   cadre,
   cote,
   periodes,
+  prises,
   index,
   onFermer,
   onNaviguer,
@@ -138,6 +160,7 @@ function Loupe({
   cadre: CadreAerien
   cote: number
   periodes: PeriodeAerienne[]
+  prises: Record<string, PriseDeVue>
   index: number
   onFermer: () => void
   onNaviguer: (index: number) => void
@@ -234,7 +257,7 @@ function Loupe({
         <button type="button" className="btn btn--ghost" onClick={() => onNaviguer(index - 1)} disabled={index === 0} aria-label="Vue précédente">
           ←
         </button>
-        <span style={{ fontWeight: 700, minWidth: '9rem', textAlign: 'center' }}>{periode.label}</span>
+        <span style={{ fontWeight: 700, minWidth: '11rem', textAlign: 'center' }}>{legende(periode, prises[periode.id])}</span>
         <button
           type="button"
           className="btn btn--ghost"
@@ -249,7 +272,9 @@ function Loupe({
         </button>
       </div>
       <p style={{ color: '#fffdf7bb', fontSize: '0.82rem', margin: 0, textAlign: 'center' }} onClick={(event) => event.stopPropagation()}>
-        Vue de {cote} m de côté · {index + 1} / {periodes.length} · flèches ← → pour changer de période, Échap pour fermer
+        Vue de {cote} m de côté · {index + 1} / {periodes.length}
+        {prises[periode.id] && periode.id !== 'actuel' ? ` · campagne ${periode.label}` : ''} · flèches ← → pour changer de période, Échap
+        pour fermer
       </p>
     </div>
   )
@@ -260,6 +285,7 @@ function Loupe({
  * filled on the plot before any database recorded it. */
 export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: number }) {
   const [couverture, setCouverture] = useState<Record<string, Couverture>>({})
+  const [prises, setPrises] = useState<Record<string, PriseDeVue>>({})
   const [agrandie, setAgrandie] = useState<number | null>(null)
 
   // A fixed 250 m frame crops a large industrial site and leaves a small plot
@@ -280,12 +306,30 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
   useEffect(() => {
     let annule = false
     setCouverture({})
+    setPrises({})
     void (async () => {
-      for (const periode of PERIODES) {
-        const resultat = await sondeCouverture(orthoImageUrl(site.lat, site.lon, periode.id, cote, 24))
-        if (annule) return
-        setCouverture((precedent) => ({ ...precedent, [periode.id]: resultat }))
-      }
+      // Two sequential passes running side by side. Chaining the dates behind
+      // the probes made a slow probe hide every date; running them as one
+      // interleaved loop delayed the grid instead. Two connections to the same
+      // host is well within what a browser allows, and each pass stays
+      // sequential so neither floods it.
+      const sondages = (async () => {
+        for (const periode of PERIODES) {
+          const resultat = await sondeCouverture(orthoImageUrl(site.lat, site.lon, periode.id, cote, 24))
+          if (annule) return
+          setCouverture((precedent) => ({ ...precedent, [periode.id]: resultat }))
+        }
+      })()
+      // Only five of the nine layers publish a date at all, and the others are
+      // answered without a request, so this pass is short.
+      const dates = (async () => {
+        for (const periode of PERIODES) {
+          const prise = await fetchPriseDeVue(site.lat, site.lon, periode.id, cote)
+          if (annule) return
+          if (prise) setPrises((precedent) => ({ ...precedent, [periode.id]: prise }))
+        }
+      })()
+      await Promise.all([sondages, dates])
     })()
     return () => {
       annule = true
@@ -308,7 +352,8 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
       <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
         Vues de {cote} m de côté centrées sur le site, {site.emprise ? "avec le contour de l'emprise retenue" : 'repéré par la croix rouge'}. Les campagnes sans couverture à cet endroit ne sont pas affichées :
         l'absence d'une décennie signifie que l'Institut national de l'information géographique et forestière n'a pas de cliché exploitable ici, pas qu'il ne s'y passait rien.
-        Cliquez sur une vue pour l'agrandir.
+        Chaque vue porte la date réelle du vol quand l'IGN la publie ; sinon, la période indiquée est celle de la campagne, pas celle du
+        cliché. Cliquez sur une vue pour l'agrandir.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: '1rem' }}>
         {visibles.map((periode, index) => (
@@ -342,7 +387,17 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
               />
               <RepereSite site={site} cadre={cadre} />
             </button>
-            <figcaption style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '0.35rem' }}>{periode.label}</figcaption>
+            <figcaption style={{ fontSize: '0.78rem', marginTop: '0.35rem' }}>
+              {/* The exact flight date when the service publishes it — the
+                  label's range is the name of a collection, not the date of
+                  the photograph a reader is looking at. */}
+              <strong>{legende(periode, prises[periode.id])}</strong>
+              {prises[periode.id] && periode.id !== 'actuel' && (
+                <span style={{ display: 'block', fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.72rem' }}>
+                  campagne {periode.label}
+                </span>
+              )}
+            </figcaption>
           </figure>
         ))}
       </div>
@@ -355,7 +410,7 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
       </p>
 
       {agrandie !== null && visibles[agrandie] && (
-        <Loupe site={site} cadre={cadre} cote={cote} periodes={visibles} index={agrandie} onFermer={fermer} onNaviguer={naviguer} />
+        <Loupe site={site} cadre={cadre} cote={cote} periodes={visibles} prises={prises} index={agrandie} onFermer={fermer} onNaviguer={naviguer} />
       )}
     </div>
   )
