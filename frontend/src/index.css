@@ -187,9 +187,25 @@ input {
   box-shadow: 1px 1px 0 var(--color-ink);
 }
 
+/* Without this a disabled control looks exactly like an enabled one — the
+   timeline arrows at either end of the sequence, for instance. */
+.btn:disabled,
+.btn:disabled:hover {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 1px 1px 0 var(--color-ink);
+  background: var(--color-accent);
+}
+
 .btn--ghost {
   background: var(--color-surface);
   color: var(--color-ink);
+}
+
+.btn--ghost:disabled,
+.btn--ghost:disabled:hover {
+  background: var(--color-surface);
 }
 
 .btn--ghost:hover {

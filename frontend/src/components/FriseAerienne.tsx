@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { diagonaleM } from '../lib/cadastre'
 import { ringsOfGeometry, type PolygonGeometry } from '../lib/geo'
-import { cadreAerien, orthoImageUrl, PERIODES, type CadreAerien } from '../lib/ortho'
+import { cadreAerien, orthoImageUrl, PERIODES, type CadreAerien, type PeriodeAerienne } from '../lib/ortho'
 import type { Site } from '../types/site'
 
 type Couverture = 'inconnue' | 'couverte' | 'absente'
@@ -89,11 +89,178 @@ function ContourSite({ emprise, cadre }: { emprise: PolygonGeometry; cadre: Cadr
   )
 }
 
+/** The site on a frame: its outline once the plot has been delimited, a
+ * crosshair otherwise — marking the centre of a footprint that is already
+ * drawn would only clutter the frame. */
+function RepereSite({ site, cadre }: { site: Site; cadre: CadreAerien }) {
+  if (site.emprise) return <ContourSite emprise={site.emprise} cadre={cadre} />
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: '1.2rem',
+        height: '1.2rem',
+        transform: 'translate(-50%, -50%)',
+        border: '2px solid #c34a35',
+        borderRadius: '50%',
+        boxShadow: '0 0 0 1px rgba(255,255,255,0.85)',
+      }}
+    />
+  )
+}
+
+/** Pixel width requested from the WMS for an enlarged frame. The service
+ * serves up to 2048, but that is a 3 MB plate for a picture nobody zooms into
+ * pixel by pixel; 1400 shows the detail a 250 m frame actually holds. */
+const PIXELS_LOUPE = 1400
+
+/**
+ * An enlarged frame, over the page.
+ *
+ * The thumbnail is kept underneath while the full-size plate loads: it is
+ * already in cache, so the enlargement appears instantly in a coarse form and
+ * sharpens when the real image arrives, instead of opening on a grey square
+ * for the second or two a 1.7 MB photograph takes.
+ */
+function Loupe({
+  site,
+  cadre,
+  cote,
+  periodes,
+  index,
+  onFermer,
+  onNaviguer,
+}: {
+  site: Site
+  cadre: CadreAerien
+  cote: number
+  periodes: PeriodeAerienne[]
+  index: number
+  onFermer: () => void
+  onNaviguer: (index: number) => void
+}) {
+  const periode = periodes[index]
+  const [charge, setCharge] = useState(false)
+  const boutonFermer = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    setCharge(false)
+  }, [periode.id])
+
+  // Escape closes, the arrows walk the timeline: a reader comparing decades
+  // should not have to go back to the grid between two frames.
+  useEffect(() => {
+    const touche = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onFermer()
+      else if (event.key === 'ArrowLeft' && index > 0) onNaviguer(index - 1)
+      else if (event.key === 'ArrowRight' && index < periodes.length - 1) onNaviguer(index + 1)
+    }
+    window.addEventListener('keydown', touche)
+    return () => window.removeEventListener('keydown', touche)
+  }, [index, periodes.length, onFermer, onNaviguer])
+
+  // The page must not scroll behind the overlay, and focus has to land inside
+  // it — otherwise the next Tab walks the page the reader cannot see.
+  useEffect(() => {
+    const precedent = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    boutonFermer.current?.focus()
+    return () => {
+      document.body.style.overflow = precedent
+    }
+  }, [])
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Vue aérienne du site, ${periode.label}`}
+      onClick={onFermer}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(16, 20, 17, 0.88)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.9rem',
+        padding: 'clamp(0.75rem, 3vw, 2rem)',
+      }}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          position: 'relative',
+          width: 'min(90vw, 78vh)',
+          aspectRatio: '1',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+          background: '#1b2a1f',
+        }}
+      >
+        <img
+          src={orthoImageUrl(site.lat, site.lon, periode.id, cote)}
+          alt=""
+          aria-hidden
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(1px)' }}
+        />
+        <img
+          src={orthoImageUrl(site.lat, site.lon, periode.id, cote, PIXELS_LOUPE)}
+          alt={`Vue aérienne du site, ${periode.label}`}
+          onLoad={() => setCharge(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: charge ? 1 : 0,
+            transition: 'opacity 0.25s',
+          }}
+        />
+        <RepereSite site={site} cadre={cadre} />
+      </div>
+
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#fffdf7', flexWrap: 'wrap', justifyContent: 'center' }}
+      >
+        <button type="button" className="btn btn--ghost" onClick={() => onNaviguer(index - 1)} disabled={index === 0} aria-label="Vue précédente">
+          ←
+        </button>
+        <span style={{ fontWeight: 700, minWidth: '9rem', textAlign: 'center' }}>{periode.label}</span>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          onClick={() => onNaviguer(index + 1)}
+          disabled={index === periodes.length - 1}
+          aria-label="Vue suivante"
+        >
+          →
+        </button>
+        <button type="button" className="btn" ref={boutonFermer} onClick={onFermer}>
+          Fermer
+        </button>
+      </div>
+      <p style={{ color: '#fffdf7bb', fontSize: '0.82rem', margin: 0, textAlign: 'center' }} onClick={(event) => event.stopPropagation()}>
+        Vue de {cote} m de côté · {index + 1} / {periodes.length} · flèches ← → pour changer de période, Échap pour fermer
+      </p>
+    </div>
+  )
+}
+
 /** Decade-by-decade aerial views of the study site, each centred on it and
  * showing its outline — the visual record of what was built, cleared or
  * filled on the plot before any database recorded it. */
 export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: number }) {
   const [couverture, setCouverture] = useState<Record<string, Couverture>>({})
+  const [agrandie, setAgrandie] = useState<number | null>(null)
 
   // A fixed 250 m frame crops a large industrial site and leaves a small plot
   // lost in a field of roofs. The frame follows the footprint when there is
@@ -126,6 +293,14 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
   }, [site.lat, site.lon, cote])
 
   const visibles = PERIODES.filter((periode) => couverture[periode.id] !== 'absente')
+  const fermer = useCallback(() => setAgrandie(null), [])
+  const naviguer = useCallback((index: number) => setAgrandie(index), [])
+
+  // A frame vanishing from the grid while enlarged — the coverage probe
+  // finishing late — must not leave the overlay pointing past the end.
+  useEffect(() => {
+    if (agrandie !== null && agrandie >= visibles.length) setAgrandie(visibles.length > 0 ? visibles.length - 1 : null)
+  }, [agrandie, visibles.length])
 
   return (
     <div className="card" style={{ marginTop: '1.5rem' }}>
@@ -133,48 +308,40 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
       <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
         Vues de {cote} m de côté centrées sur le site, {site.emprise ? "avec le contour de l'emprise retenue" : 'repéré par la croix rouge'}. Les campagnes sans couverture à cet endroit ne sont pas affichées :
         l'absence d'une décennie signifie que l'Institut national de l'information géographique et forestière n'a pas de cliché exploitable ici, pas qu'il ne s'y passait rien.
+        Cliquez sur une vue pour l'agrandir.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: '1rem' }}>
-        {visibles.map((periode) => (
+        {visibles.map((periode, index) => (
           <figure key={periode.id} style={{ margin: 0 }}>
-            <div
+            {/* A button, not a bare image with a click handler: enlarging a
+                photograph is an action, and it has to be reachable with the
+                keyboard like any other. */}
+            <button
+              type="button"
+              onClick={() => setAgrandie(index)}
+              aria-label={`Agrandir la vue aérienne ${periode.label}`}
               style={{
+                display: 'block',
+                width: '100%',
+                padding: 0,
                 position: 'relative',
                 aspectRatio: '1',
                 border: '1.5px solid var(--color-border)',
                 borderRadius: '6px',
                 overflow: 'hidden',
                 background: 'var(--level-indeterminee-bg)',
+                cursor: 'zoom-in',
               }}
             >
               <img
                 src={orthoImageUrl(site.lat, site.lon, periode.id, cote)}
-                alt={`Vue aérienne du site, ${periode.label}`}
+                alt=""
+                aria-hidden
                 loading="lazy"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
-              {/* The outline when the plot has been delimited, the crosshair
-                  otherwise: marking the centre of a footprint that is already
-                  drawn would only clutter the frame. */}
-              {site.emprise ? (
-                <ContourSite emprise={site.emprise} cadre={cadre} />
-              ) : (
-                <span
-                  aria-hidden
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '50%',
-                    width: '1.2rem',
-                    height: '1.2rem',
-                    transform: 'translate(-50%, -50%)',
-                    border: '2px solid #c34a35',
-                    borderRadius: '50%',
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.85)',
-                  }}
-                />
-              )}
-            </div>
+              <RepereSite site={site} cadre={cadre} />
+            </button>
             <figcaption style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '0.35rem' }}>{periode.label}</figcaption>
           </figure>
         ))}
@@ -186,6 +353,10 @@ export default function FriseAerienne({ site, coteM }: { site: Site; coteM?: num
         </a>
         ).
       </p>
+
+      {agrandie !== null && visibles[agrandie] && (
+        <Loupe site={site} cadre={cadre} cote={cote} periodes={visibles} index={agrandie} onFermer={fermer} onNaviguer={naviguer} />
+      )}
     </div>
   )
 }
