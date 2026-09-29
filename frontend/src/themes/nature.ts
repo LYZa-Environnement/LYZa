@@ -1,7 +1,7 @@
 import { formatDistance } from '../lib/geo'
 import { fetchEspeces, fetchZonagesNaturels, type ZonageNaturel } from '../lib/nature'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { pluriel, safe, situation } from './common'
+import { pluriel, situation, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 5000
 const RAYON_ESPECES_M = 2000
@@ -52,9 +52,10 @@ function detailZonage(zonage: ZonageNaturel): string {
     .join(' — ')
 }
 
-export async function buildNature(site: Site): Promise<ThemeReport> {
+export async function buildNature(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
-  const [zonages, especes] = await Promise.all([safe(fetchZonagesNaturels(lat, lon, RAYON_M)), safe(fetchEspeces(lat, lon, RAYON_ESPECES_M))])
+  const [zonages, especes] = await Promise.all([interroge(fetchZonagesNaturels(lat, lon, RAYON_M)), interroge(fetchEspeces(lat, lon, RAYON_ESPECES_M))])
 
   const commentaire: string[] = []
   const indicateurs: Indicator[] = []

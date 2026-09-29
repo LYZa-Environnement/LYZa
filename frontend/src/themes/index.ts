@@ -1,3 +1,4 @@
+import type { Suivi } from './common'
 import type { Site, ThemeReport } from '../types/site'
 import { buildAir } from './air'
 import { buildClimat } from './climat'
@@ -10,7 +11,9 @@ export interface Rubrique {
   id: string
   titre: string
   sousTitre: string
-  build: (site: Site) => Promise<ThemeReport>
+  /** `suivi` lets the section report how many sources have answered while
+   * the rubrique is still assembling itself. */
+  build: (site: Site, suivi?: Suivi) => Promise<ThemeReport>
 }
 
 export const RUBRIQUES: Rubrique[] = [

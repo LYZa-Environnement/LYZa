@@ -8,7 +8,7 @@ import { findReseauHydro } from '../lib/reseauHydro'
 import { fetchTopographie, qualifiePente } from '../lib/topographie'
 import { fetchRestrictions, GRAVITE_LABEL, sortBySeverityDesc, TYPE_LABEL } from '../lib/vigieau'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { pluriel, safe, situation, situationHydro } from './common'
+import { pluriel, situation, situationHydro, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 3000
 /** Bathing, fishing and water-quality stations are sparse: a 3 km window
@@ -70,19 +70,20 @@ function detailBaignade(site: BathingSite, saison: number | null): string {
     .join('. ')
 }
 
-export async function buildEau(site: Site): Promise<ThemeReport> {
+export async function buildEau(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
   const [reseau, potable, station, piscicole, baignade, restrictions, ppe, prelevements, ades, topo] = await Promise.all([
-    safe(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
-    safe(fetchEauPotable(site.citycode)),
-    safe(findNearestStationRiviere(lat, lon, RAYON_USAGES_M)),
-    safe(findNearestStationPiscicole(lat, lon, RAYON_USAGES_M)),
-    safe(surveyBathingSites(lat, lon, RAYON_USAGES_M)),
-    safe(fetchRestrictions(lat, lon)),
-    safe(findNearestPpe(lat, lon)),
-    safe(fetchPrelevements(lat, lon, RAYON_M)),
-    safe(findNearestAdesPoint(lat, lon)),
-    safe(cached(pointKey('topographie', lat, lon), () => fetchTopographie(lat, lon, site.emprise))),
+    interroge(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
+    interroge(fetchEauPotable(site.citycode)),
+    interroge(findNearestStationRiviere(lat, lon, RAYON_USAGES_M)),
+    interroge(findNearestStationPiscicole(lat, lon, RAYON_USAGES_M)),
+    interroge(surveyBathingSites(lat, lon, RAYON_USAGES_M)),
+    interroge(fetchRestrictions(lat, lon)),
+    interroge(findNearestPpe(lat, lon)),
+    interroge(fetchPrelevements(lat, lon, RAYON_M)),
+    interroge(findNearestAdesPoint(lat, lon)),
+    interroge(cached(pointKey('topographie', lat, lon), () => fetchTopographie(lat, lon, site.emprise))),
   ])
 
   const commentaire: string[] = []

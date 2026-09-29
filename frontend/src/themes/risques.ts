@@ -14,7 +14,7 @@ import {
 } from '../lib/georisques'
 import { findNearestInb } from '../lib/nucleaire'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { pluriel, safe, situation } from './common'
+import { pluriel, situation, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 3000
 /** How many installations are listed individually before the list is capped. */
@@ -39,19 +39,20 @@ function niveauArgiles(code: number | null, libelle: string): Indicator['level']
   return /fort/i.test(libelle) ? 'defavorable' : /moyen/i.test(libelle) ? 'attention' : 'favorable'
 }
 
-export async function buildRisques(site: Site): Promise<ThemeReport> {
+export async function buildRisques(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
   const [icpe, risques, pprn, pprt, mvt, cavites, sismique, radon, argiles, inb] = await Promise.all([
-    safe(cached(pointKey('icpe', lat, lon, RAYON_M), () => fetchIcpe(lat, lon, RAYON_M))),
-    safe(cached(`risques-commune:${site.citycode}`, () => fetchRisquesCommune(site.citycode))),
-    safe(fetchPprn(site.citycode)),
-    safe(fetchPprt(site.citycode)),
-    safe(fetchMvt(lat, lon, RAYON_M)),
-    safe(fetchCavites(lat, lon, RAYON_M)),
-    safe(zonageSismique(site.citycode)),
-    safe(radonClasse(site.citycode)),
-    safe(fetchExpositionArgiles(lat, lon)),
-    safe(findNearestInb(lat, lon)),
+    interroge(cached(pointKey('icpe', lat, lon, RAYON_M), () => fetchIcpe(lat, lon, RAYON_M))),
+    interroge(cached(`risques-commune:${site.citycode}`, () => fetchRisquesCommune(site.citycode))),
+    interroge(fetchPprn(site.citycode)),
+    interroge(fetchPprt(site.citycode)),
+    interroge(fetchMvt(lat, lon, RAYON_M)),
+    interroge(fetchCavites(lat, lon, RAYON_M)),
+    interroge(zonageSismique(site.citycode)),
+    interroge(radonClasse(site.citycode)),
+    interroge(fetchExpositionArgiles(lat, lon)),
+    interroge(findNearestInb(lat, lon)),
   ])
 
   const commentaire: string[] = []

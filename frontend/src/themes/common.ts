@@ -30,6 +30,32 @@ export function pluriel(count: number, singular: string, plural = `${singular}s`
  * answers at all must not leave the rubrique spinning. */
 const DELAI_MAX_MS = 25000
 
+/**
+ * Reports a rubrique's progress as its sources answer.
+ *
+ * Every rubrique fans out to between two and ten public services, and some of
+ * them are slow. A bar that reflects how many have actually replied tells the
+ * reader something true; an animation that merely moves would not, and this
+ * platform has no business inventing reassurance in its own interface either.
+ */
+export interface Suivi {
+  /** A source has been queried. Called synchronously, so the total is known
+   * before the first response arrives. */
+  attendu(): void
+  /** A source has answered, or timed out, or failed — either way it is done. */
+  fait(): void
+}
+
+/** Wraps `safe` so every call it guards is also counted. Returned as a
+ * function the rubrique uses in place of `safe`, which keeps the reporting out
+ * of each individual call site. */
+export function suiviDe(suivi?: Suivi) {
+  return function interroge<T>(promise: Promise<T>): Promise<T | null> {
+    suivi?.attendu()
+    return safe(promise).finally(() => suivi?.fait())
+  }
+}
+
 /** Guards every upstream call so one unavailable source degrades to "donnée
  * indisponible" instead of taking the whole rubrique down.
  *

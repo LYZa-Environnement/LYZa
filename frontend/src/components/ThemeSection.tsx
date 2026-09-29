@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { enFile } from '../lib/queue'
+import BarreProgression from './BarreProgression'
+import type { Suivi } from '../themes/common'
 import ThemeMap from './ThemeMap'
 import { nomFichier, telechargerCsv } from '../lib/tableau'
 import type { Indicator, LigneTableau, Level, Site, ThemeReport } from '../types/site'
@@ -125,7 +127,7 @@ interface Props {
   titre: string
   sousTitre: string
   site: Site
-  build: (site: Site) => Promise<ThemeReport>
+  build: (site: Site, suivi?: Suivi) => Promise<ThemeReport>
   /** Rendered under the commentary — charts, timelines, anything the
    * generic indicator list can't express. */
   children?: (report: ThemeReport) => ReactNode
@@ -134,6 +136,8 @@ interface Props {
 export default function ThemeSection({ id, titre, sousTitre, site, build, children }: Props) {
   const [report, setReport] = useState<ThemeReport | null>(null)
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [progres, setProgres] = useState({ attendus: 0, faits: 0 })
+  const [enAttente, setEnAttente] = useState(false)
   const containerRef = useRef<HTMLElement | null>(null)
   const [visible, setVisible] = useState(false)
 
@@ -162,9 +166,32 @@ export default function ThemeSection({ id, titre, sousTitre, site, build, childr
     let cancelled = false
     setReport(null)
     setState('loading')
+    setProgres({ attendus: 0, faits: 0 })
+    setEnAttente(true)
+
+    // Counters held outside React state: they are incremented from inside the
+    // rubrique's own calls, where reading a stale render's value would lose
+    // increments that land in the same tick.
+    let attendus = 0
+    let faits = 0
+    const suivi: Suivi = {
+      attendu() {
+        attendus += 1
+        if (!cancelled) setProgres({ attendus, faits })
+      },
+      fait() {
+        faits += 1
+        if (!cancelled) setProgres({ attendus, faits })
+      },
+    }
     // Queued rather than fired immediately: six rubriques starting at once
     // saturate the browser's per-host connection limit (see lib/queue.ts).
-    enFile(() => build(site))
+    enFile(() => {
+      // The queue runs this only once a slot frees up, which is exactly when
+      // the rubrique stops waiting and starts querying.
+      if (!cancelled) setEnAttente(false)
+      return build(site, suivi)
+    })
       .then((result) => {
         if (cancelled) return
         setReport(result)
@@ -184,7 +211,7 @@ export default function ThemeSection({ id, titre, sousTitre, site, build, childr
         <h2 style={{ marginBottom: '0.3rem' }}>{titre}</h2>
         <p className="lede" style={{ marginBottom: '1.75rem' }}>{sousTitre}</p>
 
-        {state === 'loading' && <p style={{ color: 'var(--color-muted)' }}>Interrogation des bases publiques…</p>}
+        {state === 'loading' && <BarreProgression faits={progres.faits} attendus={progres.attendus} enAttente={enAttente} />}
         {state === 'error' && (
           <div className="card" style={{ borderColor: 'var(--level-elevee)' }}>
             <p style={{ margin: 0 }}>Les données de cette rubrique n'ont pas pu être récupérées. Réessayez plus tard.</p>

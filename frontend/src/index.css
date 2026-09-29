@@ -187,6 +187,27 @@ input {
   box-shadow: 1px 1px 0 var(--color-ink);
 }
 
+@keyframes lyza-reflet {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+
+@keyframes lyza-indetermine {
+  0%, 100% { margin-left: 0; }
+  50% { margin-left: 70%; }
+}
+
+/* A bar that pulses is a nicety; a reader who gets motion sick from it is
+   not. Both animations stop, the bar still fills. */
+@media (prefers-reduced-motion: reduce) {
+  [role='progressbar'] * {
+    animation: none !important;
+  }
+  [role='progressbar'] > div {
+    transition: none !important;
+  }
+}
+
 /* Without this a disabled control looks exactly like an enabled one — the
    timeline arrows at either end of the sequence, for instance. */
 .btn:disabled,

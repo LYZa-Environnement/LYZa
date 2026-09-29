@@ -5,7 +5,7 @@ import { cardinalLabelFr, formatDistance } from '../lib/geo'
 import { surveyNearbyParcels } from '../lib/parcelles'
 import { dominantDirections, fetchWindRose } from '../lib/wind'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { safe, situation } from './common'
+import { situation, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 3000
 
@@ -34,13 +34,14 @@ function dansAxeDesVents(directionSource: string, directionsDominantes: string[]
   })
 }
 
-export async function buildAir(site: Site): Promise<ThemeReport> {
+export async function buildAir(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
   const [air, bruit, parcelles, rose] = await Promise.all([
-    safe(fetchAirQualite(lat, lon)),
-    safe(fetchSourcesBruit(lat, lon)),
-    safe(cached(pointKey('parcelles', lat, lon), () => surveyNearbyParcels(lat, lon))),
-    safe(cached(pointKey('vents', lat, lon), () => fetchWindRose(lat, lon))),
+    interroge(fetchAirQualite(lat, lon)),
+    interroge(fetchSourcesBruit(lat, lon)),
+    interroge(cached(pointKey('parcelles', lat, lon), () => surveyNearbyParcels(lat, lon))),
+    interroge(cached(pointKey('vents', lat, lon), () => fetchWindRose(lat, lon))),
   ])
 
   const commentaire: string[] = []

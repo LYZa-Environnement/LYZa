@@ -5,7 +5,7 @@ import { fetchSsp, type CasiasItem, type SisItem } from '../lib/georisques'
 import { surveyNearbyParcels } from '../lib/parcelles'
 import { fetchFondGeochimique, fetchTypeDeSol } from '../lib/sols'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { pluriel, safe, situation } from './common'
+import { pluriel, situation, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 1000
 /** How many nearby sites are detailed individually before the list is capped. */
@@ -25,13 +25,14 @@ function positionnesTriesParDistance<T extends { localisation: CasiasItem['local
     .sort((a, b) => a.localisation.distanceM - b.localisation.distanceM)
 }
 
-export async function buildSol(site: Site): Promise<ThemeReport> {
+export async function buildSol(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
   const [ssp, typeSol, fond, parcelles] = await Promise.all([
-    safe(fetchSsp(lat, lon, RAYON_M)),
-    safe(fetchTypeDeSol(lat, lon)),
-    safe(fetchFondGeochimique(lat, lon)),
-    safe(cached(pointKey('parcelles', lat, lon), () => surveyNearbyParcels(lat, lon))),
+    interroge(fetchSsp(lat, lon, RAYON_M)),
+    interroge(fetchTypeDeSol(lat, lon)),
+    interroge(fetchFondGeochimique(lat, lon)),
+    interroge(cached(pointKey('parcelles', lat, lon), () => surveyNearbyParcels(lat, lon))),
   ])
 
   const commentaire: string[] = []

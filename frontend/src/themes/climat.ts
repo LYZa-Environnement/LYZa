@@ -5,7 +5,7 @@ import { formatDistance } from '../lib/geo'
 import { fetchCatnatInondation, fetchRisquesCommune, inAzi, parseFrenchDate } from '../lib/georisques'
 import { findReseauHydro } from '../lib/reseauHydro'
 import type { Indicator, MapFeature, Site, ThemeReport } from '../types/site'
-import { pluriel, safe } from './common'
+import { pluriel, suiviDe, type Suivi } from './common'
 
 const RAYON_M = 2000
 
@@ -17,15 +17,16 @@ const MOTS_CLES = {
   secheresse: /sécheresse|retrait.gonflement|argile/i,
 }
 
-export async function buildClimat(site: Site): Promise<ThemeReport> {
+export async function buildClimat(site: Site, suivi?: Suivi): Promise<ThemeReport> {
+  const interroge = suiviDe(suivi)
   const { lat, lon } = site
   const [projection, risques, catnat, azi, reseau, erosion] = await Promise.all([
-    safe(fetchProjectionClimatique(lat, lon)),
-    safe(cached(`risques-commune:${site.citycode}`, () => fetchRisquesCommune(site.citycode))),
-    safe(fetchCatnatInondation(site.citycode)),
-    safe(inAzi(lat, lon, RAYON_M)),
-    safe(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
-    safe(fetchCommuneErosion(site.citycode)),
+    interroge(fetchProjectionClimatique(lat, lon)),
+    interroge(cached(`risques-commune:${site.citycode}`, () => fetchRisquesCommune(site.citycode))),
+    interroge(fetchCatnatInondation(site.citycode)),
+    interroge(inAzi(lat, lon, RAYON_M)),
+    interroge(cached(pointKey('reseau-hydro', lat, lon), () => findReseauHydro(lat, lon))),
+    interroge(fetchCommuneErosion(site.citycode)),
   ])
 
   const commentaire: string[] = []
