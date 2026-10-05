@@ -36,6 +36,7 @@
     --c-bss: #1f6fa8;
     --c-geol50: #8a5a2b;
     --c-river: #2a8f9e;
+    --c-eausurface: #1c7ed6;
     --c-natura-zsc: #4a8f3c;
     --c-natura-zps: #7a4fa0;
     --c-etab-scolaire: #d6572e;
@@ -197,6 +198,11 @@
     width:11px; height:11px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.15);
   }
   .swatch.line{ border-radius:2px; }
+  /* Pastille de légende portant la lettre du régime, comme sur la carte. */
+  .swatch.lettre{
+    width:15px; height:15px; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:9px; font-weight:700; line-height:1; letter-spacing:-0.02em;
+  }
   .layer-row .lbl{ flex:1; font-size:13px; }
   .layer-row .count{
     font-family:Verdana, Geneva, sans-serif; font-size:10.5px; color:var(--ink-dim);
@@ -485,10 +491,10 @@
       <div class="section-title">Sites &amp; sols pollués <span class="mono" style="font-weight:400;color:var(--ink-dim);">Géorisques</span></div>
       <div class="layer-group">
         <div class="group-label">ICPE — installations classées</div>
-        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Autorisation" checked><span class="swatch" style="background:var(--c-icpe-auth)"></span><span class="lbl">Autorisation</span><span class="count" id="cnt-auth">–</span></label>
-        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Enregistrement" checked><span class="swatch" style="background:var(--c-icpe-enr)"></span><span class="lbl">Enregistrement</span><span class="count" id="cnt-enr">–</span></label>
-        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Déclaration" checked><span class="swatch" style="background:var(--c-icpe-decl)"></span><span class="lbl">Déclaration</span><span class="count" id="cnt-decl">–</span></label>
-        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="other"><span class="swatch" style="background:var(--c-icpe-other)"></span><span class="lbl">Autre / non classé</span><span class="count" id="cnt-other">–</span></label>
+        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Autorisation" checked><span class="swatch lettre" style="background:var(--c-icpe-auth)">A</span><span class="lbl">Autorisation</span><span class="count" id="cnt-auth">–</span></label>
+        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Enregistrement" checked><span class="swatch lettre" style="background:var(--c-icpe-enr)">E</span><span class="lbl">Enregistrement</span><span class="count" id="cnt-enr">–</span></label>
+        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="Déclaration" checked><span class="swatch lettre" style="background:var(--c-icpe-decl)">D</span><span class="lbl">Déclaration</span><span class="count" id="cnt-decl">–</span></label>
+        <label class="layer-row"><input type="checkbox" class="icpe-toggle" data-regime="other"><span class="swatch lettre" style="background:var(--c-icpe-other)">NC</span><span class="lbl">Autre / non classé</span><span class="count" id="cnt-other">–</span></label>
       </div>
       <div class="layer-group">
         <div class="group-label">Anciens sites industriels</div>
@@ -522,6 +528,7 @@
         <label class="layer-row"><input type="checkbox" id="lyr-piezo" checked><span class="swatch" style="background:var(--c-piezo)"></span><span class="lbl">Piézométrie (niveaux des nappes)</span><span class="count" id="cnt-piezo">–</span></label>
         <label class="layer-row"><input type="checkbox" id="lyr-qualnappe" checked><span class="swatch" style="background:var(--c-qualnappe)"></span><span class="lbl">Qualité des nappes (ADES)</span><span class="count" id="cnt-qualnappe">–</span></label>
         <label class="layer-row"><input type="checkbox" id="lyr-prelev" checked><span class="swatch" style="background:var(--c-prelev)"></span><span class="lbl">Ouvrages de prélèvement (volumes)</span><span class="count" id="cnt-prelev">–</span></label>
+        <label class="layer-row"><input type="checkbox" id="lyr-eausurface" checked><span class="swatch line" style="background:var(--c-eausurface)"></span><span class="lbl">Eaux de surface (cours d'eau, plans d'eau)</span><span class="count" id="cnt-eausurface">–</span></label>
       </div>
       <div class="legend-note">Recherche eau potable par commune : utilisez la barre d'adresse ci-dessus, un résultat du dernier contrôle sanitaire s'affiche s'il y en a un.</div>
     </div>
@@ -614,6 +621,7 @@
     { id:'piezo',       label:'Piézométrie' },
     { id:'qualnappe',   label:'Qualité des nappes' },
     { id:'prelev',      label:'Ouvrages de prélèvement' },
+    { id:'eausurface',  label:'Eaux de surface' },
     { id:'riverquality',label:"Qualité des cours d'eau" },
     { id:'etab-scolaire',label:'Écoles / collèges / lycées' },
     { id:'etab-sante',  label:'Santé & social sensible' }
@@ -1326,6 +1334,17 @@
     if (r.indexOf('déclaration') !== -1 || r.indexOf('declaration') !== -1) return getCss('--c-icpe-decl');
     return getCss('--c-icpe-other');
   }
+  /** Lettre portée par le figuré : A autorisation, E enregistrement,
+   *  D déclaration, NC non classé ou régime non renseigné. La couleur seule
+   *  obligeait à faire l'aller-retour avec la légende, et ne disait rien à qui
+   *  la distingue mal. */
+  function regimeLettre(regime){
+    var b = regimeBucket(regime);
+    if (b === 'Autorisation') return 'A';
+    if (b === 'Enregistrement') return 'E';
+    if (b === 'Déclaration') return 'D';
+    return 'NC';
+  }
   function regimeBucket(regime){
     if (!regime) return 'other';
     var r = regime.toLowerCase();
@@ -1378,10 +1397,24 @@
     return L.divIcon({ html:html, className:'badge-icon', iconSize:[size,size], iconAnchor:[size/2,size/2] });
   }
 
+  /** Pastille portant la lettre du régime. Un `divIcon` et non un
+   *  `circleMarker` : un cercle SVG ne peut pas contenir de texte. */
+  function icpeIcon(color, lettre){
+    var s = 19, demi = s / 2;
+    return L.divIcon({
+      html:'<svg width="'+s+'" height="'+s+'" viewBox="0 0 '+s+' '+s+'">' +
+        '<circle cx="'+demi+'" cy="'+demi+'" r="'+(demi-1.25)+'" fill="'+color+'" stroke="#00000066" stroke-width="1.5"/>' +
+        '<text x="'+demi+'" y="'+(demi+0.4)+'" text-anchor="middle" dominant-baseline="central"' +
+        ' font-family="Verdana, Geneva, sans-serif" font-size="'+(lettre.length > 1 ? 7.5 : 10.5)+'"' +
+        ' font-weight="700" fill="#ffffff">'+lettre+'</text></svg>',
+      className:'shape-icon', iconSize:[s,s], iconAnchor:[demi,demi]
+    });
+  }
+
   function icpeMarker(item){
     var color = regimeColor(item.regime);
-    var m = L.circleMarker([item.latitude, item.longitude], {
-      radius:6, weight:1.5, color:'#00000055', fillColor:color, fillOpacity:0.9, pane:'pane-icpe'
+    var m = L.marker([item.latitude, item.longitude], {
+      icon: icpeIcon(color, regimeLettre(item.regime)), pane:'pane-icpe'
     });
     m._bucket = regimeBucket(item.regime);
     var html = '<div class="popup"><span class="tag" style="background:'+color+'">ICPE · '+escapeHtml(item.regime||'—')+'</span>' +
@@ -1706,13 +1739,17 @@
       applyIcpeVisibility();
     });
   });
+  /** Masquage par opacité plutôt que retrait/ajout : moins coûteux sur de
+   *  grands jeux, et l'ordre des couches ne bouge pas. Les figurés étant des
+   *  `divIcon`, c'est l'élément DOM que l'on touche, pas un tracé SVG. */
+  function setIcpeVisible(m, show){
+    if (!m._icon) return;
+    m._icon.style.opacity = show ? '1' : '0';
+    m._icon.style.pointerEvents = show ? '' : 'none';
+  }
   function applyIcpeVisibility(){
     icpeLayer.eachLayer(function(m){
-      var show = icpeVisibility[m._bucket];
-      var has = icpeLayer.hasLayer(m);
-      // circleMarker opacity toggle (cheaper than remove/add for large sets)
-      m.setStyle({ opacity: show ? 1 : 0, fillOpacity: show ? 0.9 : 0 });
-      m._path && (m._path.style.pointerEvents = show ? '' : 'none');
+      setIcpeVisible(m, icpeVisibility[m._bucket]);
     });
   }
 
@@ -1742,6 +1779,10 @@
   });
   document.getElementById('lyr-riverquality').addEventListener('change', function(e){
     if (e.target.checked) map.addLayer(riverQualityLayer); else map.removeLayer(riverQualityLayer);
+    renderLayerOrderPanel();
+  });
+  document.getElementById('lyr-eausurface').addEventListener('change', function(e){
+    if (e.target.checked) map.addLayer(eauSurfaceLayer); else map.removeLayer(eauSurfaceLayer);
     renderLayerOrderPanel();
   });
   document.getElementById('lyr-natura-zsc').addEventListener('change', function(e){
@@ -1907,6 +1948,73 @@
       if (!r.ok && r.status !== 206) return { error:true, data:[] };
       return r.json().then(function(j){ return { data: j.data || [] }; });
     }).catch(function(){ return { error:true, data:[] }; });
+  }
+
+  // ---- Eaux de surface (BD TOPO® — tronçons et surfaces hydrographiques) ----
+  //
+  // Deux couches pour une seule réalité : les écoulements linéaires d'un côté,
+  // les plans d'eau et les cours d'eau assez larges pour être cartographiés en
+  // surface de l'autre. Les deux portent `persistance`, qui distingue un
+  // écoulement permanent d'un écoulement intermittent — un fossé à sec huit
+  // mois par an ne se lit pas comme une rivière, et c'est précisément ce que
+  // la carte doit dire.
+  //
+  // Le nom est porté par `cpx_toponyme_de_cours_d_eau` ou
+  // `cpx_toponyme_de_plan_d_eau` et non par `toponyme`, qui est vide partout
+  // où il a été regardé.
+  var eauSurfaceLayer = L.layerGroup().addTo(map);
+
+  function fetchEauxSurface(bounds){
+    if (!document.getElementById('lyr-eausurface').checked) return Promise.resolve({ skipped:true, features:[] });
+    var w = bounds.getWest(), s = bounds.getSouth(), e = bounds.getEast(), n = bounds.getNorth();
+    var geom = JSON.stringify({ type:'Polygon', coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]] });
+    var sources = ['BDTOPO_V3:troncon_hydrographique', 'BDTOPO_V3:surface_hydrographique'];
+    return Promise.all(sources.map(function(source){
+      var url = 'https://apicarto.ign.fr/api/wfs-geoportail/search?source=' + encodeURIComponent(source) +
+        '&geom=' + encodeURIComponent(geom) + '&_limit=300';
+      return fetchWithTimeout(url, {}, 15000).then(function(r){
+        if (!r.ok) return null;
+        return r.json().then(function(j){ return j.features || []; });
+      }).catch(function(){ return null; });
+    })).then(function(lots){
+      // Une couche manquante ne doit pas effacer l'autre : on ne signale
+      // l'erreur que si les deux ont échoué.
+      if (lots.every(function(l){ return l === null; })) return { error:true, features:[] };
+      return { features: lots.filter(Boolean).flat() };
+    });
+  }
+
+  function eauNom(p){
+    return (p.cpx_toponyme_de_cours_d_eau || p.cpx_toponyme_de_plan_d_eau || p.toponyme || '').trim();
+  }
+  function eauTemporaire(p){
+    // « Intermittent », « Tari », « Sec » selon les millésimes ; tout ce qui
+    // n'est pas explicitement permanent est signalé comme non permanent
+    // plutôt que passé sous silence.
+    var v = (p.persistance || '').toLowerCase();
+    if (!v || v.indexOf('inconnu') !== -1) return null;
+    return v.indexOf('permanent') === -1;
+  }
+
+  function eauSurfaceLayerFor(feature){
+    var p = feature.properties || {};
+    var color = getCss('--c-eausurface');
+    var temporaire = eauTemporaire(p);
+    var surfacique = feature.geometry && feature.geometry.type.indexOf('Polygon') !== -1;
+    var layer = L.geoJSON(feature.geometry, {
+      pane:'pane-eausurface',
+      style: surfacique
+        ? { color:color, weight:1.2, fillColor:color, fillOpacity: temporaire ? 0.18 : 0.38, dashArray: temporaire ? '4,3' : null }
+        : { color:color, weight: temporaire ? 2 : 2.8, opacity:0.9, dashArray: temporaire ? '5,4' : null },
+    });
+    var nom = eauNom(p);
+    var etat = temporaire === null ? 'persistance non renseignée' : temporaire ? 'en eau par intermittence' : 'en eau toute l\'année';
+    layer.bindTooltip(
+      '<strong>' + escapeHtml(nom || 'Sans toponyme') + '</strong><br>' +
+      escapeHtml(p.nature || (surfacique ? 'Surface en eau' : 'Écoulement')) + ' — ' + escapeHtml(etat),
+      { sticky:true }
+    );
+    return layer;
   }
 
   // ---- Natura 2000 (API Carto IGN / module nature) ----
@@ -2089,6 +2197,7 @@
     natura2000ZpsLayer.clearLayers();
     etabScolaireLayer.clearLayers();
     etabSanteLayer.clearLayers();
+    eauSurfaceLayer.clearLayers();
 
     var icpeUrl = 'https://georisques.gouv.fr/api/v1/installations_classees?rayon=' + rayon + '&latlon=' + latlon;
     var sspUrl = 'https://georisques.gouv.fr/api/v1/ssp?rayon=' + rayon + '&latlon=' + latlon;
@@ -2106,7 +2215,8 @@
       fetchNaturaZps(bounds),
       fetchEtabScolaire(c.lat.toFixed(5), c.lng.toFixed(5), rayon),
       fetchEtabSante(c.lat.toFixed(5), c.lng.toFixed(5), rayon),
-      fetchPrelevVolumes(bounds)
+      fetchPrelevVolumes(bounds),
+      fetchEauxSurface(bounds)
     ]).then(function(results){
       var icpeItems = results[0];
       var ssp = results[1];
@@ -2120,6 +2230,7 @@
       var etabScolaireResult = results[9];
       var etabSanteResult = results[10];
       var prelevVolumesResult = results[11];
+      var eauSurfaceResult = results[12];
 
       // Les volumes doivent être indexés avant que les repères ne soient
       // créés : c'est le dernier volume connu qui donne sa taille au repère.
@@ -2130,8 +2241,9 @@
         if (item.longitude == null || item.latitude == null) return;
         var mk = icpeMarker(item);
         counts[mk._bucket] = (counts[mk._bucket]||0) + 1;
-        mk.setStyle({ opacity: icpeVisibility[mk._bucket] ? 1 : 0, fillOpacity: icpeVisibility[mk._bucket] ? 0.9 : 0 });
         icpeLayer.addLayer(mk);
+        // Après l'ajout : le marqueur n'a son élément DOM qu'une fois posé.
+        setIcpeVisible(mk, icpeVisibility[mk._bucket]);
       });
       document.getElementById('cnt-auth').textContent = counts.Autorisation;
       document.getElementById('cnt-enr').textContent = counts.Enregistrement;
@@ -2194,6 +2306,21 @@
       }
       var riverNote = fillHubeauLayer(riverResult, 'lyr-riverquality', 'cnt-river', riverQualityLayer, riverQualityMarker, 'stations qualité cours d\'eau');
 
+      var eauSurfaceNote = '';
+      var cntEau = document.getElementById('cnt-eausurface');
+      if (eauSurfaceResult.skipped) cntEau.textContent = '–';
+      else if (eauSurfaceResult.error) { cntEau.textContent = '?'; eauSurfaceNote = ' · eaux de surface : indisponible'; }
+      else {
+        eauSurfaceResult.features.forEach(function(f){
+          var l = eauSurfaceLayerFor(f);
+          if (l) eauSurfaceLayer.addLayer(l);
+        });
+        cntEau.textContent = eauSurfaceResult.features.length;
+        var temporaires = eauSurfaceResult.features.filter(function(f){ return eauTemporaire(f.properties || {}) === true; }).length;
+        eauSurfaceNote = ' · ' + eauSurfaceResult.features.length + ' eaux de surface' +
+          (temporaires > 0 ? ' dont ' + temporaires + ' temporaires' : '');
+      }
+
       function fillNaturaLayer(result, countId, layer, kind, label){
         var countEl = document.getElementById(countId);
         if (result.skipped){ countEl.textContent = '–'; return ''; }
@@ -2209,7 +2336,7 @@
       var etabScolaireNote = fillHubeauLayer(etabScolaireResult, 'lyr-etab-scolaire', 'cnt-etab-scolaire', etabScolaireLayer, etabScolaireMarker, 'établissements scolaires');
       var etabSanteNote = fillHubeauLayer(etabSanteResult, 'lyr-etab-sante', 'cnt-etab-sante', etabSanteLayer, etabSanteMarker, 'établissements sensibles');
 
-      statusEl.textContent = icpeItems.length + ' ICPE · ' + casiasData.length + ' CASIAS · ' + sisData.length + ' SIS' + ppeNote + piezoNote + qualnappeNote + prelevNote + riverNote + naturaZscNote + naturaZpsNote + etabScolaireNote + etabSanteNote + ' — rayon ' + (rayon/1000).toFixed(1) + ' km';
+      statusEl.textContent = icpeItems.length + ' ICPE · ' + casiasData.length + ' CASIAS · ' + sisData.length + ' SIS' + ppeNote + piezoNote + qualnappeNote + prelevNote + riverNote + eauSurfaceNote + naturaZscNote + naturaZpsNote + etabScolaireNote + etabSanteNote + ' — rayon ' + (rayon/1000).toFixed(1) + ' km';
     }).catch(function(err){
       statusEl.classList.add('err');
       statusEl.textContent = 'Erreur de récupération des données.';
