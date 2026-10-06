@@ -575,6 +575,9 @@
       <label class="layer-row" style="padding-left:0;">
         <input type="checkbox" id="lyr-etiquettes" checked><span class="lbl">Noms des points sur la carte</span>
       </label>
+      <label class="layer-row" style="padding-left:0;">
+        <input type="checkbox" id="lyr-exclusions"><span class="lbl">Zones d'exclusion sur la carte</span>
+      </label>
       <button class="btn ghost" id="btn-hors-ligne" style="width:100%;margin-top:6px;">⤓ Préparer la carte hors réseau</button>
       <div class="progres" id="progres-cache"><div></div></div>
       <p class="aide" id="aide-hors-ligne">Télécharge les tuiles de l'emprise des zones pour les garder lisibles sur le terrain sans réseau.</p>
@@ -924,13 +927,17 @@
   // Un même maillage porte souvent plusieurs campagnes : le type décide du
   // préfixe, de la couleur et du figuré, et chaque type a sa propre série de
   // numéros.
+  // Quatre figurés et quatre teintes séparables deux à deux, y compris sous
+  // protanopie et deutéranopie : sur une carte, n'importe quelle paire de
+  // points peut se retrouver côte à côte. La forme et le nom affiché doublent
+  // la couleur, de sorte que le type ne repose jamais sur elle seule.
   var TYPES = [
-    { id:'VP', nom:'Vapor Pin',               prefixe:'VP', couleur:'#7c3f8f', figure:'croix' },
-    { id:'S',  nom:'Sondage',                 prefixe:'S',  couleur:'#1f6b45', figure:'cercle' },
-    { id:'Pz', nom:'Piézomètre',              prefixe:'Pz', couleur:'#1f6fa8', figure:'carre' },
-    { id:'PG', nom:'Gaz du sol',              prefixe:'PG', couleur:'#b5432f', figure:'triangle' },
-    { id:'PS', nom:'Prélèvement de surface',  prefixe:'PS', couleur:'#a3671a', figure:'losange' }
+    { id:'S',   nom:'Sondage',     prefixe:'S',   couleur:'#b5432f', figure:'cercle' },
+    { id:'VP',  nom:'Vapor Pin',   prefixe:'VP',  couleur:'#4a3aa7', figure:'croix' },
+    { id:'PzA', nom:'Piézair',     prefixe:'PzA', couleur:'#eda100', figure:'triangle' },
+    { id:'Pz',  nom:'Piézomètre',  prefixe:'Pz',  couleur:'#2a78d6', figure:'carre' }
   ];
+  var TYPE_DEFAUT = 'VP';
   function typeDe(id){
     for (var i = 0; i < TYPES.length; i++) if (TYPES[i].id === id) return TYPES[i];
     return TYPES[0];
@@ -955,6 +962,7 @@
     o.value = t.id; o.textContent = t.nom + ' (' + t.prefixe + ')';
     choixType.appendChild(o);
   });
+  choixType.value = TYPE_DEFAUT;
 
   // ======================== Recherche d'adresse ===========================
   var champAdresse = document.getElementById('addr-input');
@@ -1213,7 +1221,7 @@
       var voir = bouton('⊙', 'Cadrer sur cette zone', function(){
         map.fitBounds(L.geoJSON(z.feature).getBounds(), { padding:[30,30] });
       });
-      var regl = bouton('⚙', 'Réglages de cette zone', function(){
+      var regl = bouton('⚙', 'Nom et réglages de cette zone', function(){
         panneauxOuverts[z.id] = !panneauxOuverts[z.id];
         panneau.classList.toggle('ouvert', panneauxOuverts[z.id]);
       });
@@ -1228,6 +1236,7 @@
 
       var panneau = document.createElement('div');
       panneau.className = 'zone-reglages' + (panneauxOuverts[z.id] ? ' ouvert' : '');
+      panneau.appendChild(champNom(z));
       panneau.appendChild(champNombre('Côté de la maille', 'm', z.reglages && z.reglages.cote, function(v){
         majReglageZone(z, 'cote', v);
       }));
@@ -1287,6 +1296,32 @@
     d.appendChild(l); d.appendChild(i);
     return d;
   }
+  function champNom(z){
+    var d = document.createElement('div');
+    d.className = 'champ';
+    var l = document.createElement('label'); l.textContent = 'Nom de la zone';
+    var i = document.createElement('input');
+    i.type = 'text'; i.maxLength = 40; i.value = z.nom; i.style.flex = '1';
+    // Sur « change » et non « input » : la liste se reconstruit à chaque
+    // renommage, ce qui ferait perdre le curseur à chaque lettre tapée.
+    i.addEventListener('change', function(){ renommeZone(z, i.value.trim()); });
+    d.appendChild(l); d.appendChild(i);
+    return d;
+  }
+  function renommeZone(z, nom){
+    if (!nom || nom === z.nom) return;
+    memorise();
+    z.nom = nom;
+    // Le nom voyage avec chaque maille jusqu'aux exports : on le reporte sans
+    // régénérer la grille, qui perdrait les points déplacés sans raison.
+    var iz = zones.indexOf(z);
+    mailles.forEach(function(m){ if (m.iZone === iz) m.zone = nom; });
+    dessineZones();
+    dessineMailles();
+    sauvegarde();
+    statut('Zone renommée : ' + nom + '.');
+  }
+
   function champType(z){
     var d = document.createElement('div');
     d.className = 'champ';
@@ -1401,13 +1436,17 @@
 
   function dessineExclusions(){
     coucheExclusions.clearLayers();
-    exclusions.forEach(function(x){
-      L.geoJSON(x.feature, {
-        pane:'pane-exclusions',
-        style:{ color:'#8a8272', weight:1.5, fillColor:'#1b2a1f', fillOpacity:0.3 },
-        interactive:false
-      }).addTo(coucheExclusions);
-    });
+    // Masquées par défaut : ce qu'on veut lire sur la photo aérienne, c'est le
+    // terrain, et le trou laissé dans le maillage dit déjà ce qui est exclu.
+    if (document.getElementById('lyr-exclusions').checked){
+      exclusions.forEach(function(x){
+        L.geoJSON(x.feature, {
+          pane:'pane-exclusions',
+          style:{ color:'#8a8272', weight:1.5, fillColor:'#1b2a1f', fillOpacity:0.3 },
+          interactive:false
+        }).addTo(coucheExclusions);
+      });
+    }
     var liste = document.getElementById('liste-exclusions');
     liste.innerHTML = '';
     exclusions.forEach(function(x, i){
@@ -1438,6 +1477,9 @@
     dessineExclusions();
     construitMaillage();
     sauvegarde();
+    if (!document.getElementById('lyr-exclusions').checked){
+      statut('Exclusion retirée du maillage. Elle ne s\'affiche pas : cochez « Zones d\'exclusion sur la carte » pour la voir.');
+    }
   }
 
   var btnExclusion = document.getElementById('btn-exclusion');
@@ -1992,6 +2034,7 @@
     statut('Les points sont revenus au centre de leur maille.');
   });
   document.getElementById('lyr-etiquettes').addEventListener('change', dessineMailles);
+  document.getElementById('lyr-exclusions').addEventListener('change', dessineExclusions);
 
   // ======================== Réglages ======================================
   ['taille', 'azimut', 'decouper', 'seuil', 'type-point'].forEach(function(id){
@@ -2840,9 +2883,11 @@
       svg += '<path d="' + cheminDe(zn.feature.geometry) + '" fill="none" stroke="' + teinteZone(i) +
              '" stroke-width="2" stroke-dasharray="7 5"/>';
     });
-    exclusions.forEach(function(x){
-      svg += '<path d="' + cheminDe(x.feature.geometry) + '" fill="#1b2a1f" fill-opacity="0.35" stroke="#1b2a1f" stroke-width="1"/>';
-    });
+    if (document.getElementById('lyr-exclusions').checked){
+      exclusions.forEach(function(x){
+        svg += '<path d="' + cheminDe(x.feature.geometry) + '" fill="#1b2a1f" fill-opacity="0.35" stroke="#1b2a1f" stroke-width="1"/>';
+      });
+    }
     garde.forEach(function(m){
       svg += '<path d="' + cheminDe(m.polygone.geometry) + '" fill="none" stroke="' + teinteZone(m.iZone) + '" stroke-width="1"/>';
     });
