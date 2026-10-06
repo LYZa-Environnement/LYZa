@@ -1,11 +1,17 @@
 import { NavLink } from 'react-router-dom'
 import logo from '../assets/lyza-logo.png'
 
-const links = [
+const pages = [
   { to: '/', label: 'Étudier un site', end: true },
-  { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true },
-  { to: `${import.meta.env.BASE_URL}lyza-maillage.html`, label: 'LYZa Maillage', external: true },
   { to: '/sources', label: 'Méthode & sources' },
+]
+
+// The two map tools are separate pages, not routes: they get buttons rather
+// than nav links, because that is how they are reached — one click from the
+// top of the home page, whatever you were doing.
+const outils = [
+  { href: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', titre: 'Carte interactive des données publiques' },
+  { href: `${import.meta.env.BASE_URL}lyza-maillage.html`, label: 'LYZa Maillage', titre: "Maillage d'investigation sur parcelles" },
 ]
 
 const linkStyle = { textDecoration: 'none', fontSize: '0.92rem' } as const
@@ -20,23 +26,22 @@ export default function Nav() {
             Consultation de données environnementales
           </span>
         </NavLink>
-        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
-          {links.map((link) =>
-            link.external ? (
-              <a key={link.to} href={link.to} style={{ ...linkStyle, fontWeight: 700, color: 'var(--color-accent)' }}>
-                {link.label}
-              </a>
-            ) : (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                style={({ isActive }) => ({ ...linkStyle, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-accent)' : 'var(--color-ink)' })}
-              >
-                {link.label}
-              </NavLink>
-            ),
-          )}
+        <nav style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          {pages.map((page) => (
+            <NavLink
+              key={page.to}
+              to={page.to}
+              end={page.end}
+              style={({ isActive }) => ({ ...linkStyle, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-accent)' : 'var(--color-ink)' })}
+            >
+              {page.label}
+            </NavLink>
+          ))}
+          {outils.map((outil) => (
+            <a key={outil.href} href={outil.href} className="btn btn--petit" title={outil.titre}>
+              {outil.label} ↗
+            </a>
+          ))}
         </nav>
       </div>
     </header>

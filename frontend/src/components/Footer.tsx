@@ -43,6 +43,10 @@ export default function Footer() {
               LYZa Cartes
             </a>
             <br />
+            <a href={`${import.meta.env.BASE_URL}lyza-maillage.html`} style={{ color: 'var(--color-accent-ink)' }}>
+              LYZa Maillage
+            </a>
+            <br />
             <Link to="/sources" style={{ color: 'var(--color-accent-ink)' }}>
               Méthode &amp; sources
             </Link>

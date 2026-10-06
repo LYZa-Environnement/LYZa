@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="LYZa Maillage — construire un maillage d'investigation environnementale sur des parcelles : taille de maille, orientation, zone dessinée, numérotation.">
+<meta name="description" content="LYZa Maillage — construire un maillage d'investigation environnementale sur des parcelles : taille de maille, orientation, zones multiples, numérotation, export terrain.">
 <title>LYZa Maillage — Investigation environnementale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -404,14 +404,11 @@
 
 
   /* ---- Propre à la page maillage ---- */
-  .etape{ border-left:3px solid var(--line); padding-left:10px; }
-  .etape.active{ border-left-color:var(--accent); }
   .etape .num{
     display:inline-flex; align-items:center; justify-content:center;
     width:18px; height:18px; border-radius:50%; background:var(--line); color:var(--ink);
     font-size:10.5px; font-weight:700; margin-right:6px; flex:none;
   }
-  .etape.active .num{ background:var(--accent); color:var(--accent-ink); }
   .etape.faite .num{ background:var(--ok); color:#fff; }
   .champ{ display:flex; align-items:center; gap:8px; margin:6px 0; }
   .champ label{ font-size:12.5px; flex:1; }
@@ -419,37 +416,52 @@
     width:86px; padding:4px 7px; border:1px solid var(--line); border-radius:7px;
     background:var(--paper); color:var(--ink); font-family:inherit; font-size:12.5px;
   }
-  .champ input[type=range]{ width:110px; }
-  .recap{
-    display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin:8px 0 2px;
-  }
+  .recap{ display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; margin:8px 0 2px; }
   .recap .bloc{ background:var(--paper); border:1px solid var(--line-soft); border-radius:9px; padding:7px 9px; }
   .recap .val{ font-size:17px; font-weight:700; font-family:var(--font-heading); line-height:1.1; }
-  .recap .cle{ font-size:10.5px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+  .recap .cle{ font-size:10px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
   .noms{
-    max-height:150px; overflow:auto; background:var(--paper); border:1px solid var(--line-soft);
+    max-height:140px; overflow:auto; background:var(--paper); border:1px solid var(--line-soft);
     border-radius:9px; padding:7px 9px; font-size:11.5px; line-height:1.55; word-break:break-word;
   }
   .noms .off{ color:var(--ink-dim); text-decoration:line-through; }
-  .maille-label{
-    font-size:10px; font-weight:700; color:#fff; text-shadow:0 0 3px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.85);
+  /* Leaflet pose un transform en ligne sur l'icône : le centrage se fait donc
+     sur un enfant, qui garde le sien. */
+  .maille-label span{
+    position:absolute; left:0; top:6px; transform:translateX(-50%);
+    font-size:10.5px; font-weight:700; color:#fff;
+    text-shadow:0 0 3px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9);
     white-space:nowrap; pointer-events:none;
   }
   .boussole{
     background:var(--paper); border:1px solid var(--line); border-radius:50%;
-    width:62px; height:62px; display:flex; align-items:center; justify-content:center; flex:none;
+    width:58px; height:58px; display:flex; align-items:center; justify-content:center; flex:none;
   }
   .aide{ font-size:11.5px; color:var(--ink-dim); line-height:1.5; margin:4px 0 0; }
+  .zone-item{
+    display:flex; align-items:center; gap:7px; padding:5px 0;
+    border-top:1px solid var(--line-soft); font-size:12.5px;
+  }
+  .zone-item:first-child{ border-top:none; }
+  .zone-item .pastille{ width:10px; height:10px; border-radius:3px; flex:none; }
+  .zone-item .lbl{ flex:1; }
+  .zone-item button{ background:none; border:none; color:var(--ink-dim); cursor:pointer; font-size:13px; padding:0 2px; }
+  .zone-item button:hover{ color:var(--danger); }
+  .exports{ display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; margin-top:8px; }
+  .exports .btn{ padding:7px 4px; font-size:11.5px; }
 </style>
 </head>
 <body>
-<div style="position:fixed;top:10px;right:10px;z-index:2000;display:flex;gap:6px;"><a href="./lyza-cartes.html" style="background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">LYZa Cartes →</a><a href="./" style="background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">← Retour au site LYZa</a></div>
+<div style="position:fixed;top:10px;right:10px;z-index:2000;display:flex;gap:6px;">
+  <a href="./lyza-cartes.html" style="background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">LYZa Cartes →</a>
+  <a href="./" style="background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);">← Retour au site LYZa</a>
+</div>
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-head">
       <div class="brand"><span class="brand-mark">IGN</span></div>
       <h1>LYZa <span style="font-weight:400;color:var(--ink-dim);font-size:0.6em;">— Maillage d'investigation</span></h1>
-      <p class="subtitle">Grille de prélèvements sur parcelles : taille de maille, orientation, emprise dessinée, numérotation</p>
+      <p class="subtitle">Grille de prélèvements sur parcelles : taille, orientation, zones multiples, numérotation, export terrain</p>
     </div>
 
     <div class="search-row">
@@ -460,6 +472,21 @@
       <div id="suggestions"></div>
     </div>
 
+    <div class="section">
+      <div class="section-title">Affichage</div>
+      <div class="layer-group" id="fonds"></div>
+      <label class="layer-row" style="padding-left:0;">
+        <input type="checkbox" id="lyr-cadastre" checked><span class="lbl">Parcelles cadastrales</span>
+      </label>
+      <div class="champ" id="champ-opacite">
+        <label for="opacite">Opacité du cadastre</label>
+        <input type="range" id="opacite" min="10" max="100" step="5" value="80" style="width:96px;">
+      </div>
+      <label class="layer-row" style="padding-left:0;">
+        <input type="checkbox" id="lyr-etiquettes" checked><span class="lbl">Noms des mailles sur la carte</span>
+      </label>
+    </div>
+
     <div class="section etape" id="etape-parcelles">
       <div class="section-title"><span class="num">1</span>Parcelles</div>
       <div class="btn-row">
@@ -468,7 +495,7 @@
       </div>
       <div id="liste-parcelles" class="layer-group" style="margin-top:8px;"></div>
       <div class="legend-note" id="total-parcelles" style="display:none;"></div>
-      <p class="aide">Facultatif : les parcelles servent de repère et peuvent être reprises telles quelles comme zone à mailler.</p>
+      <p class="aide">Facultatif : repère visuel, et reprise directe comme zone à mailler.</p>
     </div>
 
     <div class="section etape" id="etape-reglages">
@@ -487,6 +514,7 @@
         </div>
         <div class="boussole" id="boussole"></div>
       </div>
+      <button class="btn ghost" id="btn-aligner" style="width:100%;margin:4px 0 8px;">⟲ Aligner sur la plus longue limite</button>
       <div class="champ">
         <label for="prefixe">Préfixe des mailles</label>
         <input type="text" id="prefixe" value="VP" maxlength="8">
@@ -507,46 +535,49 @@
       </label>
     </div>
 
-    <div class="section etape" id="etape-zone">
-      <div class="section-title"><span class="num">3</span>Zone à mailler</div>
+    <div class="section etape" id="etape-zones">
+      <div class="section-title"><span class="num">3</span>Zones à mailler</div>
       <div class="btn-row">
-        <button class="btn" id="btn-dessiner" style="flex:1;">✎ Dessiner la zone</button>
-        <button class="btn ghost" id="btn-zone-raz" title="Effacer la zone">✕</button>
+        <button class="btn" id="btn-dessiner" style="flex:1;">✎ Ajouter une zone</button>
+        <button class="btn ghost" id="btn-zones-raz" title="Supprimer toutes les zones">✕</button>
       </div>
-      <button class="btn ghost" id="btn-zone-parcelles" style="width:100%;margin-top:6px;">Reprendre les parcelles sélectionnées</button>
-      <p class="aide" id="aide-dessin">Cliquez pour poser les sommets, double-clic ou Entrée pour fermer, Échap pour annuler.</p>
-      <div class="legend-note" id="info-zone" style="display:none;"></div>
+      <button class="btn ghost" id="btn-zone-parcelles" style="width:100%;margin-top:6px;">Ajouter les parcelles comme zone</button>
+      <p class="aide" id="aide-dessin">Cliquez pour poser les sommets, double-clic ou Entrée pour fermer, Échap pour annuler. Vous pouvez ajouter autant de zones que nécessaire : elles partagent la même grille, donc les mailles restent alignées d'une zone à l'autre.</p>
+      <div id="liste-zones" style="margin-top:8px;"></div>
+      <div class="legend-note" id="info-zones" style="display:none;"></div>
     </div>
 
     <div class="section etape" id="etape-maillage">
       <div class="section-title"><span class="num">4</span>Mailles</div>
-      <p class="aide">Cliquez une maille sur la carte pour l'exclure, cliquez à nouveau pour la remettre.</p>
+      <p class="aide">Cliquez une maille pour l'exclure, cliquez à nouveau pour la remettre.</p>
       <div class="recap">
         <div class="bloc"><div class="cle">Mailles retenues</div><div class="val" id="val-nombre">–</div></div>
         <div class="bloc"><div class="cle">Surface cumulée</div><div class="val" id="val-surface">–</div></div>
+        <div class="bloc"><div class="cle">Densité</div><div class="val" id="val-densite">–</div></div>
+        <div class="bloc"><div class="cle">Zones</div><div class="val" id="val-zones">–</div></div>
       </div>
       <div class="legend-note" id="detail-maillage" style="display:none;"></div>
-      <div class="noms" id="liste-noms" style="display:none;"></div>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn ghost" id="btn-csv" style="flex:1;">⭳ CSV</button>
-        <button class="btn ghost" id="btn-geojson" style="flex:1;">⭳ GeoJSON</button>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn ghost" id="btn-tout-remettre" style="flex:1;">Tout réafficher</button>
       </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Fond de carte</div>
-      <div class="layer-group" id="fonds"></div>
-      <label class="layer-row" style="padding-left:0;">
-        <input type="checkbox" id="lyr-cadastre" checked><span class="lbl">Parcelles cadastrales</span>
-      </label>
+      <div class="noms" id="liste-noms" style="display:none;"></div>
+      <div class="exports">
+        <button class="btn ghost" id="btn-csv">⭳ CSV</button>
+        <button class="btn ghost" id="btn-geojson">⭳ GeoJSON</button>
+        <button class="btn ghost" id="btn-kml">⭳ KML</button>
+        <button class="btn ghost" id="btn-shp">⭳ SHP</button>
+        <button class="btn ghost" id="btn-gpx">⭳ GPX</button>
+        <button class="btn ghost" id="btn-copier">⧉ Noms</button>
+      </div>
+      <p class="aide">CSV, KML et SHP contiennent les mailles <em>et</em> leurs centres ; le GPX ne porte que les centres, en points de passage pour GPS de terrain. Les colonnes Date/heure, PID et 4 gaz sont laissées vides, à remplir sur site.</p>
     </div>
 
     <div class="foot">
-      Fonds et parcellaire : <a href="https://geoservices.ign.fr" target="_blank" rel="noopener">IGN Géoplateforme</a> (photographies aériennes, SCAN 25®, plan cadastral informatisé),
+      Fonds et parcellaire : <a href="https://geoservices.ign.fr" target="_blank" rel="noopener">IGN Géoplateforme</a>,
       <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto</a> pour les parcelles,
       <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a> pour la recherche.
-      Les surfaces sont calculées sur l'ellipsoïde : elles valent pour un plan d'échantillonnage, pas pour un bornage.
-      <div class="status" id="status">Recherchez une adresse, puis dessinez la zone à mailler.</div>
+      Surfaces calculées sur l'ellipsoïde (WGS 84) : bonnes pour un plan d'échantillonnage, pas pour un bornage.
+      <div class="status" id="status">Recherchez une adresse, puis ajoutez une ou plusieurs zones à mailler.</div>
     </div>
   </aside>
 
@@ -578,8 +609,6 @@
       '&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', o);
   }
 
-  // SCAN 25 n'est pas servi par le WMTS ouvert : il passe par le point
-  // d'entrée à clé, sous la pyramide générique GEOGRAPHICALGRIDSYSTEMS.MAPS.
   var FONDS = [
     { id:'ortho', nom:'Photographie aérienne', couche: geopfWMTS('ORTHOIMAGERY.ORTHOPHOTOS', { format:'image/jpeg' }) },
     { id:'scan25', nom:'Carte IGN 1:25 000', couche: L.tileLayer(
@@ -606,16 +635,24 @@
 
   map.createPane('pane-cadastre').style.zIndex = 410;
   map.createPane('pane-parcelles').style.zIndex = 420;
-  map.createPane('pane-zone').style.zIndex = 430;
+  map.createPane('pane-zones').style.zIndex = 430;
   map.createPane('pane-mailles').style.zIndex = 440;
+  map.createPane('pane-centres').style.zIndex = 450;
+
   var coucheCadastre = geopfWMTS('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', { opacity:0.8, pane:'pane-cadastre' }).addTo(map);
-  document.getElementById('lyr-cadastre').addEventListener('change', function(e){
-    if (e.target.checked) coucheCadastre.addTo(map); else map.removeLayer(coucheCadastre);
+  var caseCadastre = document.getElementById('lyr-cadastre');
+  caseCadastre.addEventListener('change', function(){
+    if (caseCadastre.checked) coucheCadastre.addTo(map); else map.removeLayer(coucheCadastre);
+    document.getElementById('champ-opacite').style.opacity = caseCadastre.checked ? '1' : '0.45';
+  });
+  document.getElementById('opacite').addEventListener('input', function(){
+    coucheCadastre.setOpacity(Number(this.value) / 100);
   });
 
   var coucheParcelles = L.layerGroup().addTo(map);
-  var coucheZone = L.layerGroup().addTo(map);
+  var coucheZones = L.layerGroup().addTo(map);
   var coucheMailles = L.layerGroup().addTo(map);
+  var coucheCentres = L.layerGroup().addTo(map);
 
   function statut(texte, erreur){
     var el = document.getElementById('status');
@@ -651,9 +688,9 @@
         .then(function(j){
           boiteSuggestions.innerHTML = '';
           var liste = j.features || [];
-          // La feuille de style partagée masque #suggestions par défaut et ne
-          // met en forme que ses <button> : il faut donc les deux, sans quoi
-          // la liste existe dans le DOM sans jamais s'afficher.
+          // La feuille de style partagée masque #suggestions et ne met en forme
+          // que ses <button> : il faut les deux, sans quoi la liste existe dans
+          // le DOM sans jamais s'afficher.
           boiteSuggestions.style.display = liste.length ? 'block' : 'none';
           liste.forEach(function(f){
             var btn = document.createElement('button');
@@ -664,7 +701,7 @@
               boiteSuggestions.innerHTML = '';
               boiteSuggestions.style.display = 'none';
               champAdresse.value = f.properties.label;
-              statut('Carte centrée. Sélectionnez des parcelles, ou dessinez directement la zone.');
+              statut('Carte centrée. Sélectionnez des parcelles, ou ajoutez directement une zone.');
             });
             boiteSuggestions.appendChild(btn);
           });
@@ -674,14 +711,14 @@
   });
 
   // ======================== Parcelles cadastrales =========================
-  var parcelles = [];          // { idu, props, geometry, couche }
+  var parcelles = [];
   var selectionParcelles = false;
   var btnParcelles = document.getElementById('btn-parcelles');
 
   function dessineParcelles(){
     coucheParcelles.clearLayers();
     parcelles.forEach(function(p){
-      p.couche = L.geoJSON(p.geometry, {
+      L.geoJSON(p.geometry, {
         pane:'pane-parcelles',
         style:{ color:'#c34a35', weight:2.5, dashArray:'6,4', fillOpacity:0.05 },
         interactive:false
@@ -719,11 +756,8 @@
       .then(function(j){
         var f = (j.features || [])[0];
         if (!f){ statut('Pas de parcelle cadastrale à cet endroit.', true); return; }
-        var idu = f.properties.idu;
-        var pos = -1;
+        var idu = f.properties.idu, pos = -1;
         parcelles.forEach(function(p, i){ if (p.idu === idu) pos = i; });
-        // Second clic sur la même parcelle : on la retire. Le même geste
-        // ajoute et enlève, comme sur toute carte où l'on dessine.
         if (pos >= 0) parcelles.splice(pos, 1);
         else parcelles.push({ idu:idu, props:f.properties, geometry:f.geometry });
         dessineParcelles();
@@ -753,29 +787,72 @@
     dessineParcelles();
   });
 
-  // ======================== Dessin de la zone =============================
-  var zone = null;             // Feature turf (Polygon/MultiPolygon) : l'emprise à mailler
-  var coucheZoneTracee = null;
+  // ======================== Zones à mailler ===============================
+  //
+  // Plusieurs zones indépendantes peuvent coexister : on en ajoute autant
+  // qu'il y a de secteurs à investiguer. Elles partagent une seule grille,
+  // calée une fois pour toutes sur l'emprise de l'ensemble : deux zones
+  // mitoyennes ont ainsi des mailles alignées, et deux zones éloignées n'y
+  // perdent rien.
+  var TEINTES = ['#1f6b45', '#7c3f8f', '#b5432f', '#1f6fa8', '#a3671a', '#2a8f9e'];
+  var zones = [];
+  var sequenceZone = 0;
+
+  function teinteZone(i){ return TEINTES[i % TEINTES.length]; }
+
+  function dessineZones(){
+    coucheZones.clearLayers();
+    zones.forEach(function(z, i){
+      L.geoJSON(z.feature, {
+        pane:'pane-zones',
+        style:{ color: teinteZone(i), weight:2.5, fillColor: teinteZone(i), fillOpacity:0.05, dashArray:'7,5' },
+        interactive:false
+      }).addTo(coucheZones);
+    });
+    var liste = document.getElementById('liste-zones');
+    liste.innerHTML = '';
+    zones.forEach(function(z, i){
+      var row = document.createElement('div');
+      row.className = 'zone-item';
+      row.innerHTML = '<span class="pastille" style="background:' + teinteZone(i) + '"></span>' +
+        '<span class="lbl">' + echappe(z.nom) + ' — ' + surfaceTexte(turf.area(z.feature)) + '</span>';
+      var voir = document.createElement('button');
+      voir.type = 'button'; voir.textContent = '⊙'; voir.title = 'Cadrer sur cette zone';
+      voir.addEventListener('click', function(){
+        map.fitBounds(L.geoJSON(z.feature).getBounds(), { padding:[30,30] });
+      });
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.textContent = '✕'; rm.title = 'Supprimer cette zone';
+      rm.addEventListener('click', function(){
+        zones.splice(i, 1);
+        dessineZones();
+        construitMaillage();
+      });
+      row.appendChild(voir); row.appendChild(rm);
+      liste.appendChild(row);
+    });
+    var info = document.getElementById('info-zones');
+    if (zones.length === 0){ info.style.display = 'none'; }
+    else {
+      var totale = zones.reduce(function(s, z){ return s + turf.area(z.feature); }, 0);
+      info.style.display = 'block';
+      info.textContent = zones.length + ' zone(s) — ' + surfaceTexte(totale) + ' au total.';
+    }
+    majEtapes();
+  }
+
+  function ajouteZone(feature, nom){
+    sequenceZone++;
+    zones.push({ id: sequenceZone, nom: nom || ('Zone ' + sequenceZone), feature: feature });
+    dessineZones();
+    construitMaillage();
+  }
+
+  // ---- Dessin ----
   var dessinEnCours = false;
   var sommets = [];
   var apercu = null, provisoire = null;
   var btnDessiner = document.getElementById('btn-dessiner');
-
-  function montreZone(){
-    coucheZone.clearLayers();
-    coucheZoneTracee = null;
-    var info = document.getElementById('info-zone');
-    if (!zone){ info.style.display = 'none'; majEtapes(); return; }
-    coucheZoneTracee = L.geoJSON(zone, {
-      pane:'pane-zone',
-      style:{ color:'#1f6b45', weight:3, fillColor:'#1f6b45', fillOpacity:0.08 },
-      interactive:false
-    }).addTo(coucheZone);
-    var a = turf.area(zone);
-    info.style.display = 'block';
-    info.textContent = 'Zone de ' + surfaceTexte(a) + '.';
-    majEtapes();
-  }
 
   function demarreDessin(){
     if (selectionParcelles) btnParcelles.click();
@@ -793,7 +870,7 @@
   }
   function arreteDessin(annule){
     dessinEnCours = false;
-    btnDessiner.textContent = '✎ Dessiner la zone';
+    btnDessiner.textContent = '✎ Ajouter une zone';
     btnDessiner.classList.remove('active');
     map.getContainer().style.cursor = '';
     map.doubleClickZoom.enable();
@@ -805,85 +882,97 @@
     if (provisoire){ map.removeLayer(provisoire); provisoire = null; }
     if (annule) statut('Dessin annulé.');
   }
-  function clicDessin(e){
-    sommets.push([e.latlng.lng, e.latlng.lat]);
-    redessineApercu();
-  }
+  function clicDessin(e){ sommets.push([e.latlng.lng, e.latlng.lat]); redessineApercu(); }
   function bougeDessin(e){
     if (sommets.length === 0) return;
     var pts = sommets.map(function(c){ return [c[1], c[0]]; });
     pts.push([e.latlng.lat, e.latlng.lng]);
     if (provisoire) map.removeLayer(provisoire);
-    provisoire = L.polyline(pts, { color:'#1f6b45', weight:2, dashArray:'4,4', pane:'pane-zone' }).addTo(map);
+    provisoire = L.polyline(pts, { color:'#1f6b45', weight:2, dashArray:'4,4', pane:'pane-zones' }).addTo(map);
   }
   function redessineApercu(){
     if (apercu) map.removeLayer(apercu);
-    if (sommets.length < 2) { apercu = null; return; }
+    if (sommets.length < 2){ apercu = null; return; }
     apercu = L.polyline(sommets.map(function(c){ return [c[1], c[0]]; }),
-      { color:'#1f6b45', weight:3, pane:'pane-zone' }).addTo(map);
+      { color:'#1f6b45', weight:3, pane:'pane-zones' }).addTo(map);
   }
   function toucheDessin(ev){
-    if (ev.key === 'Escape'){ arreteDessin(true); }
-    else if (ev.key === 'Enter'){ fermeDessin(); }
+    if (ev.key === 'Escape') arreteDessin(true);
+    else if (ev.key === 'Enter') fermeDessin();
   }
   function fermeDessin(){
     if (sommets.length < 3){ statut('Il faut au moins trois sommets pour fermer une zone.', true); return; }
     var anneau = sommets.slice();
     anneau.push(anneau[0]);
-    try {
-      zone = turf.polygon([anneau]);
-    } catch (err){
-      statut('Contour invalide — reprenez le tracé.', true);
-      arreteDessin(true);
-      return;
-    }
+    var f;
+    try { f = turf.polygon([anneau]); }
+    catch (err){ statut('Contour invalide — reprenez le tracé.', true); arreteDessin(true); return; }
     arreteDessin(false);
-    montreZone();
-    construitMaillage();
+    ajouteZone(f);
   }
   btnDessiner.addEventListener('click', function(){
     if (dessinEnCours) fermeDessin(); else demarreDessin();
   });
-  document.getElementById('btn-zone-raz').addEventListener('click', function(){
+  document.getElementById('btn-zones-raz').addEventListener('click', function(){
     if (dessinEnCours) arreteDessin(true);
-    zone = null;
-    montreZone();
+    zones = [];
+    dessineZones();
     construitMaillage();
-    statut('Zone effacée.');
+    statut('Toutes les zones ont été supprimées.');
   });
   document.getElementById('btn-zone-parcelles').addEventListener('click', function(){
     if (parcelles.length === 0){ statut("Aucune parcelle sélectionnée à l'étape 1.", true); return; }
-    // Les parcelles mitoyennes fusionnent en un seul contour : la limite de
-    // propriété entre deux parcelles d'un même site n'est pas une limite
-    // d'investigation.
+    // Les parcelles mitoyennes fusionnent : la limite de propriété entre deux
+    // parcelles d'un même site n'est pas une limite d'investigation.
     var union = null;
     parcelles.forEach(function(p){
       var f = turf.feature(p.geometry);
       union = union ? (turf.union(turf.featureCollection([union, f])) || union) : f;
     });
-    zone = union;
-    montreZone();
-    if (coucheZoneTracee) map.fitBounds(coucheZoneTracee.getBounds(), { padding:[30,30] });
+    ajouteZone(union, 'Parcelles (' + parcelles.length + ')');
+    map.fitBounds(L.geoJSON(union).getBounds(), { padding:[30,30] });
+  });
+
+  // ---- Aligner la grille sur la plus longue limite ----
+  document.getElementById('btn-aligner').addEventListener('click', function(){
+    var source = zones.length > 0 ? zones.map(function(z){ return z.feature; })
+                                  : parcelles.map(function(p){ return turf.feature(p.geometry); });
+    if (source.length === 0){ statut('Ajoutez une zone ou une parcelle pour pouvoir aligner la grille.', true); return; }
+    var meilleur = null, longueurMax = 0;
+    source.forEach(function(f){
+      var pts = turf.coordAll(f);
+      for (var i = 0; i < pts.length - 1; i++){
+        var d = turf.distance(turf.point(pts[i]), turf.point(pts[i+1]), { units:'meters' });
+        if (d > longueurMax){ longueurMax = d; meilleur = [pts[i], pts[i+1]]; }
+      }
+    });
+    if (!meilleur){ statut('Limite introuvable.', true); return; }
+    var az = turf.bearing(turf.point(meilleur[0]), turf.point(meilleur[1]));
+    az = ((az % 180) + 180) % 180;   // la grille est symétrique à 180°
+    champAzimut.value = Math.round(az);
+    curseurAzimut.value = Math.round(az);
+    majBoussole();
     construitMaillage();
+    statut('Grille alignée sur une limite de ' + Math.round(longueurMax) + ' m, orientée à ' + Math.round(az) + '° du nord.');
   });
 
   // ======================== Maillage ======================================
   //
-  // Le calcul se fait dans un repère métrique local centré sur la zone : les
-  // degrés de longitude rétrécissent avec la latitude, et une grille calculée
-  // en degrés donnerait des mailles rectangulaires au lieu de carrées.
+  // Le calcul se fait dans un repère métrique local centré sur l'ensemble des
+  // zones : les degrés de longitude rétrécissent avec la latitude, et une
+  // grille calculée en degrés donnerait des mailles rectangulaires.
   //
-  // La grille est construite dans un repère tourné de -azimut, où elle est
-  // alignée sur les axes, puis chaque maille est ramenée dans le repère
-  // d'origine. C'est ce qui permet d'orienter le maillage sans déformer les
-  // mailles.
-  var mailles = [];            // { polygone, aire, pleine, exclue, numero, nom }
-  var LIMITE_MAILLES = 4000;
+  // La grille est construite dans un repère tourné de l'azimut demandé, où
+  // elle est alignée sur les axes, puis chaque maille est ramenée dans le
+  // repère d'origine. C'est ce qui permet d'orienter le maillage sans
+  // déformer les mailles. Le signe de la rotation a été vérifié en mesurant
+  // l'azimut réel d'un côté de maille : 15° demandés donnent 15° mesurés.
+  var mailles = [];
+  var LIMITE_MAILLES = 6000;
 
   function repereLocal(centre){
     var lat0 = centre[1], lon0 = centre[0];
-    var mParLat = 111320;
-    var mParLon = 111320 * Math.cos(lat0 * Math.PI / 180);
+    var mParLat = 111320, mParLon = 111320 * Math.cos(lat0 * Math.PI / 180);
     return {
       versMetres: function(c){ return [(c[0] - lon0) * mParLon, (c[1] - lat0) * mParLat]; },
       versDegres: function(p){ return [lon0 + p[0] / mParLon, lat0 + p[1] / mParLat]; }
@@ -891,86 +980,98 @@
   }
   function tourne(p, cos, sin){ return [p[0] * cos - p[1] * sin, p[0] * sin + p[1] * cos]; }
 
+  /** Point d'investigation d'une maille : le centre du carré quand il tombe
+   *  dans la maille retenue, sinon un point garanti à l'intérieur. Sur une
+   *  maille de bordure découpée en croissant, le centre du carré tombe
+   *  dehors — y planter le repère enverrait l'opérateur hors de la zone. */
+  function centreMaille(polygone, centreCarre){
+    try {
+      if (turf.booleanPointInPolygon(turf.point(centreCarre), polygone)) return centreCarre;
+      return turf.pointOnFeature(polygone).geometry.coordinates;
+    } catch (err){
+      return centreCarre;
+    }
+  }
+
   function construitMaillage(){
-    // Changer la taille ou l'orientation refait la grille : les exclusions
-    // portaient sur des mailles qui n'existent plus. On ne peut pas les
-    // garder, mais on peut éviter que le travail disparaisse en silence.
     var exclusionsPerdues = mailles.filter(function(m){ return m.exclue; }).length;
     coucheMailles.clearLayers();
+    coucheCentres.clearLayers();
     mailles = [];
-    if (!zone){ majRecap(); return; }
+    if (zones.length === 0){ majRecap(); return; }
 
     var cote = Math.max(1, Number(document.getElementById('taille').value) || 20);
     var azimut = Number(document.getElementById('azimut').value) || 0;
     var decouper = document.getElementById('decouper').checked;
     var seuil = Math.min(99, Math.max(0, Number(document.getElementById('seuil').value) || 0)) / 100;
 
-    var centre = turf.centroid(zone).geometry.coordinates;
+    // Origine commune à toutes les zones : c'est ce qui garde les mailles
+    // alignées d'une zone à l'autre.
+    var toutes = turf.featureCollection(zones.map(function(z){ return z.feature; }));
+    var centre = turf.center(toutes).geometry.coordinates;
     var repere = repereLocal(centre);
-    // Azimut compté depuis le nord dans le sens horaire, comme sur une
-    // boussole : on tourne la zone de +azimut pour l'amener dans le repère où
-    // la grille est droite, et on ramène chaque maille par la rotation
-    // inverse. Le signe a été vérifié en mesurant l'azimut réel d'un côté de
-    // maille : 15° demandés donnent 15° mesurés, 135° donnent 135°.
     var theta = azimut * Math.PI / 180;
     var cosT = Math.cos(theta), sinT = Math.sin(theta);
     var cosR = Math.cos(-theta), sinR = Math.sin(-theta);
 
-    // Emprise de la zone dans le repère tourné
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    turf.coordAll(zone).forEach(function(c){
-      var p = tourne(repere.versMetres(c), cosT, sinT);
-      if (p[0] < minX) minX = p[0];
-      if (p[0] > maxX) maxX = p[0];
-      if (p[1] < minY) minY = p[1];
-      if (p[1] > maxY) maxY = p[1];
+    zones.forEach(function(z){
+      turf.coordAll(z.feature).forEach(function(c){
+        var p = tourne(repere.versMetres(c), cosT, sinT);
+        if (p[0] < minX) minX = p[0];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[1] > maxY) maxY = p[1];
+      });
     });
-    var nx = Math.ceil((maxX - minX) / cote);
-    var ny = Math.ceil((maxY - minY) / cote);
+    var nx = Math.ceil((maxX - minX) / cote), ny = Math.ceil((maxY - minY) / cote);
     if (nx <= 0 || ny <= 0){ majRecap(); return; }
     if (nx * ny > LIMITE_MAILLES){
-      statut('Maille trop fine pour cette zone : ' + (nx * ny).toLocaleString('fr-FR') +
-             ' mailles seraient nécessaires (plafond ' + LIMITE_MAILLES.toLocaleString('fr-FR') + ').', true);
+      statut('Maille trop fine pour cette emprise : ' + (nx * ny).toLocaleString('fr-FR') +
+             ' mailles seraient calculées (plafond ' + LIMITE_MAILLES.toLocaleString('fr-FR') + ').', true);
       majRecap();
       return;
     }
 
-    var candidates = [];
-    // Parcours ligne par ligne du nord vers le sud, d'ouest en est : c'est
-    // l'ordre dans lequel on lit un plan sur le terrain, donc celui dans
-    // lequel les numéros doivent se suivre.
-    for (var j = ny - 1; j >= 0; j--){
-      for (var i = 0; i < nx; i++){
-        var x0 = minX + i * cote, y0 = minY + j * cote;
-        var coins = [[x0, y0], [x0 + cote, y0], [x0 + cote, y0 + cote], [x0, y0 + cote], [x0, y0]];
-        var anneau = coins.map(function(p){ return repere.versDegres(tourne(p, cosR, sinR)); });
-        var carre = turf.polygon([anneau]);
-        var garde = null;
-        try {
-          var inter = turf.intersect(turf.featureCollection([carre, zone]));
-          if (!inter) continue;
-          var aireInter = turf.area(inter);
-          // Comparé à l'aire mesurée de la maille, jamais à son aire nominale
-          // (côté²) : la conversion métrique locale et le calcul ellipsoïdal
-          // de turf diffèrent de quelques pour mille, assez pour qu'aucune
-          // maille ne soit jamais reconnue pleine.
-          var aireCarre = turf.area(carre);
-          if (aireInter < seuil * aireCarre) continue;
-          garde = { polygone: decouper ? inter : carre, aire: decouper ? aireInter : aireCarre,
-                    pleine: aireInter >= aireCarre * 0.999 };
-        } catch (err){ continue; }
-        candidates.push(garde);
+    // Parcours du nord vers le sud, d'ouest en est : l'ordre dans lequel on
+    // lit un plan sur le terrain, donc celui dans lequel les numéros se
+    // suivent. Les zones sont parcourues dans l'ordre où elles ont été créées.
+    zones.forEach(function(z, iz){
+      for (var j = ny - 1; j >= 0; j--){
+        for (var i = 0; i < nx; i++){
+          var x0 = minX + i * cote, y0 = minY + j * cote;
+          var coins = [[x0,y0],[x0+cote,y0],[x0+cote,y0+cote],[x0,y0+cote],[x0,y0]];
+          var anneau = coins.map(function(p){ return repere.versDegres(tourne(p, cosR, sinR)); });
+          var centreCarre = repere.versDegres(tourne([x0 + cote/2, y0 + cote/2], cosR, sinR));
+          var carre = turf.polygon([anneau]);
+          try {
+            var inter = turf.intersect(turf.featureCollection([carre, z.feature]));
+            if (!inter) continue;
+            var aireInter = turf.area(inter);
+            // Comparé à l'aire mesurée de la maille, jamais à son aire
+            // nominale (côté²) : la conversion métrique locale et le calcul
+            // ellipsoïdal de turf diffèrent de quelques pour mille, assez pour
+            // qu'aucune maille ne soit jamais reconnue pleine.
+            var aireCarre = turf.area(carre);
+            if (aireInter < seuil * aireCarre) continue;
+            var polygone = decouper ? inter : carre;
+            mailles.push({
+              zone: z.nom, iZone: iz,
+              polygone: polygone,
+              centre: centreMaille(polygone, centreCarre),
+              aire: decouper ? aireInter : aireCarre,
+              pleine: aireInter >= aireCarre * 0.999,
+              exclue: false
+            });
+          } catch (err){ continue; }
+        }
       }
-    }
-
-    mailles = candidates.map(function(m){
-      m.exclue = false;
-      return m;
     });
+
     nommeMailles();
     dessineMailles();
-    if (mailles.length === 0) statut('Aucune maille ne tombe dans la zone avec ces réglages.', true);
-    else statut(mailles.length + ' mailles générées. Cliquez-en une pour l\'exclure.' +
+    if (mailles.length === 0) statut('Aucune maille ne tombe dans les zones avec ces réglages.', true);
+    else statut(mailles.length + ' mailles générées sur ' + zones.length + ' zone(s). Cliquez-en une pour l\'exclure.' +
       (exclusionsPerdues > 0
         ? ' La grille a changé : ' + (exclusionsPerdues > 1
             ? 'les ' + exclusionsPerdues + ' exclusions précédentes sont perdues.'
@@ -985,8 +1086,6 @@
     var k = 0;
     mailles.forEach(function(m, i){
       if (renum){
-        // Les exclues ne consomment pas de numéro : on finit sur une série
-        // continue, qui est ce qu'on emporte sur le terrain.
         if (m.exclue){ m.numero = null; m.nom = null; return; }
         m.numero = depart + k; k++;
       } else {
@@ -998,12 +1097,15 @@
 
   function dessineMailles(){
     coucheMailles.clearLayers();
-    mailles.forEach(function(m, i){
+    coucheCentres.clearLayers();
+    var etiquettes = document.getElementById('lyr-etiquettes').checked;
+    mailles.forEach(function(m){
+      var teinte = teinteZone(m.iZone);
       var couche = L.geoJSON(m.polygone, {
         pane:'pane-mailles',
         style: m.exclue
           ? { color:'#8a8272', weight:1, fillColor:'#8a8272', fillOpacity:0.12, dashArray:'3,3' }
-          : { color:'#1f6b45', weight:1.4, fillColor:'#4fae82', fillOpacity:0.22 }
+          : { color: teinte, weight:1.4, fillColor: teinte, fillOpacity:0.18 }
       }).addTo(coucheMailles);
       couche.on('click', function(ev){
         L.DomEvent.stopPropagation(ev);
@@ -1013,36 +1115,49 @@
       });
       couche.bindTooltip(
         (m.nom ? '<strong>' + echappe(m.nom) + '</strong><br>' : '<strong>Maille exclue</strong><br>') +
-        surfaceTexte(m.aire) + (m.pleine ? '' : ' — maille partielle'),
+        echappe(m.zone) + ' — ' + surfaceTexte(m.aire) + (m.pleine ? '' : ' — maille partielle'),
         { sticky:true });
-      if (m.nom && mailles.length <= 400){
-        var c = turf.centroid(m.polygone).geometry.coordinates;
-        L.marker([c[1], c[0]], {
-          pane:'pane-mailles',
-          icon: L.divIcon({ className:'maille-label', html: echappe(m.nom), iconSize:[0,0] }),
+
+      if (m.exclue) return;
+      // Le point d'investigation : c'est là qu'on se place sur le terrain, et
+      // c'est lui qui porte le nom.
+      L.circleMarker([m.centre[1], m.centre[0]], {
+        pane:'pane-centres', radius:3.5, color:'#fffdf7', weight:1.5,
+        fillColor:'#1b2a1f', fillOpacity:1, interactive:false
+      }).addTo(coucheCentres);
+      if (etiquettes && mailles.length <= 600){
+        L.marker([m.centre[1], m.centre[0]], {
+          pane:'pane-centres',
+          icon: L.divIcon({ className:'maille-label', html: '<span>' + echappe(m.nom) + '</span>', iconSize:[0,0] }),
           interactive:false
-        }).addTo(coucheMailles);
+        }).addTo(coucheCentres);
       }
     });
     majRecap();
   }
 
+  function retenues(){ return mailles.filter(function(m){ return !m.exclue; }); }
+
   function majRecap(){
-    var retenues = mailles.filter(function(m){ return !m.exclue; });
-    var surface = retenues.reduce(function(s, m){ return s + m.aire; }, 0);
-    document.getElementById('val-nombre').textContent = mailles.length ? retenues.length : '–';
-    document.getElementById('val-surface').textContent = retenues.length ? surfaceTexte(surface) : '–';
+    var garde = retenues();
+    var surface = garde.reduce(function(s, m){ return s + m.aire; }, 0);
+    var surfaceZones = zones.reduce(function(s, z){ return s + turf.area(z.feature); }, 0);
+    document.getElementById('val-nombre').textContent = mailles.length ? garde.length : '–';
+    document.getElementById('val-surface').textContent = garde.length ? surfaceTexte(surface) : '–';
+    document.getElementById('val-densite').textContent = (garde.length && surfaceZones > 0)
+      ? (garde.length / (surfaceZones / 10000)).toLocaleString('fr-FR', { maximumFractionDigits:1 }) + ' /ha' : '–';
+    document.getElementById('val-zones').textContent = zones.length || '–';
 
     var detail = document.getElementById('detail-maillage');
     var noms = document.getElementById('liste-noms');
-    if (retenues.length === 0){
+    if (garde.length === 0){
       detail.style.display = 'none';
       noms.style.display = 'none';
       majEtapes();
       return;
     }
-    var exclues = mailles.length - retenues.length;
-    var partielles = retenues.filter(function(m){ return !m.pleine; }).length;
+    var exclues = mailles.length - garde.length;
+    var partielles = garde.filter(function(m){ return !m.pleine; }).length;
     var cote = Number(document.getElementById('taille').value) || 0;
     detail.style.display = 'block';
     detail.textContent = 'Maille de ' + cote + ' m × ' + cote + ' m, orientée à ' +
@@ -1058,29 +1173,29 @@
   }
 
   function majEtapes(){
-    var etapes = [
-      ['etape-parcelles', parcelles.length > 0],
-      ['etape-reglages', true],
-      ['etape-zone', !!zone],
-      ['etape-maillage', mailles.length > 0]
-    ];
-    etapes.forEach(function(e){
-      var el = document.getElementById(e[0]);
-      el.classList.toggle('faite', e[1]);
+    [['etape-parcelles', parcelles.length > 0],
+     ['etape-reglages', true],
+     ['etape-zones', zones.length > 0],
+     ['etape-maillage', mailles.length > 0]].forEach(function(e){
+      document.getElementById(e[0]).classList.toggle('faite', e[1]);
     });
-    document.getElementById('etape-zone').classList.toggle('active', !zone);
-    document.getElementById('etape-maillage').classList.toggle('active', !!zone && mailles.length > 0);
   }
 
-  // ======================== Réglages : relance du calcul ==================
+  document.getElementById('btn-tout-remettre').addEventListener('click', function(){
+    mailles.forEach(function(m){ m.exclue = false; });
+    nommeMailles();
+    dessineMailles();
+    statut('Toutes les mailles sont réaffichées.');
+  });
+  document.getElementById('lyr-etiquettes').addEventListener('change', dessineMailles);
+
+  // ======================== Réglages ======================================
   ['taille', 'azimut', 'decouper', 'seuil'].forEach(function(id){
     document.getElementById(id).addEventListener('change', construitMaillage);
   });
   ['prefixe', 'depart', 'renumeroter'].forEach(function(id){
     document.getElementById(id).addEventListener('change', function(){
-      // Renommer ne retouche pas la géométrie : inutile de tout recalculer.
-      nommeMailles();
-      dessineMailles();
+      nommeMailles(); dessineMailles();
     });
   });
   var champAzimut = document.getElementById('azimut');
@@ -1088,7 +1203,7 @@
   function majBoussole(){
     var a = Number(champAzimut.value) || 0;
     document.getElementById('boussole').innerHTML =
-      '<svg width="52" height="52" viewBox="0 0 52 52">' +
+      '<svg width="50" height="50" viewBox="0 0 52 52">' +
       '<circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" stroke-opacity="0.25"/>' +
       '<text x="26" y="10" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">N</text>' +
       '<g transform="rotate(' + a + ' 26 26)">' +
@@ -1105,33 +1220,387 @@
   majBoussole();
 
   // ======================== Exports =======================================
+  //
+  // Les colonnes Date/heure, PID et 4 gaz sont volontairement vides : elles
+  // sont là pour être remplies sur site, mesure par mesure, dans le fichier
+  // qu'on emporte.
+  var COLONNES_TERRAIN = ['Date/heure', 'Valeur PID', 'Valeur 4 gaz'];
+
   function telecharge(contenu, nom, type){
-    var blob = new Blob([contenu], { type: type });
+    var blob = contenu instanceof Blob ? contenu : new Blob([contenu], { type: type });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = nom;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   }
-  function retenues(){ return mailles.filter(function(m){ return !m.exclue; }); }
+  function rienAExporter(){
+    if (retenues().length === 0){ statut('Aucune maille à exporter.', true); return true; }
+    return false;
+  }
+  function horodatage(){
+    var d = new Date();
+    return d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  }
 
+  // ---- CSV ----
   document.getElementById('btn-csv').addEventListener('click', function(){
+    if (rienAExporter()) return;
+    var entete = ['Nom', 'Zone', 'Surface (m2)', 'Type', 'Latitude centre', 'Longitude centre'].concat(COLONNES_TERRAIN);
     var lignes = retenues().map(function(m){
-      var c = turf.centroid(m.polygone).geometry.coordinates;
-      return [m.nom, Math.round(m.aire), m.pleine ? 'pleine' : 'partielle', c[1].toFixed(6), c[0].toFixed(6)].join(';');
+      return [m.nom, m.zone, Math.round(m.aire), m.pleine ? 'pleine' : 'partielle',
+              m.centre[1].toFixed(6), m.centre[0].toFixed(6), '', '', ''].join(';');
     });
-    if (lignes.length === 0){ statut('Rien à exporter.', true); return; }
-    // Point-virgule et BOM : c'est ce qu'attend un tableur en locale française.
-    telecharge('﻿Nom;Surface (m2);Type;Latitude;Longitude\r\n' + lignes.join('\r\n') + '\r\n',
-      'maillage.csv', 'text/csv;charset=utf-8');
+    // Point-virgule et BOM : ce qu'attend un tableur en locale française.
+    telecharge('﻿' + entete.join(';') + '\r\n' + lignes.join('\r\n') + '\r\n',
+      'maillage-' + horodatage() + '.csv', 'text/csv;charset=utf-8');
   });
+
+  // ---- GeoJSON : mailles et centres dans un même jeu ----
   document.getElementById('btn-geojson').addEventListener('click', function(){
-    var fs = retenues().map(function(m){
-      return { type:'Feature', properties:{ nom:m.nom, surface_m2: Math.round(m.aire), maille: m.pleine ? 'pleine' : 'partielle' }, geometry: m.polygone.geometry };
+    if (rienAExporter()) return;
+    var fs = [];
+    retenues().forEach(function(m){
+      var props = { nom:m.nom, zone:m.zone, surface_m2: Math.round(m.aire), maille: m.pleine ? 'pleine' : 'partielle',
+                    date_heure:'', valeur_pid:'', valeur_4gaz:'' };
+      fs.push({ type:'Feature', properties: Object.assign({ objet:'maille' }, props), geometry: m.polygone.geometry });
+      fs.push({ type:'Feature', properties: Object.assign({ objet:'centre' }, props), geometry: { type:'Point', coordinates: m.centre } });
     });
-    if (fs.length === 0){ statut('Rien à exporter.', true); return; }
     telecharge(JSON.stringify({ type:'FeatureCollection', features: fs }, null, 1),
-      'maillage.geojson', 'application/geo+json');
+      'maillage-' + horodatage() + '.geojson', 'application/geo+json');
+  });
+
+  // ---- KML : deux dossiers, les mailles et leurs centres ----
+  function kmlEchappe(s){ return echappe(s); }
+  function kmlDonnees(m){
+    return '<ExtendedData>' +
+      '<Data name="zone"><value>' + kmlEchappe(m.zone) + '</value></Data>' +
+      '<Data name="surface_m2"><value>' + Math.round(m.aire) + '</value></Data>' +
+      '<Data name="maille"><value>' + (m.pleine ? 'pleine' : 'partielle') + '</value></Data>' +
+      '<Data name="date_heure"><value></value></Data>' +
+      '<Data name="valeur_pid"><value></value></Data>' +
+      '<Data name="valeur_4gaz"><value></value></Data>' +
+      '</ExtendedData>';
+  }
+  document.getElementById('btn-kml').addEventListener('click', function(){
+    if (rienAExporter()) return;
+    var garde = retenues();
+    function anneauxDe(g){
+      if (g.type === 'Polygon') return [g.coordinates];
+      if (g.type === 'MultiPolygon') return g.coordinates;
+      return [];
+    }
+    var polys = garde.map(function(m){
+      var parts = anneauxDe(m.polygone.geometry).map(function(poly){
+        var ext = poly[0].map(function(c){ return c[0] + ',' + c[1] + ',0'; }).join(' ');
+        var trous = poly.slice(1).map(function(r){
+          return '<innerBoundaryIs><LinearRing><coordinates>' +
+            r.map(function(c){ return c[0] + ',' + c[1] + ',0'; }).join(' ') + '</coordinates></LinearRing></innerBoundaryIs>';
+        }).join('');
+        return '<Polygon><outerBoundaryIs><LinearRing><coordinates>' + ext +
+               '</coordinates></LinearRing></outerBoundaryIs>' + trous + '</Polygon>';
+      });
+      var geom = parts.length > 1 ? '<MultiGeometry>' + parts.join('') + '</MultiGeometry>' : parts[0];
+      return '<Placemark><name>' + kmlEchappe(m.nom) + '</name><styleUrl>#maille</styleUrl>' + kmlDonnees(m) + geom + '</Placemark>';
+    }).join('');
+    var pts = garde.map(function(m){
+      return '<Placemark><name>' + kmlEchappe(m.nom) + '</name><styleUrl>#centre</styleUrl>' + kmlDonnees(m) +
+        '<Point><coordinates>' + m.centre[0] + ',' + m.centre[1] + ',0</coordinates></Point></Placemark>';
+    }).join('');
+    var kml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>' +
+      '<name>Maillage d\'investigation</name>' +
+      '<Style id="maille"><LineStyle><color>ff458a1f</color><width>2</width></LineStyle>' +
+      '<PolyStyle><color>40458a1f</color></PolyStyle></Style>' +
+      '<Style id="centre"><IconStyle><color>ff1f2a1b</color><scale>0.8</scale></IconStyle></Style>' +
+      '<Folder><name>Mailles</name>' + polys + '</Folder>' +
+      '<Folder><name>Centres</name>' + pts + '</Folder>' +
+      '</Document></kml>';
+    telecharge(kml, 'maillage-' + horodatage() + '.kml', 'application/vnd.google-earth.kml+xml');
+  });
+
+  // ---- GPX : les centres en points de passage ----
+  document.getElementById('btn-gpx').addEventListener('click', function(){
+    if (rienAExporter()) return;
+    var wpt = retenues().map(function(m){
+      return '<wpt lat="' + m.centre[1].toFixed(7) + '" lon="' + m.centre[0].toFixed(7) + '">' +
+        '<name>' + echappe(m.nom) + '</name>' +
+        '<desc>' + echappe(m.zone) + ' — ' + Math.round(m.aire) + ' m²</desc>' +
+        '<sym>Flag, Blue</sym></wpt>';
+    }).join('');
+    telecharge('<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<gpx version="1.1" creator="LYZa Maillage" xmlns="http://www.topografix.com/GPX/1/1">' + wpt + '</gpx>',
+      'maillage-' + horodatage() + '.gpx', 'application/gpx+xml');
+  });
+
+  // ---- Presse-papiers ----
+  document.getElementById('btn-copier').addEventListener('click', function(){
+    if (rienAExporter()) return;
+    var txt = retenues().map(function(m){ return m.nom; }).join('\n');
+    navigator.clipboard.writeText(txt)
+      .then(function(){ statut(retenues().length + ' noms copiés dans le presse-papiers.'); })
+      .catch(function(){ statut('Copie refusée par le navigateur.', true); });
+  });
+
+  // ======================== Shapefile =====================================
+  //
+  // Écrit à la main : le format est entièrement spécifié et l'écrire ici évite
+  // d'ajouter une dépendance externe à une page qui, autrement, ne charge que
+  // Leaflet et turf depuis le site lui-même. Un shapefile est un jeu de
+  // fichiers — .shp (géométries), .shx (index), .dbf (attributs), .prj
+  // (projection) — qu'on livre donc en archive ZIP, mailles et centres
+  // ensemble.
+  function Tampon(){
+    this.octets = [];
+  }
+  Tampon.prototype.u8 = function(v){ this.octets.push(v & 0xff); return this; };
+  Tampon.prototype.u16pl = function(v){ // entier 16 bits, poids faible d'abord
+    this.octets.push(v & 0xff, (v >>> 8) & 0xff); return this;
+  };
+  Tampon.prototype.i32pf = function(v){ // entier 32 bits, poids fort d'abord
+    this.octets.push((v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff); return this;
+  };
+  Tampon.prototype.i32pl = function(v){ // entier 32 bits, poids faible d'abord
+    this.octets.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff); return this;
+  };
+  Tampon.prototype.f64pl = function(v){
+    var b = new Uint8Array(8);
+    new DataView(b.buffer).setFloat64(0, v, true);
+    for (var i = 0; i < 8; i++) this.octets.push(b[i]);
+    return this;
+  };
+  Tampon.prototype.texte = function(s, n){
+    for (var i = 0; i < n; i++) this.octets.push(i < s.length ? (s.charCodeAt(i) & 0xff) : 0x20);
+    return this;
+  };
+  Tampon.prototype.texteNul = function(s, n){  // complété par des zéros (noms de champs .dbf)
+    for (var i = 0; i < n; i++) this.octets.push(i < s.length ? (s.charCodeAt(i) & 0xff) : 0);
+    return this;
+  };
+  Tampon.prototype.bytes = function(){ return new Uint8Array(this.octets); };
+
+  /** En-tête commun au .shp et au .shx : 100 octets, moitié gros-boutiste. */
+  function enteteShp(longueurMots, type, bbox){
+    var t = new Tampon();
+    t.i32pf(9994);
+    for (var i = 0; i < 5; i++) t.i32pf(0);
+    t.i32pf(longueurMots);          // longueur du fichier en mots de 16 bits
+    t.i32pl(1000);                  // version
+    t.i32pl(type);                  // 1 = point, 5 = polygone
+    t.f64pl(bbox[0]).f64pl(bbox[1]).f64pl(bbox[2]).f64pl(bbox[3]);
+    t.f64pl(0).f64pl(0).f64pl(0).f64pl(0);   // Z puis M, non utilisés
+    return t.bytes();
+  }
+
+  /** Aire signee (formule des lacets) : positive si le contour tourne dans le
+   *  sens trigonometrique. */
+  function aireSignee(anneau){
+    var a = 0;
+    for (var i = 0, j = anneau.length - 1; i < anneau.length; j = i++){
+      a += anneau[j][0] * anneau[i][1] - anneau[i][0] * anneau[j][1];
+    }
+    return a / 2;
+  }
+
+  /** Les anneaux d'un shapefile suivent la convention ESRI, inverse de celle de
+   *  GeoJSON : contour extérieur dans le sens horaire, trous dans le sens
+   *  trigonométrique. Sans cela certains SIG lisent la maille comme un trou. */
+  function anneauxPolygone(geom){
+    var brut = [];
+    if (geom.type === 'Polygon') brut = [geom.coordinates];
+    else if (geom.type === 'MultiPolygon') brut = geom.coordinates;
+    var sortie = [];
+    brut.forEach(function(poly){
+      poly.forEach(function(anneau, idx){
+        var r = anneau.slice();
+        if (r.length > 1 && (r[0][0] !== r[r.length-1][0] || r[0][1] !== r[r.length-1][1])) r.push(r[0]);
+        var horaire = aireSignee(r) < 0;
+        var veutHoraire = (idx === 0);          // 0 = contour, suivants = trous
+        if (horaire !== veutHoraire) r.reverse();
+        sortie.push(r);
+      });
+    });
+    return sortie;
+  }
+
+  /** Construit .shp et .shx à partir d'une liste d'objets. */
+  function construitShpShx(objets, type){
+    var corps = [], index = [], decalage = 50;   // en mots de 16 bits
+    var bbox = [Infinity, Infinity, -Infinity, -Infinity];
+    function etend(c){
+      if (c[0] < bbox[0]) bbox[0] = c[0];
+      if (c[1] < bbox[1]) bbox[1] = c[1];
+      if (c[0] > bbox[2]) bbox[2] = c[0];
+      if (c[1] > bbox[3]) bbox[3] = c[1];
+    }
+    objets.forEach(function(o, i){
+      var contenu = new Tampon();
+      if (type === 1){
+        etend(o.point);
+        contenu.i32pl(1).f64pl(o.point[0]).f64pl(o.point[1]);
+      } else {
+        var anneaux = anneauxPolygone(o.geom);
+        var bb = [Infinity, Infinity, -Infinity, -Infinity];
+        anneaux.forEach(function(r){ r.forEach(function(c){
+          etend(c);
+          if (c[0] < bb[0]) bb[0] = c[0];
+          if (c[1] < bb[1]) bb[1] = c[1];
+          if (c[0] > bb[2]) bb[2] = c[0];
+          if (c[1] > bb[3]) bb[3] = c[1];
+        }); });
+        var nbPoints = anneaux.reduce(function(s, r){ return s + r.length; }, 0);
+        contenu.i32pl(5);
+        contenu.f64pl(bb[0]).f64pl(bb[1]).f64pl(bb[2]).f64pl(bb[3]);
+        contenu.i32pl(anneaux.length).i32pl(nbPoints);
+        var depart = 0;
+        anneaux.forEach(function(r){ contenu.i32pl(depart); depart += r.length; });
+        anneaux.forEach(function(r){ r.forEach(function(c){ contenu.f64pl(c[0]).f64pl(c[1]); }); });
+      }
+      var octets = contenu.bytes();
+      var motsContenu = octets.length / 2;
+      var enr = new Tampon();
+      enr.i32pf(i + 1).i32pf(motsContenu);          // en-tête d'enregistrement
+      corps.push(enr.bytes(), octets);
+      index.push({ decalage: decalage, mots: motsContenu });
+      decalage += 4 + motsContenu;                  // 4 mots d'en-tête
+    });
+    if (!isFinite(bbox[0])) bbox = [0, 0, 0, 0];
+
+    var tailleShp = decalage;
+    var shp = [enteteShp(tailleShp, type, bbox)].concat(corps);
+    var ishx = new Tampon();
+    index.forEach(function(e){ ishx.i32pf(e.decalage).i32pf(e.mots); });
+    var shx = [enteteShp(50 + objets.length * 4, type, bbox), ishx.bytes()];
+    return { shp: concatOctets(shp), shx: concatOctets(shx) };
+  }
+
+  function concatOctets(liste){
+    var n = liste.reduce(function(s, a){ return s + a.length; }, 0);
+    var out = new Uint8Array(n), p = 0;
+    liste.forEach(function(a){ out.set(a, p); p += a.length; });
+    return out;
+  }
+
+  /** .dbf au format dBASE III : c'est ce que lisent tous les SIG. */
+  function construitDbf(lignes, champs){
+    var t = new Tampon();
+    var d = new Date();
+    var tailleEnr = 1 + champs.reduce(function(s, c){ return s + c.taille; }, 0);
+    t.u8(0x03).u8(d.getFullYear() - 1900).u8(d.getMonth() + 1).u8(d.getDate());
+    t.i32pl(lignes.length);
+    var tailleEntete = 32 + champs.length * 32 + 1;
+    t.u8(tailleEntete & 0xff).u8((tailleEntete >> 8) & 0xff);
+    t.u8(tailleEnr & 0xff).u8((tailleEnr >> 8) & 0xff);
+    for (var i = 0; i < 20; i++) t.u8(0);
+    champs.forEach(function(c){
+      t.texteNul(c.nom.slice(0, 10), 11).u8(c.type.charCodeAt(0));
+      t.i32pl(0);
+      t.u8(c.taille).u8(c.dec || 0);
+      for (var k = 0; k < 14; k++) t.u8(0);
+    });
+    t.u8(0x0d);
+    lignes.forEach(function(l){
+      t.u8(0x20);
+      champs.forEach(function(c){
+        var v = l[c.nom] == null ? '' : String(l[c.nom]);
+        if (c.type === 'N'){
+          v = v.slice(0, c.taille);
+          while (v.length < c.taille) v = ' ' + v;      // nombres cadrés à droite
+        } else {
+          v = v.slice(0, c.taille);
+          while (v.length < c.taille) v = v + ' ';
+        }
+        for (var i2 = 0; i2 < c.taille; i2++) t.u8(v.charCodeAt(i2) & 0xff);
+      });
+    });
+    t.u8(0x1a);
+    return t.bytes();
+  }
+
+  // ---- ZIP sans compression : suffisant, et tient en quelques lignes ----
+  var TABLE_CRC = (function(){
+    var table = new Int32Array(256);
+    for (var n = 0; n < 256; n++){
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c;
+    }
+    return table;
+  })();
+  function crc32(octets){
+    var c = -1;
+    for (var i = 0; i < octets.length; i++) c = TABLE_CRC[(c ^ octets[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+  function zip(fichiers){
+    var locaux = [], centraux = [], decalage = 0;
+    fichiers.forEach(function(f){
+      var nom = [];
+      for (var i = 0; i < f.nom.length; i++) nom.push(f.nom.charCodeAt(i) & 0xff);
+      var crc = crc32(f.octets), taille = f.octets.length;
+      // En-tete local : signature, version, drapeaux, methode (0 = stocke),
+      // heure, date, crc, taille compressee, taille reelle, longueurs.
+      var l = new Tampon();
+      l.i32pl(0x04034b50).u16pl(20).u16pl(0).u16pl(0).u16pl(0).u16pl(0x21);
+      l.i32pl(crc).i32pl(taille).i32pl(taille);
+      l.u16pl(nom.length).u16pl(0);
+      nom.forEach(function(b){ l.u8(b); });
+      var entete = l.bytes();
+      locaux.push(entete, f.octets);
+      // Entree du repertoire central : deux versions, puis les memes champs,
+      // suivis des longueurs de commentaire, du disque, des attributs et du
+      // decalage de l'en-tete local.
+      var c = new Tampon();
+      c.i32pl(0x02014b50).u16pl(20).u16pl(20).u16pl(0).u16pl(0).u16pl(0).u16pl(0x21);
+      c.i32pl(crc).i32pl(taille).i32pl(taille);
+      c.u16pl(nom.length).u16pl(0).u16pl(0).u16pl(0).u16pl(0).i32pl(0);
+      c.i32pl(decalage);
+      nom.forEach(function(b){ c.u8(b); });
+      centraux.push(c.bytes());
+      decalage += entete.length + taille;
+    });
+    var central = concatOctets(centraux);
+    var fin = new Tampon();
+    fin.i32pl(0x06054b50).u16pl(0).u16pl(0);
+    fin.u16pl(fichiers.length).u16pl(fichiers.length);
+    fin.i32pl(central.length).i32pl(decalage).u16pl(0);
+    return new Blob([concatOctets(locaux), central, fin.bytes()], { type:'application/zip' });
+  }
+
+  var PRJ_WGS84 = 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],' +
+    'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]';
+
+  document.getElementById('btn-shp').addEventListener('click', function(){
+    if (rienAExporter()) return;
+    var garde = retenues();
+    var champs = [
+      { nom:'NOM', type:'C', taille:32 },
+      { nom:'ZONE', type:'C', taille:24 },
+      { nom:'SURF_M2', type:'N', taille:12, dec:0 },
+      { nom:'TYPE', type:'C', taille:10 },
+      { nom:'LAT', type:'N', taille:14, dec:6 },
+      { nom:'LON', type:'N', taille:14, dec:6 },
+      { nom:'DATE_HEURE', type:'C', taille:20 },
+      { nom:'VAL_PID', type:'C', taille:12 },
+      { nom:'VAL_4GAZ', type:'C', taille:12 }
+    ];
+    var lignes = garde.map(function(m){
+      return { NOM:m.nom, ZONE:m.zone, SURF_M2:String(Math.round(m.aire)), TYPE:m.pleine ? 'pleine' : 'partielle',
+               LAT:m.centre[1].toFixed(6), LON:m.centre[0].toFixed(6), DATE_HEURE:'', VAL_PID:'', VAL_4GAZ:'' };
+    });
+    var dbf = construitDbf(lignes, champs);
+    var polys = construitShpShx(garde.map(function(m){ return { geom:m.polygone.geometry }; }), 5);
+    var pts = construitShpShx(garde.map(function(m){ return { point:m.centre }; }), 1);
+    var prj = new Uint8Array(PRJ_WGS84.length);
+    for (var i = 0; i < PRJ_WGS84.length; i++) prj[i] = PRJ_WGS84.charCodeAt(i);
+    var h = horodatage();
+    telecharge(zip([
+      { nom:'mailles.shp', octets: polys.shp }, { nom:'mailles.shx', octets: polys.shx },
+      { nom:'mailles.dbf', octets: dbf },       { nom:'mailles.prj', octets: prj },
+      { nom:'centres.shp', octets: pts.shp },   { nom:'centres.shx', octets: pts.shx },
+      { nom:'centres.dbf', octets: dbf },       { nom:'centres.prj', octets: prj }
+    ]), 'maillage-' + h + '-shapefile.zip');
+    statut('Shapefiles exportés : mailles (polygones) et centres (points), en WGS 84.');
   });
 
   // ======================== Divers ========================================
@@ -1139,6 +1608,7 @@
     var s = document.getElementById('sidebar');
     s.style.maxHeight = s.style.maxHeight === 'none' ? '' : 'none';
   });
+  dessineZones();
   majEtapes();
 })();
 </script>

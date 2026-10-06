@@ -219,6 +219,18 @@ input {
   background: var(--color-accent);
 }
 
+/* Le format des boutons d'outils de la barre du haut : même repère visuel,
+   assez compact pour tenir à côté des liens de navigation. */
+.btn--petit {
+  padding: 0.45em 1em;
+  font-size: 0.85rem;
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+
+.btn--petit:hover {
+  box-shadow: 3px 3px 0 var(--color-ink);
+}
+
 .btn--ghost {
   background: var(--color-surface);
   color: var(--color-ink);
