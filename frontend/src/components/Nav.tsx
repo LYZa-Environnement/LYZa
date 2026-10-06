@@ -4,6 +4,7 @@ import logo from '../assets/lyza-logo.png'
 const links = [
   { to: '/', label: 'Étudier un site', end: true },
   { to: `${import.meta.env.BASE_URL}lyza-cartes.html`, label: 'LYZa Cartes', external: true },
+  { to: `${import.meta.env.BASE_URL}lyza-maillage.html`, label: 'LYZa Maillage', external: true },
   { to: '/sources', label: 'Méthode & sources' },
 ]
 
