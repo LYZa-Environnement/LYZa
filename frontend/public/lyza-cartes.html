@@ -39,6 +39,8 @@
     --c-eausurface: #1c7ed6;
     --c-natura-zsc: #4a8f3c;
     --c-natura-zps: #7a4fa0;
+    --c-zh: #7f9fcf;
+    --c-tourbiere: #e8bd88;
     --c-etab-scolaire: #d6572e;
     --c-etab-sante: #2e86d6;
     --c-piezo: #1b98a0;
@@ -559,6 +561,19 @@
     </div>
 
     <div class="section">
+      <div class="section-title">Zones humides <span class="mono" style="font-weight:400;color:var(--ink-dim);">IGN / MASAF</span></div>
+      <div class="layer-group">
+        <label class="layer-row"><input type="checkbox" id="lyr-zh"><span class="swatch" style="background:var(--c-zh)"></span><span class="lbl">Zones humides effectives</span></label>
+        <div class="layer-row" style="cursor:default;padding-left:24px;"><span class="swatch" style="background:var(--c-tourbiere)"></span><span class="lbl">Tourbières</span></div>
+        <label class="layer-row" id="zh-opacity-row" style="display:none;padding-left:24px;">
+          <span class="lbl" style="font-size:11.5px;color:var(--ink-dim);flex:none;">Opacité</span>
+          <input type="range" id="zh-opacity" min="20" max="100" value="70" style="flex:1;accent-color:var(--accent);">
+        </label>
+      </div>
+      <div class="legend-note">Couche nationale « Protection des zones humides et des tourbières » (BCAE 2, PAC), diffusée par l'IGN : elle rassemble les inventaires de zones humides effectives (DREAL, DDT, SAGE, conservatoires…) et les tourbières. Cliquer sur une zone affiche son type, sa commune et sa surface. Couverture variable selon l'avancement des inventaires locaux ; l'absence de zone cartographiée ne vaut pas absence de zone humide — seul un diagnostic sol/végétation (arrêté du 24 juin 2008) fait foi.</div>
+    </div>
+
+    <div class="section">
       <div class="section-title">Établissements sensibles <span class="mono" style="font-weight:400;color:var(--ink-dim);">Éduc. nat. / FINESS</span></div>
       <div class="layer-group">
         <label class="layer-row"><input type="checkbox" id="lyr-etab-scolaire"><span class="swatch" style="background:var(--c-etab-scolaire)"></span><span class="lbl">Écoles, collèges, lycées</span><span class="count" id="cnt-etab-scolaire">–</span></label>
@@ -574,7 +589,7 @@
     </div>
 
     <div class="foot">
-      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, eau potable, qualité des cours d'eau), <a href="https://bnpe.eaufrance.fr" target="_blank" rel="noopener">BNPE</a> — banque nationale des prélèvements quantitatifs en eau, volumes annuels déclarés par ouvrage (<a href="https://www.sandre.eaufrance.fr/atlas/srv/fre/catalog.search#/metadata/2a6fdd18-39ef-4d8a-8e84-84ef86e4a159" target="_blank" rel="noopener">fiche Sandre</a>), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
+      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, eau potable, qualité des cours d'eau), <a href="https://bnpe.eaufrance.fr" target="_blank" rel="noopener">BNPE</a> — banque nationale des prélèvements quantitatifs en eau, volumes annuels déclarés par ouvrage (<a href="https://www.sandre.eaufrance.fr/atlas/srv/fre/catalog.search#/metadata/2a6fdd18-39ef-4d8a-8e84-84ef86e4a159" target="_blank" rel="noopener">fiche Sandre</a>), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN Géoplateforme</a> / MASAF (zones humides et tourbières BCAE 2, issues des inventaires locaux DREAL/DDT/SAGE), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
     </div>
   </aside>
 
@@ -614,6 +629,7 @@
     { id:'bss',         label:'BSS (forages)' },
     { id:'natura-zsc',  label:'Natura 2000 — habitats (ZSC)' },
     { id:'natura-zps',  label:'Natura 2000 — oiseaux (ZPS)' },
+    { id:'zh',          label:'Zones humides & tourbières' },
     { id:'icpe',        label:'ICPE' },
     { id:'casias',      label:'CASIAS' },
     { id:'sis',         label:'SIS' },
@@ -1165,7 +1181,7 @@
 
   map.on('click', function(e){
     if (measuring || parcelSelecting) return;
-    Promise.all([fetchBssInfo(e), fetchCadastreInfo(e), fetchGeologySheetInfo(e)]).then(function(parts){
+    Promise.all([fetchBssInfo(e), fetchCadastreInfo(e), fetchGeologySheetInfo(e), fetchZoneHumideInfo(e)]).then(function(parts){
       var content = parts.join('');
       if (!content) return;
       L.popup({ maxWidth:280 }).setLatLng(e.latlng).setContent('<div class="popup">' + content + '</div>').openOn(map);
@@ -1217,6 +1233,67 @@
   geol50OpacitySlider.addEventListener('input', function(){
     geol50Layer.setOpacity(Number(geol50OpacitySlider.value) / 100);
   });
+
+  // ---- Zones humides & tourbières (IGN Géoplateforme — BCAE 2) ----
+  // National layer compiled for the PAC "BCAE 2" standard from the local
+  // wetland inventories (DREAL, DDT, SAGE…) plus peat bogs. Verified live:
+  // the WMS-R layer renders France-wide (blue = zone humide effective, beige
+  // = tourbière) but is NOT queryable (GetFeatureInfo → LayerNotQueryable),
+  // so clicks go through the matching WFS with a point-intersects CQL filter.
+  // In EPSG:4326 that WFS expects POINT(lat lon) — lon/lat silently returns
+  // nothing.
+  var ZH_LAYER = 'TOURBIERES_ZONES-HUMIDES.BCAE';
+  var zhLayer = L.tileLayer.wms('https://data.geopf.fr/wms-r?', {
+    layers: ZH_LAYER, format:'image/png', transparent:true, version:'1.3.0',
+    attribution:'IGN-F/Géoplateforme — MASAF (BCAE 2 zones humides et tourbières)', opacity:0.7, pane:'pane-zh'
+  });
+  var zhCheckbox = document.getElementById('lyr-zh');
+  var zhOpacityRow = document.getElementById('zh-opacity-row');
+  var zhOpacitySlider = document.getElementById('zh-opacity');
+  zhCheckbox.addEventListener('change', function(e){
+    if (e.target.checked){ zhLayer.addTo(map); zhOpacityRow.style.display = 'flex'; }
+    else { map.removeLayer(zhLayer); zhOpacityRow.style.display = 'none'; }
+    renderLayerOrderPanel();
+  });
+  zhOpacitySlider.addEventListener('input', function(){
+    zhLayer.setOpacity(Number(zhOpacitySlider.value) / 100);
+  });
+
+  function fetchZoneHumideInfo(e){
+    if (!map.hasLayer(zhLayer)) return Promise.resolve('');
+    var url = 'https://data.geopf.fr/wfs/ows?' + L.Util.getParamString({
+      SERVICE:'WFS', VERSION:'2.0.0', REQUEST:'GetFeature',
+      TYPENAMES: ZH_LAYER + ':bcae', OUTPUTFORMAT:'application/json', COUNT:5,
+      CQL_FILTER: 'INTERSECTS(geom,POINT(' + e.latlng.lat + ' ' + e.latlng.lng + '))'
+    }).slice(1);
+    return fetchWithTimeout(url, {}, 10000).then(function(r){ return r.json(); }).then(function(j){
+      var feats = (j && j.features) || [];
+      if (!feats.length) return '';
+      var f = feats[0], p = f.properties || {};
+      var tourbiere = /tourbi/i.test(p.type_zone || '');
+      var surfaceM2 = 0;
+      try { surfaceM2 = turf.area(f); } catch(err) {}
+      var surfaceTxt = !surfaceM2 ? '' : surfaceM2 >= 10000
+        ? (surfaceM2/10000).toLocaleString('fr-FR', { maximumFractionDigits:2 }) + ' ha'
+        : Math.round(surfaceM2).toLocaleString('fr-FR') + ' m²';
+      var communeP = p.cog_commune
+        ? fetchWithTimeout('https://geo.api.gouv.fr/communes/' + encodeURIComponent(p.cog_commune) + '?fields=nom', {}, 5000)
+            .then(function(r){ return r.ok ? r.json() : null; }).then(function(c){ return c && c.nom; }).catch(function(){ return null; })
+        : Promise.resolve(null);
+      return communeP.then(function(nomCommune){
+        var label = p.type_zone ? p.type_zone.charAt(0).toUpperCase() + p.type_zone.slice(1) : 'Zone humide';
+        return '<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft);"><span class="tag" style="background:' + (tourbiere ? 'var(--c-tourbiere)' : 'var(--c-zh)') + '">Zones humides · BCAE 2</span>' +
+          '<h3>' + escapeHtml(label) + '</h3>' +
+          '<dl>' +
+            (p.cog_commune ? '<dt>Commune</dt><dd>' + escapeHtml(nomCommune || '') + (nomCommune ? ' ' : '') + '<span class="mono">(' + escapeHtml(p.cog_commune) + ')</span></dd>' : '') +
+            (surfaceTxt ? '<dt>Surface du polygone</dt><dd>' + surfaceTxt + '</dd>' : '') +
+            (feats.length > 1 ? '<dt>Polygones superposés</dt><dd>' + feats.length + '</dd>' : '') +
+          '</dl>' +
+          '<div style="font-size:11px;color:var(--ink-dim);">Zone issue des inventaires locaux, compilée par le MASAF/IGN. Toute intervention (remblai, drainage, imperméabilisation) peut relever de la rubrique 3.3.1.0 de la nomenclature loi sur l\'eau.</div>' +
+          '</div>';
+      });
+    }).catch(function(){ return ''; });
+  }
 
   // ---- Address search (Base Adresse Nationale) ----
   var addrInput = document.getElementById('addr-input');

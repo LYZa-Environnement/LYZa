@@ -172,7 +172,7 @@ export async function buildNature(site: Site, suivi?: Suivi): Promise<ThemeRepor
   lacunes.push(
     "Les espèces listées sont celles le plus souvent observées aux alentours, pas les espèces déterminantes des zonages : la liste des espèces ayant justifié le classement d'une zone naturelle d'intérêt écologique ou d'un site Natura 2000 n'est pas exposée par une API ouverte et se consulte sur la fiche de l’Inventaire national du patrimoine naturel (INPN) du site.",
     "Le statut de protection des espèces (liste rouge de l’Union internationale pour la conservation de la nature, espèces protégées nationales) n'est pas croisé ici : la détermination d'un enjeu réglementaire espèce par espèce relève d'un inventaire de terrain mené par un écologue.",
-    "Les zones humides, les continuités écologiques (trame verte et bleue) et les arrêtés de protection de biotope ne disposent pas d'un service national interrogeable par adresse.",
+    "Les zones humides ne sont pas croisées dans cette synthèse : les zones humides effectives et tourbières inventoriées (couche nationale BCAE 2, compilée à partir des inventaires DREAL, DDT et SAGE) se consultent sur LYZa Cartes. Les continuités écologiques (trame verte et bleue) et les arrêtés de protection de biotope ne disposent pas d'un service national interrogeable par adresse.",
     'Les observations naturalistes sont opportunistes : leur répartition dépend de la fréquentation par les observateurs et ne constitue pas un inventaire exhaustif.',
   )
 

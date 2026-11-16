@@ -453,6 +453,22 @@ Calques et outils repris :
   (paramètre, valeur, unité, date), plutôt qu'un simple lien vers une
   fiche station (retour direct : « je préfère avoir des données qualité »).
 - **Espaces protégés** : Natura 2000 ZSC/ZPS (API Carto IGN/INPN).
+- **Zones humides** : couche nationale « Protection des zones humides et
+  des tourbières » (BCAE 2, MASAF), diffusée par la Géoplateforme IGN —
+  elle compile les inventaires de zones humides effectives (DREAL, DDT,
+  SAGE…) et les tourbières. Affichage en WMS (`data.geopf.fr/wms-r`, couche
+  `TOURBIERES_ZONES-HUMIDES.BCAE`, avec curseur d'opacité). Cette couche WMS
+  n'est pas interrogeable (GetFeatureInfo → `LayerNotQueryable`) : le clic
+  passe donc par le WFS équivalent avec un filtre
+  `CQL_FILTER=INTERSECTS(geom,POINT(lat lon))` — attention, en EPSG:4326 ce
+  WFS attend l'ordre **lat lon** (lon lat ne renvoie rien, sans erreur). La
+  fiche affiche le type (zone humide effective / tourbière), la commune
+  (nom résolu via geo.api.gouv.fr) et la surface du polygone (Turf).
+  Les couches propres à une DREAL (ex. prélocalisation des zones humides
+  probables en Pays de la Loire, SIGLOIRE) n'ont pas été retenues : l'API
+  GeoJSON de SIGLOIRE ignore le filtre `bbox` et renvoie le département
+  entier (≈ 26 Mo pour la Loire-Atlantique), et leur couverture est
+  régionale seulement.
 - **Établissements sensibles** : écoles et santé/social (annuaire
   éducation, FINESS).
 - **Outils** : mesure de distance, ordre d'affichage des calques
