@@ -41,6 +41,11 @@
     --c-natura-zps: #7a4fa0;
     --c-zh: #7f9fcf;
     --c-tourbiere: #e8bd88;
+    --c-zhinv: #1d6fa5;
+    --c-zhpot-fort: #2b8c8c;
+    --c-zhpot-signif: #74bfb0;
+    --c-zhpot-faible: #c9e6dc;
+    --c-zhpot-preloc: #d09a3a;
     --c-etab-scolaire: #d6572e;
     --c-etab-sante: #2e86d6;
     --c-piezo: #1b98a0;
@@ -571,6 +576,15 @@
         </label>
       </div>
       <div class="legend-note">Couche nationale « Protection des zones humides et des tourbières » (BCAE 2, PAC), diffusée par l'IGN : elle rassemble les inventaires de zones humides effectives (DREAL, DDT, SAGE, conservatoires…) et les tourbières. Cliquer sur une zone affiche son type, sa commune et sa surface. Couverture variable selon l'avancement des inventaires locaux ; l'absence de zone cartographiée ne vaut pas absence de zone humide — seul un diagnostic sol/végétation (arrêté du 24 juin 2008) fait foi.</div>
+      <div class="layer-group" style="margin-top:10px;">
+        <label class="layer-row"><input type="checkbox" id="lyr-zhinv"><span class="swatch" style="background:var(--c-zhinv)"></span><span class="lbl">Inventaires départementaux — 50, 14, 61, 76, 35, 22</span><span class="count" id="cnt-zhinv">–</span></label>
+        <label class="layer-row"><input type="checkbox" id="lyr-zhpot"><span class="swatch" style="background:var(--c-zhpot-fort)"></span><span class="lbl">Zones humides probables — 50, 14, 61, 76, 53</span><span class="count" id="cnt-zhpot">–</span></label>
+        <div class="layer-row" style="cursor:default;padding-left:24px;"><span class="swatch" style="background:var(--c-zhpot-fort)"></span><span class="lbl">Milieu fortement prédisposé</span></div>
+        <div class="layer-row" style="cursor:default;padding-left:24px;"><span class="swatch" style="background:var(--c-zhpot-signif)"></span><span class="lbl">Probabilité significative (modèle national)</span></div>
+        <div class="layer-row" style="cursor:default;padding-left:24px;"><span class="swatch" style="background:var(--c-zhpot-faible)"></span><span class="lbl">Milieu faiblement prédisposé</span></div>
+        <div class="layer-row" style="cursor:default;padding-left:24px;"><span class="swatch" style="background:var(--c-zhpot-preloc)"></span><span class="lbl">Prélocalisation (Mayenne)</span></div>
+      </div>
+      <div class="legend-note">Données des DREAL, DDT(M) et SAGE, embarquées dans le site par département et affichées à partir du zoom 12 (le compteur indique les zones chargées autour de la vue ; « modèle » signale les milieux prédisposés). <b>Inventaires</b> : inventaire régional DREAL Normandie (Manche, Calvados, Orne, Seine-Maritime), inventaire DDTM d'Ille-et-Vilaine, inventaires des SAGE pour les Côtes-d'Armor (Baie de Saint-Brieuc, Argoat-Trégor-Goëlo, Baie de Lannion, Arguenon-Fresnaye, Rance-Frémur, Vilaine — les SAGE Blavet et Aulne ne publient pas le leur). <b>Probables</b> : milieux prédisposés à la présence de zones humides (modèle DREAL Normandie croisé avec le modèle national PatriNat) et prélocalisation par photo-interprétation de la DREAL Pays de la Loire pour la Mayenne, qui n'a pas d'inventaire départemental publié. Ce sont des aides à la décision, pas des délimitations réglementaires.</div>
     </div>
 
     <div class="section">
@@ -589,7 +603,7 @@
     </div>
 
     <div class="foot">
-      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, eau potable, qualité des cours d'eau), <a href="https://bnpe.eaufrance.fr" target="_blank" rel="noopener">BNPE</a> — banque nationale des prélèvements quantitatifs en eau, volumes annuels déclarés par ouvrage (<a href="https://www.sandre.eaufrance.fr/atlas/srv/fre/catalog.search#/metadata/2a6fdd18-39ef-4d8a-8e84-84ef86e4a159" target="_blank" rel="noopener">fiche Sandre</a>), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN Géoplateforme</a> / MASAF (zones humides et tourbières BCAE 2, issues des inventaires locaux DREAL/DDT/SAGE), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
+      Données publiques : <a href="https://www.georisques.gouv.fr" target="_blank" rel="noopener">Géorisques</a> (API v1, BRGM/MTE), <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">InfoTerre</a> (BRGM), <a href="https://hubeau.eaufrance.fr" target="_blank" rel="noopener">Hub'Eau</a> (piézométrie, qualité des nappes, eau potable, qualité des cours d'eau), <a href="https://bnpe.eaufrance.fr" target="_blank" rel="noopener">BNPE</a> — banque nationale des prélèvements quantitatifs en eau, volumes annuels déclarés par ouvrage (<a href="https://www.sandre.eaufrance.fr/atlas/srv/fre/catalog.search#/metadata/2a6fdd18-39ef-4d8a-8e84-84ef86e4a159" target="_blank" rel="noopener">fiche Sandre</a>), <a href="https://apicarto.ign.fr" target="_blank" rel="noopener">API Carto IGN</a> / <a href="https://inpn.mnhn.fr" target="_blank" rel="noopener">INPN-MNHN</a> (Natura 2000), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN Géoplateforme</a> / MASAF (zones humides et tourbières BCAE 2, issues des inventaires locaux DREAL/DDT/SAGE), zones humides départementales : DREAL Normandie (inventaire régional et milieux prédisposés), DDTM 35, SAGE des Côtes-d'Armor via <a href="https://geobretagne.fr" target="_blank" rel="noopener">GéoBretagne</a>, DREAL Pays de la Loire (prélocalisation, Mayenne), <a href="https://remonterletemps.ign.fr" target="_blank" rel="noopener">Remonter le temps</a> (photos aériennes historiques IGN), <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">cartes.gouv.fr</a> / IGN Géoplateforme, <a href="https://adresse.data.gouv.fr" target="_blank" rel="noopener">Base Adresse Nationale</a>, <a href="https://atlasante.fr" target="_blank" rel="noopener">AtlaSanté</a> (Cart'Eaux — périmètre de protection éloignée, export local). Recherche API limitée à 20&nbsp;km de rayon.
     </div>
   </aside>
 
@@ -630,6 +644,8 @@
     { id:'natura-zsc',  label:'Natura 2000 — habitats (ZSC)' },
     { id:'natura-zps',  label:'Natura 2000 — oiseaux (ZPS)' },
     { id:'zh',          label:'Zones humides & tourbières' },
+    { id:'zhpot',       label:'Zones humides probables (DREAL)' },
+    { id:'zhinv',       label:'Zones humides inventoriées (DREAL/DDT/SAGE)' },
     { id:'icpe',        label:'ICPE' },
     { id:'casias',      label:'CASIAS' },
     { id:'sis',         label:'SIS' },
@@ -1181,7 +1197,7 @@
 
   map.on('click', function(e){
     if (measuring || parcelSelecting) return;
-    Promise.all([fetchBssInfo(e), fetchCadastreInfo(e), fetchGeologySheetInfo(e), fetchZoneHumideInfo(e)]).then(function(parts){
+    Promise.all([fetchBssInfo(e), fetchCadastreInfo(e), fetchGeologySheetInfo(e), fetchZoneHumideInfo(e), fetchZhLocalInfo(e)]).then(function(parts){
       var content = parts.join('');
       if (!content) return;
       L.popup({ maxWidth:280 }).setLatLng(e.latlng).setContent('<div class="popup">' + content + '</div>').openOn(map);
@@ -1292,6 +1308,280 @@
           '<div style="font-size:11px;color:var(--ink-dim);">Zone issue des inventaires locaux, compilée par le MASAF/IGN. Toute intervention (remblai, drainage, imperméabilisation) peut relever de la rubrique 3.3.1.0 de la nomenclature loi sur l\'eau.</div>' +
           '</div>';
       });
+    }).catch(function(){ return ''; });
+  }
+
+  // ---- Zones humides départementales (DREAL / DDT(M) / SAGE) — tuiles embarquées ----
+  // Générées par scripts/zones-humides/build.py dans data/zh/ : tuiles de
+  // 10 km en Lambert 93, coordonnées entières au mètre codées en deltas
+  // (voir l'en-tête du script). Les zones inventoriées sont rangées dans la
+  // tuile du centre de leur emprise, d'où la tuile de marge chargée autour
+  // de la vue.
+  var L93 = (function(){
+    var a = 6378137, e = 0.0818191910428158, rad = Math.PI / 180;
+    var lon0 = 3 * rad, x0 = 700000, y0 = 6600000;
+    function m(p){ var s = Math.sin(p); return Math.cos(p) / Math.sqrt(1 - e*e*s*s); }
+    function t(p){ var s = e * Math.sin(p); return Math.tan(Math.PI/4 - p/2) / Math.pow((1 - s) / (1 + s), e/2); }
+    var p1 = 49 * rad, p2 = 44 * rad;
+    var n = (Math.log(m(p1)) - Math.log(m(p2))) / (Math.log(t(p1)) - Math.log(t(p2)));
+    var F = m(p1) / (n * Math.pow(t(p1), n));
+    var r0 = a * F * Math.pow(t(46.5 * rad), n);
+    return {
+      toLatLng: function(x, y){
+        var dx = x - x0, dy = r0 - (y - y0);
+        var tt = Math.pow(Math.sqrt(dx*dx + dy*dy) / (a * F), 1 / n);
+        var lon = Math.atan2(dx, dy) / n + lon0;
+        var p = Math.PI/2 - 2 * Math.atan(tt);
+        for (var i = 0; i < 6; i++){
+          var s = e * Math.sin(p);
+          p = Math.PI/2 - 2 * Math.atan(tt * Math.pow((1 - s) / (1 + s), e/2));
+        }
+        return [p / rad, lon / rad];
+      },
+      fromLatLng: function(lat, lng){
+        var r = a * F * Math.pow(t(lat * rad), n), th = n * (lng * rad - lon0);
+        return [x0 + r * Math.sin(th), y0 + r0 - r * Math.cos(th)];
+      }
+    };
+  })();
+
+  var ZHL_BASE = 'data/zh/';
+  var ZHL_MIN_ZOOM = 12;
+  var ZHL_MAX_TILES = 48;
+  var zhlIndexPromise = null;
+  function zhlIndex(){
+    if (!zhlIndexPromise){
+      zhlIndexPromise = fetch(ZHL_BASE + 'index.json').then(function(r){ return r.json(); }).then(function(idx){
+        idx.avail = {};
+        Object.keys(idx.layers).forEach(function(layer){
+          var set = {};
+          idx.layers[layer].forEach(function(t){ set[t[0] + '_' + t[1]] = true; });
+          idx.avail[layer] = set;
+        });
+        return idx;
+      }).catch(function(){ zhlIndexPromise = null; return null; });
+    }
+    return zhlIndexPromise;
+  }
+
+  var ZHL_POT_LABEL = {
+    fort: 'Milieu fortement prédisposé à la présence de zones humides',
+    signif: 'Probabilité significative de zone humide (modèle national PatriNat)',
+    faible: 'Milieu faiblement prédisposé à la présence de zones humides',
+    preloc: 'Zone humide probable (prélocalisation)'
+  };
+  var zhlLayers = {
+    inv: {
+      key:'inv', checkbox:'lyr-zhinv', counter:'cnt-zhinv', pane:'pane-zhinv',
+      style: function(p){
+        var c = getCss('--c-zhinv');
+        return { color:c, weight:0.8, fillColor:c, fillOpacity: p.k === 'deg' ? 0.15 : 0.35, dashArray: p.k === 'deg' ? '3 3' : null };
+      }
+    },
+    pot: {
+      key:'pot', checkbox:'lyr-zhpot', counter:'cnt-zhpot', pane:'pane-zhpot',
+      style: function(p){
+        var c = getCss('--c-zhpot-' + (p.c || 'fort'));
+        return p.c === 'preloc'
+          ? { color:c, weight:0.8, fillColor:c, fillOpacity:0.35 }
+          : { stroke:false, fillColor:c, fillOpacity:0.55 };
+      }
+    }
+  };
+  Object.keys(zhlLayers).forEach(function(k){
+    var st = zhlLayers[k];
+    st.group = L.layerGroup();
+    st.renderer = L.canvas({ pane: st.pane, padding: 0.3 });
+    st.data = {};      // tuiles décodées, clé "tx_ty"
+    st.pending = {};   // promesses de chargement
+    st.shown = {};     // calques Leaflet affichés
+    st.want = {};
+  });
+
+  function zhlDecodeTile(json, tx, ty, size){
+    var ox = tx * size, oy = ty * size, table = json.p || [];
+    return (json.f || []).map(function(f){
+      var bb = [Infinity, Infinity, -Infinity, -Infinity];
+      var g = f[1].map(function(poly){
+        return poly.map(function(ring){
+          var x = ox + ring[0], y = oy + ring[1], out = [[x, y]];
+          for (var i = 2; i < ring.length; i += 2){ x += ring[i]; y += ring[i+1]; out.push([x, y]); }
+          return out;
+        });
+      });
+      g.forEach(function(poly){ poly[0].forEach(function(c){
+        if (c[0] < bb[0]) bb[0] = c[0]; if (c[1] < bb[1]) bb[1] = c[1];
+        if (c[0] > bb[2]) bb[2] = c[0]; if (c[1] > bb[3]) bb[3] = c[1];
+      }); });
+      var ll = g.map(function(poly){ return poly.map(function(ring){ return ring.map(function(c){ return L93.toLatLng(c[0], c[1]); }); }); });
+      return { p: table[f[0]] || {}, g: g, ll: ll, bb: bb };
+    });
+  }
+
+  function zhlLoadTile(st, key, size){
+    if (st.data[key]) return Promise.resolve(st.data[key]);
+    if (!st.pending[key]){
+      var parts = key.split('_');
+      st.pending[key] = fetch(ZHL_BASE + st.key + '/' + key + '.json').then(function(r){ return r.json(); }).then(function(j){
+        st.data[key] = zhlDecodeTile(j, +parts[0], +parts[1], size);
+        delete st.pending[key];
+        return st.data[key];
+      }).catch(function(){ delete st.pending[key]; return []; });
+    }
+    return st.pending[key];
+  }
+
+  function zhlRefreshCounter(st){
+    var el = document.getElementById(st.counter);
+    if (!el) return;
+    if (!document.getElementById(st.checkbox).checked){ el.textContent = '–'; return; }
+    if (map.getZoom() < ZHL_MIN_ZOOM){ el.textContent = 'zoom 12+'; return; }
+    // Les milieux prédisposés sont des ensembles fusionnés découpés à la
+    // tuile : les compter n'aurait pas de sens, on signale juste leur présence.
+    var n = 0, model = false;
+    Object.keys(st.shown).forEach(function(k){
+      (st.data[k] || []).forEach(function(f){ if (f.p.s === 'mpp') model = true; else n++; });
+    });
+    el.textContent = model ? (n ? n + ' + modèle' : 'modèle') : n;
+  }
+
+  function zhlUpdate(st){
+    if (!document.getElementById(st.checkbox).checked) return;
+    if (map.getZoom() < ZHL_MIN_ZOOM){
+      st.group.clearLayers(); st.shown = {}; st.want = {};
+      zhlRefreshCounter(st);
+      return;
+    }
+    zhlIndex().then(function(idx){
+      if (!idx || !document.getElementById(st.checkbox).checked || map.getZoom() < ZHL_MIN_ZOOM) return;
+      var b = map.getBounds(), size = idx.tile;
+      var xs = [], ys = [];
+      [[b.getSouth(), b.getWest()], [b.getNorth(), b.getWest()], [b.getNorth(), b.getEast()], [b.getSouth(), b.getEast()],
+       [b.getSouth(), b.getCenter().lng], [b.getNorth(), b.getCenter().lng]].forEach(function(c){
+        var xy = L93.fromLatLng(c[0], c[1]); xs.push(xy[0]); ys.push(xy[1]);
+      });
+      var tx0 = Math.floor(Math.min.apply(null, xs) / size) - 1, tx1 = Math.floor(Math.max.apply(null, xs) / size) + 1;
+      var ty0 = Math.floor(Math.min.apply(null, ys) / size) - 1, ty1 = Math.floor(Math.max.apply(null, ys) / size) + 1;
+      var want = {}, n = 0, avail = idx.avail[st.key] || {};
+      for (var tx = tx0; tx <= tx1; tx++) for (var ty = ty0; ty <= ty1; ty++){
+        var key = tx + '_' + ty;
+        if (avail[key]){ want[key] = true; n++; }
+      }
+      if (n > ZHL_MAX_TILES) return;
+      st.want = want;
+      Object.keys(st.shown).forEach(function(key){
+        if (!want[key]){ st.group.removeLayer(st.shown[key]); delete st.shown[key]; }
+      });
+      // Libère la mémoire des tuiles qui ne sont plus à l'écran.
+      var cached = Object.keys(st.data);
+      if (cached.length > 120) cached.forEach(function(key){ if (!want[key]) delete st.data[key]; });
+      zhlRefreshCounter(st);
+      Object.keys(want).forEach(function(key){
+        if (st.shown[key]) return;
+        zhlLoadTile(st, key, size).then(function(feats){
+          if (st.shown[key] || !st.want[key] || !document.getElementById(st.checkbox).checked) return;
+          var lg = L.layerGroup(feats.map(function(f){
+            return L.polygon(f.ll, Object.assign({ renderer: st.renderer, interactive:false, smoothFactor:0.5 }, st.style(f.p)));
+          }));
+          st.shown[key] = lg;
+          st.group.addLayer(lg);
+          zhlRefreshCounter(st);
+        });
+      });
+    });
+  }
+
+  Object.keys(zhlLayers).forEach(function(k){
+    var st = zhlLayers[k];
+    document.getElementById(st.checkbox).addEventListener('change', function(e){
+      if (e.target.checked){ st.group.addTo(map); zhlUpdate(st); }
+      else { map.removeLayer(st.group); st.group.clearLayers(); st.shown = {}; st.want = {}; }
+      zhlRefreshCounter(st);
+      renderLayerOrderPanel();
+    });
+  });
+  map.on('moveend', function(){ zhlUpdate(zhlLayers.inv); zhlUpdate(zhlLayers.pot); });
+
+  function zhlPointInFeature(f, x, y){
+    if (x < f.bb[0] || x > f.bb[2] || y < f.bb[1] || y > f.bb[3]) return false;
+    return f.g.some(function(poly){
+      var inside = false;
+      poly.forEach(function(ring){
+        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++){
+          var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+          if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+        }
+      });
+      return inside;
+    });
+  }
+
+  function zhlDistToFeature(f, x, y, tol){
+    if (x < f.bb[0] - tol || x > f.bb[2] + tol || y < f.bb[1] - tol || y > f.bb[3] + tol) return Infinity;
+    var best = Infinity;
+    f.g.forEach(function(poly){ poly.forEach(function(ring){
+      for (var i = 0, j = ring.length - 1; i < ring.length; j = i++){
+        var ax = ring[j][0], ay = ring[j][1], bx = ring[i][0], by = ring[i][1];
+        var dx = bx - ax, dy = by - ay, len = dx*dx + dy*dy;
+        var t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
+        var d = Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+        if (d < best) best = d;
+      }
+    }); });
+    return best;
+  }
+
+  // Retenus : les zones qui contiennent le point ; à défaut, la plus proche
+  // à moins de 3 pixels (beaucoup de zones humides font quelques mètres).
+  function zhlFeaturesAt(st, x, y, tolM){
+    var hits = [], near = null, nearD = Infinity;
+    Object.keys(st.shown).forEach(function(key){
+      (st.data[key] || []).forEach(function(f){
+        if (zhlPointInFeature(f, x, y)){ hits.push(f); return; }
+        if (hits.length) return;
+        var d = zhlDistToFeature(f, x, y, tolM);
+        if (d <= tolM && d < nearD){ nearD = d; near = f; }
+      });
+    });
+    return hits.length ? hits : (near ? [near] : []);
+  }
+
+  var ZHL_DEP_NAME = { '50':'Manche', '14':'Calvados', '61':'Orne', '76':'Seine-Maritime', '35':'Ille-et-Vilaine', '22':'Côtes-d’Armor', '53':'Mayenne' };
+  function fetchZhLocalInfo(e){
+    var shownAny = Object.keys(zhlLayers).some(function(k){ return map.hasLayer(zhlLayers[k].group); });
+    if (!shownAny) return Promise.resolve('');
+    return zhlIndex().then(function(idx){
+      if (!idx) return '';
+      var xy = L93.fromLatLng(e.latlng.lat, e.latlng.lng), html = '';
+      var c = map.latLngToContainerPoint(e.latlng);
+      var tolM = map.distance(e.latlng, map.containerPointToLatLng([c.x + 3, c.y]));
+      ['inv', 'pot'].forEach(function(k){
+        var st = zhlLayers[k];
+        if (!map.hasLayer(st.group)) return;
+        var seen = {};
+        zhlFeaturesAt(st, xy[0], xy[1], tolM).forEach(function(f){
+            var p = f.p, src = idx.sources[p.s] || {};
+            var sig = JSON.stringify(p);
+            if (seen[sig]) return; seen[sig] = true;
+            var color = k === 'inv' ? 'var(--c-zhinv)' : 'var(--c-zhpot-' + (p.c || 'fort') + ')';
+            var title = k === 'inv' ? (p.t || 'Zone humide inventoriée') : (ZHL_POT_LABEL[p.c] || 'Zone humide probable');
+            html += '<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft);"><span class="tag" style="background:' + color + '">' +
+              (k === 'inv' ? 'Zone humide inventoriée' : 'Zone humide probable') + ' · ' + escapeHtml(ZHL_DEP_NAME[p.d] || p.d || '') + '</span>' +
+              '<h3>' + escapeHtml(title) + '</h3><dl>' +
+                (k === 'pot' && p.c === 'preloc' && p.t ? '<dt>Type</dt><dd>' + escapeHtml(p.t) + '</dd>' : '') +
+                (p.m ? '<dt>Méthode</dt><dd>' + escapeHtml(p.m) + '</dd>' : '') +
+                (p.q ? '<dt>' + (k === 'inv' ? 'Qualité' : 'Fiabilité') + '</dt><dd>' + escapeHtml(p.q) + '</dd>' : '') +
+                (p.r ? '<dt>Rôle</dt><dd>' + escapeHtml(p.r) + '</dd>' : '') +
+                (p.y ? '<dt>Validation</dt><dd>' + escapeHtml(p.y) + '</dd>' : '') +
+                (p.o ? '<dt>' + (p.s === 'n28' ? 'Interprétation' : 'Maître d’ouvrage') + '</dt><dd>' + escapeHtml(p.o) + '</dd>' : '') +
+                '<dt>Source</dt><dd>' + escapeHtml(src.label || p.s) + (src.org ? ' — ' + escapeHtml(src.org) : '') + '</dd>' +
+              '</dl>' +
+              (k === 'pot' ? '<div style="font-size:11px;color:var(--ink-dim);">' + (p.c === 'preloc' ? 'Photo-interprétation : ' : 'Modélisation : ') + 'aide à la décision, à confirmer par un diagnostic de terrain.</div>' : '') +
+              (src.url ? '<a class="fiche" target="_blank" rel="noopener" href="' + escapeHtml(src.url) + '">Fiche de la donnée →</a>' : '') +
+              '</div>';
+        });
+      });
+      return html;
     }).catch(function(){ return ''; });
   }
 

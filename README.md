@@ -465,10 +465,37 @@ Calques et outils repris :
   fiche affiche le type (zone humide effective / tourbière), la commune
   (nom résolu via geo.api.gouv.fr) et la surface du polygone (Turf).
   Les couches propres à une DREAL (ex. prélocalisation des zones humides
-  probables en Pays de la Loire, SIGLOIRE) n'ont pas été retenues : l'API
-  GeoJSON de SIGLOIRE ignore le filtre `bbox` et renvoie le département
-  entier (≈ 26 Mo pour la Loire-Atlantique), et leur couverture est
-  régionale seulement.
+  probables en Pays de la Loire, SIGLOIRE) ne sont pas interrogées en
+  direct : l'API GeoJSON de SIGLOIRE ignore le filtre `bbox` et renvoie le
+  département entier (≈ 26 Mo pour la Loire-Atlantique), et les services
+  Geo-IDE des DREAL/DDT ne sortent que du GML.
+- **Zones humides départementales** (50, 14, 61, 76, 35, 22, 53) : données
+  DREAL/DDT(M)/SAGE téléchargées, prétraitées et **embarquées dans le site**
+  (`frontend/public/data/zh/`, ≈ 114 Mo en 830 tuiles de 10 km, ≈ 35 Mo
+  compressés). Deux couches, affichées à partir du zoom 12 et chargées tuile
+  par tuile autour de la vue, rendu canvas :
+  - *Inventaires départementaux* — inventaire régional DREAL Normandie
+    (Manche, Calvados, Orne, Seine-Maritime), inventaire DDTM
+    d'Ille-et-Vilaine, et pour les Côtes-d'Armor (pas de couche
+    départementale publiée) les inventaires des SAGE diffusés sur
+    GéoBretagne : Baie de Saint-Brieuc, Argoat-Trégor-Goëlo, Baie de
+    Lannion, Arguenon-Fresnaye, Rance-Frémur, Vilaine. Les SAGE Blavet et
+    Aulne (sud et ouest du 22) ne publient pas leur inventaire : trou de
+    couverture connu, la couche nationale BCAE 2 reste là pour ces secteurs.
+  - *Zones humides probables* — milieux prédisposés à la présence de zones
+    humides de la DREAL Normandie (fort / probabilité significative du
+    modèle national PatriNat / faible) et, pour la Mayenne qui n'a pas
+    d'inventaire départemental publié, la prélocalisation par
+    photo-interprétation de la DREAL Pays de la Loire.
+
+  Les tuiles sont en Lambert 93, coordonnées entières au mètre codées en
+  deltas : la carte embarque une projection Lambert 93 en JavaScript
+  (vérifiée contre pyproj, écart < 1 mm). Le clic retient les zones qui
+  contiennent le point, ou à défaut la plus proche à moins de 3 pixels — sans
+  cette tolérance, les nombreuses petites zones (quelques mètres) étaient
+  quasiment impossibles à viser. Génération reproductible :
+  `scripts/zones-humides/` (`download.sh` puis `build.py`, détails et
+  choix de généralisation dans son README).
 - **Établissements sensibles** : écoles et santé/social (annuaire
   éducation, FINESS).
 - **Outils** : mesure de distance, ordre d'affichage des calques
