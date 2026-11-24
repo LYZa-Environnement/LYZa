@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run donnees && tsc -b && vite build",
+    "build": "npm run donnees && tsc -b && vite build && npm run outils",
     "lint": "oxlint",
     "preview": "vite preview",
     "veille": "node scripts/veille.mjs",
-    "donnees": "node scripts/veille.mjs && node scripts/baignade.mjs"
+    "donnees": "node scripts/veille.mjs && node scripts/baignade.mjs",
+    "outils": "node scripts/outils.mjs",
+    "outils:clair": "node scripts/outils.mjs --clair --sortie outils-local",
+    "plaquette": "node scripts/plaquette-pdf.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Outils internes assemblés en clair pour un essai local (npm run outils:clair)
+outils-local

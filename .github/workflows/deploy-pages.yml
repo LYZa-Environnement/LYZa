@@ -40,6 +40,15 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: "true"
+          # Outils internes (dist/outils/) : la page est chiffrée avec ce mot de
+          # passe. Sans lui, elle indique seulement « non configurés ».
+          LYZA_OUTILS_MDP: ${{ secrets.LYZA_OUTILS_MDP }}
+          # Coordonnées bancaires pré-remplies (facultatives), intégrées
+          # uniquement dans la page chiffrée.
+          LYZA_IBAN: ${{ secrets.LYZA_IBAN }}
+          LYZA_BIC: ${{ secrets.LYZA_BIC }}
+          LYZA_BANQUE: ${{ secrets.LYZA_BANQUE }}
+          LYZA_TITULAIRE: ${{ secrets.LYZA_TITULAIRE }}
 
       - uses: actions/configure-pages@v5
 

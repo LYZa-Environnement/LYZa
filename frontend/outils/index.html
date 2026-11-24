@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>LYZa — Outils internes</title>
+    <link rel="icon" href="data:," />
+    <!-- Source des outils internes. Le build (scripts/outils.mjs) intègre la
+         feuille de style, les scripts et le logo dans une seule page, puis la
+         chiffre avec le mot de passe. Ne jamais publier ce dossier tel quel. -->
+    <link rel="stylesheet" href="outils.css" />
+  </head>
+  <body>
+    <div id="app"><p class="loading">Chargement des outils…</p></div>
+    <div id="print-root" aria-hidden="true"></div>
+    <script src="js/01-utils.js"></script>
+    <script src="js/02-config.js"></script>
+    <script src="js/03-catalogue.js"></script>
+    <script src="js/04-stockage.js"></script>
+    <script src="js/05-modele.js"></script>
+    <script src="js/06-rendu-html.js"></script>
+    <script src="js/07-docx.js"></script>
+    <script src="js/08-app.js"></script>
+  </body>
+</html>
