@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LYZa — Plaquette</title>
+    <meta
+      name="description"
+      content="LYZa, hydrogéologue dans la Manche : coupes géologiques prévisionnelles, rapports de fin de travaux, déclarations de forages, avis hydrogéologiques."
+    />
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <!--
+      Plaquette A4 recto-verso, à imprimer ou à joindre à un courrier.
+      La version PDF (plaquette-lyza.pdf) est produite à partir de cette page
+      par scripts/plaquette-pdf.mjs. Police : DM Sans (SIL Open Font License,
+      voir fonts/OFL-DMSans.txt).
+    -->
+    <style>
+      @font-face {
+        font-family: 'DM Sans';
+        src: url('fonts/DMSans-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'DM Sans';
+        src: url('fonts/DMSans-SemiBold.ttf') format('truetype');
+        font-weight: 600;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'DM Sans';
+        src: url('fonts/DMSans-Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      :root {
+        --navy: #022a47;
+        --navy-2: #183e5b;
+        --olive: #4b6035;
+        --earth: #a0825a;
+        --earth-dark: #6e5233;
+        --water: #57a6cf;
+        --water-soft: #e8f2f8;
+        --sand: #f4f1ea;
+        --ink: #1d2b33;
+        --muted: #56636a;
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: #d9d6cc;
+      }
+
+      body {
+        font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+        color: var(--ink);
+        font-size: 10.2pt;
+        line-height: 1.42;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        margin: 10mm auto;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 4px 24px rgba(2, 42, 71, 0.16);
+      }
+
+      .inner {
+        position: absolute;
+        inset: 14mm 16mm 0;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        color: var(--navy);
+        line-height: 1.12;
+        font-weight: 700;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .eyebrow {
+        font-size: 7.6pt;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--olive);
+      }
+
+      /* ---------- Recto ---------- */
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .top img {
+        width: 62mm;
+        display: block;
+      }
+
+      .top .where {
+        text-align: right;
+        padding-top: 4mm;
+        color: var(--muted);
+        font-size: 8.6pt;
+        line-height: 1.5;
+      }
+
+      .top .where strong {
+        display: block;
+        color: var(--navy);
+        font-size: 9.6pt;
+      }
+
+      .hero {
+        margin-top: 10mm;
+      }
+
+      .hero h1 {
+        font-size: 27pt;
+        letter-spacing: -0.015em;
+        max-width: 160mm;
+        margin-top: 2.5mm;
+      }
+
+      .hero h1 em {
+        font-style: normal;
+        color: var(--olive);
+      }
+
+      .hero .lead {
+        margin-top: 5mm;
+        max-width: 158mm;
+        font-size: 11.2pt;
+        line-height: 1.5;
+        color: var(--navy-2);
+      }
+
+      .reforme {
+        display: grid;
+        grid-template-columns: 34mm 1fr;
+        gap: 6mm;
+        margin-top: 8mm;
+        padding: 6mm 7mm;
+        border-radius: 4mm;
+        background: var(--navy);
+        color: #fff;
+      }
+
+      .reforme .date {
+        border-right: 1px solid rgba(255, 255, 255, 0.25);
+        padding-right: 5mm;
+      }
+
+      .reforme .date b {
+        display: block;
+        font-size: 30pt;
+        line-height: 1;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .reforme .date span {
+        display: block;
+        margin-top: 1.5mm;
+        font-size: 9pt;
+        line-height: 1.3;
+        color: #bcd3e3;
+      }
+
+      .reforme h2 {
+        color: #fff;
+        font-size: 12.5pt;
+        margin-bottom: 2.5mm;
+      }
+
+      .reforme ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .reforme li {
+        position: relative;
+        padding-left: 4.5mm;
+        margin-bottom: 1.4mm;
+        font-size: 9.6pt;
+        color: #e3edf4;
+      }
+
+      .reforme li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 1.9mm;
+        width: 2mm;
+        height: 2mm;
+        border-radius: 50%;
+        background: var(--water);
+      }
+
+      .reforme .then {
+        margin-top: 3mm;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: baseline;
+        gap: 4mm;
+        margin: 9mm 0 4.5mm;
+      }
+
+      .section-title h2 {
+        font-size: 15pt;
+      }
+
+      .section-title .rule {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, var(--earth), transparent);
+        transform: translateY(-1.2mm);
+      }
+
+      .offers {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4.5mm 7mm;
+      }
+
+      .offer {
+        display: grid;
+        grid-template-columns: 9mm 1fr;
+        gap: 3mm;
+      }
+
+      .offer .num {
+        width: 9mm;
+        height: 9mm;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--water-soft);
+        color: var(--navy);
+        font-weight: 700;
+        font-size: 10pt;
+      }
+
+      .offer h3 {
+        font-size: 11pt;
+        margin: 0.6mm 0 1.2mm;
+      }
+
+      .offer p {
+        color: var(--muted);
+        font-size: 9.4pt;
+      }
+
+      .waves {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 36mm;
+      }
+
+      .waves svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .waves .site {
+        position: absolute;
+        right: 16mm;
+        bottom: 6mm;
+        color: #fff;
+        font-size: 9pt;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      /* ---------- Verso ---------- */
+
+      .verso-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2mm;
+        padding-bottom: 4mm;
+        border-bottom: 1px solid #e2ddd1;
+      }
+
+      .verso-head img {
+        width: 30mm;
+        display: block;
+      }
+
+      .verso-head .eyebrow {
+        color: var(--muted);
+      }
+
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8mm;
+      }
+
+      .list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .list li {
+        padding: 3.2mm 0;
+        border-bottom: 1px solid #ece8de;
+      }
+
+      .list li:last-child {
+        border-bottom: 0;
+      }
+
+      .list h3 {
+        font-size: 10.6pt;
+        margin-bottom: 1mm;
+      }
+
+      .list p {
+        color: var(--muted);
+        font-size: 9.3pt;
+      }
+
+      .services {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 8mm;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .services li {
+        padding: 3mm 0 3.4mm;
+        border-top: 1px solid #ece8de;
+      }
+
+      .services h3 {
+        font-size: 10.8pt;
+        margin-bottom: 1.2mm;
+      }
+
+      .services p {
+        color: var(--muted);
+        font-size: 9.4pt;
+      }
+
+      .why {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3.5mm;
+      }
+
+      .why div {
+        padding: 4mm 4.5mm;
+        border-radius: 3mm;
+        background: var(--sand);
+      }
+
+      .why h3 {
+        font-size: 10.4pt;
+        margin-bottom: 1.2mm;
+      }
+
+      .why p {
+        font-size: 9.2pt;
+        color: var(--muted);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5mm;
+        counter-reset: step;
+      }
+
+      .steps div {
+        position: relative;
+        padding-top: 9mm;
+      }
+
+      .steps div::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 7mm;
+        height: 7mm;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--olive);
+        color: #fff;
+        font-weight: 700;
+        font-size: 9pt;
+      }
+
+      .steps div::after {
+        content: '';
+        position: absolute;
+        top: 3.5mm;
+        left: 9mm;
+        right: -3mm;
+        height: 1px;
+        background: #cfd8c3;
+      }
+
+      .steps div:last-child::after {
+        display: none;
+      }
+
+      .steps h3 {
+        font-size: 10.2pt;
+        margin-bottom: 1mm;
+      }
+
+      .steps p {
+        font-size: 9.2pt;
+        color: var(--muted);
+      }
+
+      .contact {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 9mm 16mm 8mm;
+        background: var(--navy);
+        color: #fff;
+      }
+
+      .contact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.25fr;
+        gap: 8mm;
+        align-items: end;
+      }
+
+      .contact .eyebrow {
+        color: #a9c4d6;
+      }
+
+      .contact .name {
+        margin-top: 2mm;
+        font-size: 15pt;
+        font-weight: 700;
+      }
+
+      .contact .role {
+        color: #bcd3e3;
+        font-size: 9.6pt;
+      }
+
+      .contact .lines {
+        font-size: 10.6pt;
+        line-height: 1.65;
+      }
+
+      .contact .lines b {
+        font-weight: 700;
+        font-size: 13pt;
+      }
+
+      .contact .lines a {
+        color: #fff;
+        text-decoration: none;
+      }
+
+      .contact .legal {
+        margin-top: 5mm;
+        padding-top: 3mm;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        color: #93b0c4;
+        font-size: 7.4pt;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      @media print {
+        html,
+        body {
+          background: #fff;
+        }
+
+        .page {
+          margin: 0;
+          box-shadow: none;
+          break-after: page;
+        }
+
+        .page:last-child {
+          break-after: auto;
+        }
+
+        * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+
+      .telecharger {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 5;
+        padding: 0.55rem 0.9rem;
+        border-radius: 999px;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 0 4px 14px rgba(2, 42, 71, 0.25);
+      }
+
+      .telecharger:focus-visible {
+        outline: 3px solid var(--water);
+        outline-offset: 2px;
+      }
+
+      @media print {
+        .telecharger {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="telecharger" href="plaquette-lyza.pdf" download>Télécharger le PDF</a>
+
+    <!-- ==================== RECTO ==================== -->
+    <section class="page" aria-label="Recto">
+      <div class="inner">
+        <header class="top">
+          <img src="logo-lyza.png" alt="LYZa — Environnement, hydrogéologie" />
+          <p class="where">
+            <strong>Léo Yecora-Zorzano</strong>
+            Ingénieur hydrogéologue<br />
+            Regnéville-sur-Mer — Manche
+          </p>
+        </header>
+
+        <div class="hero">
+          <p class="eyebrow">Forages d'eau · Déclarations · Avis hydrogéologiques</p>
+          <h1>Les documents de vos forages, <em>préparés dans la Manche.</em></h1>
+          <p class="lead">
+            Coupes géologiques prévisionnelles, rapports de fin de travaux, déclarations&nbsp;: je prépare la partie
+            écrite de vos forages pendant que vous forez. Hydrogéologue installé à Regnéville-sur-Mer, je connais le
+            sous-sol du département et je réponds vite.
+          </p>
+        </div>
+
+        <aside class="reforme" aria-label="Réforme des forages">
+          <div class="date">
+            <b>31.12<br />2027</b>
+            <span>Entrée en vigueur de la réforme des forages d'eau</span>
+          </div>
+          <div>
+            <h2>Ce qui change pour chaque forage</h2>
+            <ul>
+              <li>Seules les entreprises certifiées pourront réaliser les forages.</li>
+              <li>Une coupe géologique prévisionnelle est établie avant les travaux.</li>
+              <li>Un rapport de fin de travaux est remis au maître d'ouvrage dans les deux mois.</li>
+              <li>Tous les forages d'eau se déclarent au titre du code minier, quelle que soit leur profondeur.</li>
+            </ul>
+            <p class="then">LYZa prépare ces documents pour vous, à prix forfaitaire.</p>
+          </div>
+        </aside>
+
+        <div class="section-title">
+          <h2>Pour les entreprises de forage</h2>
+          <span class="rule"></span>
+        </div>
+
+        <div class="offers">
+          <div class="offer">
+            <span class="num">1</span>
+            <div>
+              <h3>Coupe géologique prévisionnelle</h3>
+              <p>
+                Établie à partir de la carte géologique et des forages voisins de la Banque du sous-sol&nbsp;: formations et
+                aquifères attendus, profondeur probable. Remise sous 48&nbsp;heures ouvrées.
+              </p>
+            </div>
+          </div>
+          <div class="offer">
+            <span class="num">2</span>
+            <div>
+              <h3>Rapport de fin de travaux</h3>
+              <p>
+                Mise en forme de vos relevés de chantier et interprétation de l'essai de pompage&nbsp;: transmissivité, débit
+                d'exploitation conseillé.
+              </p>
+            </div>
+          </div>
+          <div class="offer">
+            <span class="num">3</span>
+            <div>
+              <h3>Déclarations</h3>
+              <p>
+                Loi sur l'eau jusqu'à fin 2027, puis code minier&nbsp;; examen au cas par cas pour les forages de 50&nbsp;m et
+                plus&nbsp;; DUPLOS pour les puits domestiques.
+              </p>
+            </div>
+          </div>
+          <div class="offer">
+            <span class="num">4</span>
+            <div>
+              <h3>Préparation à la certification</h3>
+              <p>
+                Modèles de documents conformes à l'arrêté du 18&nbsp;mars&nbsp;2026, organisation des données de chantier,
+                références à présenter à l'audit.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="waves" aria-hidden="true">
+        <svg viewBox="0 0 2100 360" preserveAspectRatio="none">
+          <path d="M0 150 C 380 60, 760 70, 1120 140 S 1800 230, 2100 120 L 2100 360 L 0 360 Z" fill="#a0825a" />
+          <path d="M0 205 C 420 120, 820 140, 1180 205 S 1820 280, 2100 190 L 2100 360 L 0 360 Z" fill="#57a6cf" />
+          <path d="M0 255 C 440 180, 860 200, 1220 255 S 1840 320, 2100 245 L 2100 360 L 0 360 Z" fill="#022a47" />
+          <path d="M0 118 C 380 30, 760 40, 1120 108 S 1800 200, 2100 88" fill="none" stroke="#022a47" stroke-width="7" />
+          <g fill="#6e5233">
+            <circle cx="520" cy="150" r="9" />
+            <circle cx="600" cy="138" r="13" />
+            <circle cx="690" cy="134" r="7" />
+            <circle cx="1330" cy="182" r="11" />
+            <circle cx="1410" cy="196" r="7" />
+            <circle cx="1480" cy="204" r="5" />
+          </g>
+        </svg>
+        <span class="site">lyza-environnement.github.io/LYZa</span>
+      </div>
+    </section>
+
+    <!-- ==================== VERSO ==================== -->
+    <section class="page" aria-label="Verso">
+      <div class="inner">
+        <header class="verso-head">
+          <img src="logo-lyza.png" alt="LYZa" />
+          <span class="eyebrow">Environnement · Hydrogéologie · Manche</span>
+        </header>
+
+        <div class="section-title">
+          <h2>Pour les exploitants, les collectivités et les services de l'État</h2>
+          <span class="rule"></span>
+        </div>
+        <ul class="services">
+          <li>
+            <h3>Avis hydrogéologiques sommaires</h3>
+            <p>
+              Appréciation rapide des risques pour les eaux souterraines et superficielles, avec prescriptions. Y compris
+              en urgence, par exemple pour un enfouissement exceptionnel de cadavres d'animaux.
+            </p>
+          </li>
+          <li>
+            <h3>Dossiers de forage du maître d'ouvrage</h3>
+            <p>
+              Déclaration au titre de la loi sur l'eau avec document d'incidence, demande d'examen au cas par cas,
+              déclaration au code minier.
+            </p>
+          </li>
+          <li>
+            <h3>Prélèvements de sol et analyses</h3>
+            <p>
+              Programme analytique adapté au site, prélèvement, envoi à un laboratoire spécialisé et note de synthèse des
+              résultats.
+            </p>
+          </li>
+          <li>
+            <h3>Suivi des eaux souterraines</h3>
+            <p>Relevés de niveau de nappe et prélèvements d'eau souterraine, envoyés au laboratoire dans les délais.</p>
+          </li>
+        </ul>
+
+        <div class="section-title">
+          <h2>Pourquoi LYZa</h2>
+          <span class="rule"></span>
+        </div>
+        <div class="why">
+          <div>
+            <h3>La proximité</h3>
+            <p>Installé au centre de la Manche&nbsp;: un passage sur le terrain reste simple quand il est utile.</p>
+          </div>
+          <div>
+            <h3>Le terrain connu</h3>
+            <p>Socle armoricain, petits bassins sédimentaires, marais&nbsp;: dans la Manche, les nappes changent d'un secteur à l'autre.</p>
+          </div>
+          <div>
+            <h3>Les données publiques</h3>
+            <p>Banque du sous-sol, Hub'Eau, Géorisques, lues avec LYZa, mon outil de lecture environnementale à l'adresse.</p>
+          </div>
+          <div>
+            <h3>Un avis indépendant</h3>
+            <p>Ingénieur hydrogéologue, plus de dix ans en bureau d'études&nbsp;: un avis argumenté, même quand il est réservé.</p>
+          </div>
+        </div>
+
+        <div class="section-title">
+          <h2>Comment ça marche</h2>
+          <span class="rule"></span>
+        </div>
+        <div class="steps">
+          <div>
+            <h3>Vous m'envoyez le projet</h3>
+            <p>Position du forage ou du site, usage prévu, et vos relevés de chantier une fois les travaux faits.</p>
+          </div>
+          <div>
+            <h3>Je vous adresse un devis</h3>
+            <p>Un prix forfaitaire par forage ou par dossier, connu avant de commencer.</p>
+          </div>
+          <div>
+            <h3>Vous recevez les documents</h3>
+            <p>En PDF, prêts à joindre au dossier de l'ouvrage ou à transmettre à l'administration.</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="contact">
+        <div class="contact-grid">
+          <div>
+            <p class="eyebrow">Contact</p>
+            <p class="name">Léo Yecora-Zorzano</p>
+            <p class="role">Ingénieur hydrogéologue — LYZa</p>
+          </div>
+          <p class="lines">
+            <b>06 73 91 88 43</b><br />
+            <a href="mailto:loyec@protonmail.com">loyec@protonmail.com</a><br />
+            2 route de la Forge, 50590 Regnéville-sur-Mer
+          </p>
+        </div>
+        <p class="legal">
+          Léo Yecora-Zorzano, entrepreneur individuel — SIRET 106 806 250 00010 — TVA non applicable, article 293 B du
+          Code général des impôts — <span style="white-space: nowrap">lyza-environnement.github.io/LYZa</span>
+        </p>
+      </footer>
+    </section>
+
+    <script>
+      // Sur un petit écran, réduit les pages A4 à la largeur disponible.
+      ;(() => {
+        const ajuster = () => {
+          const largeur = document.documentElement.clientWidth
+          const page = 210 * 3.7795 + 24
+          const z = Math.min(1, largeur / page)
+          document.querySelectorAll('.page').forEach((p) => (p.style.zoom = z < 1 ? String(z) : ''))
+        }
+        addEventListener('resize', ajuster)
+        addEventListener('beforeprint', () => document.querySelectorAll('.page').forEach((p) => (p.style.zoom = '')))
+        addEventListener('afterprint', ajuster)
+        ajuster()
+      })()
+    </script>
+  </body>
+</html>
