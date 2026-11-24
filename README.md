@@ -152,6 +152,86 @@ Pages : Accueil, Présentation, Accompagnement (démarche + secteurs
 d'intervention + prestations, avec une page de détail par prestation),
 Évaluer un site (la carte), LYZa Cartes, Actualités, Contact.
 
+## Outils internes — devis, factures, avis sommaires (`frontend/outils/`)
+
+Page réservée, protégée par mot de passe, publiée à
+`https://lyza-environnement.github.io/LYZa/outils/`. Elle reprend la trame
+et le style des documents LYZa existants (Verdana, titres numérotés en
+capitales vertes, tableaux encadrés, pied de page légal) :
+
+- **Devis** : catalogue de prestations (prix du business plan forages et des
+  missions déjà facturées), ensembles prêts à l'emploi (« forage agricole »,
+  « prélèvement de sol + analyses »), remise en %, numéro `AAAAMMJJ`. Les
+  sections *Objet*, *Prestations incluses*, *Hypothèses et limites* et
+  *Délai d'exécution* se composent à partir des prestations choisies, puis
+  restent modifiables. Un devis se transforme en facture en un clic.
+- **Factures** : numéro `AAAAMMJJ_CODECLIENT`, client professionnel,
+  particulier ou administration (conditions de paiement, pénalités et
+  indemnité de 40 € adaptées, n° d'engagement et Chorus Pro pour les
+  clients publics), tableau de synthèse des avis émis, RIB et référence à
+  rappeler, contrôle de la chronologie des numéros, suivi des paiements.
+- **Avis sommaires** : modèle « enfouissement d'urgence de cadavres
+  d'animaux » (repris de l'avis existant) et modèle libre ; identification
+  de la demande, limites sans visite, sources consultées (liens directs
+  Géoportail / InfoTerre à partir des coordonnées), figure de localisation
+  importée, tableau d'analyse, prescriptions, avis favorable / sous
+  réserves / défavorable. Les avis « à facturer » s'importent dans une
+  facture, qui en déduit la quantité.
+- **Sorties** : impression / PDF depuis le navigateur (A4, pied de page
+  légal sur chaque page) et export Word `.docx` (styles, puces, tableaux,
+  images, pied de page avec numéros de page), produit sans bibliothèque
+  par `js/07-docx.js`. Les deux sorties partent de la même description
+  du document (`js/05-modele.js`).
+
+### Où sont les données ?
+
+Tout reste **dans le navigateur** (IndexedDB) : aucun serveur, aucune
+donnée client dans le dépôt. L'onglet Paramètres exporte et importe une
+sauvegarde JSON — à faire régulièrement, et pour passer d'un ordinateur à
+l'autre. Les coordonnées bancaires et la signature se saisissent aussi
+dans Paramètres ; elles ne sont jamais écrites dans le dépôt.
+
+### Protection par mot de passe
+
+Le site étant public, un simple formulaire de mot de passe en JavaScript
+ne protégerait rien. Au build, `scripts/outils.mjs` assemble l'outil en une
+seule page puis la **chiffre** (AES-256-GCM, clé dérivée du mot de passe par
+PBKDF2-SHA256, 600 000 itérations) : la page publiée ne contient que le
+formulaire et le contenu chiffré, déchiffré dans le navigateur.
+
+À configurer une fois dans GitHub (Settings → Secrets and variables →
+Actions → New repository secret) :
+
+| Secret | Rôle |
+| --- | --- |
+| `LYZA_OUTILS_MDP` | Mot de passe (obligatoire). Une phrase de passe de 4 mots ou plus. Sans lui, la page publiée indique seulement « outils non configurés ». |
+| `LYZA_IBAN`, `LYZA_BIC`, `LYZA_BANQUE`, `LYZA_TITULAIRE` | Facultatifs : pré-remplissent le RIB des factures, uniquement dans la page chiffrée. |
+
+Changer le mot de passe = modifier le secret puis relancer le workflow
+(onglet Actions → Deploy to GitHub Pages → Run workflow).
+
+Limite à connaître : le dépôt est public, donc **le code et le catalogue de
+prix** (`js/03-catalogue.js`) y sont lisibles. Le mot de passe protège
+l'accès à l'outil en ligne et le RIB injecté, pas le code. Les prix modifiés
+dans l'onglet Catalogue, eux, restent dans le navigateur.
+
+### Développer en local
+
+```bash
+cd frontend
+npm run dev          # puis ouvrir http://localhost:5173/outils/
+npm run outils:clair # page assemblée en clair dans outils-local/ (jamais publiée)
+```
+
+## Plaquette — `frontend/public/plaquette/`
+
+Plaquette A4 recto-verso à imprimer ou à joindre à un courrier, publiée à
+`https://lyza-environnement.github.io/LYZa/plaquette/` (lien dans le pied
+de page du site), avec sa version PDF `plaquette-lyza.pdf`. Police DM Sans
+(SIL Open Font License, `fonts/OFL-DMSans.txt`), couleurs du logo. Après une
+modification de `index.html`, régénérer le PDF avec `npm run plaquette`
+(nécessite Playwright) et le committer.
+
 ## L'outil "Évaluer un site"
 
 La page est structurée en deux parties, qui répondent à deux questions
