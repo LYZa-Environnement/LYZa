@@ -152,6 +152,19 @@ Pages : Accueil, Présentation, Accompagnement (démarche + secteurs
 d'intervention + prestations, avec une page de détail par prestation),
 Évaluer un site (la carte), LYZa Cartes, Actualités, Contact.
 
+## Plaquette — `frontend/public/plaquette/`
+
+Plaquette A4 recto-verso à imprimer ou à joindre à un courrier, publiée à
+`https://lyza-environnement.github.io/LYZa/plaquette/` (lien dans le pied
+de page du site), avec sa version PDF `plaquette-lyza.pdf` (bouton
+« Télécharger le PDF » sur la page). Police DM Sans (SIL Open Font License,
+`fonts/OFL-DMSans.txt`), couleurs du logo. Après une modification de
+`index.html`, régénérer le PDF avec `npm run plaquette` (nécessite
+Playwright) et le committer.
+
+Les outils internes (devis, factures, avis sommaires) sont dans un dépôt à
+part : [LYZa-Environnement/LYZa-Gestion](https://github.com/LYZa-Environnement/LYZa-Gestion).
+
 ## L'outil "Évaluer un site"
 
 La page est structurée en deux parties, qui répondent à deux questions
